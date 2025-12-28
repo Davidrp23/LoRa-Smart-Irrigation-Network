@@ -8,6 +8,7 @@
 #include <Adafruit_SSD1306.h>
 
 #include <set>
+#include <unordered_map>
 
 //define the pins used by the LoRa transceiver module
 #define SCK 5
@@ -31,18 +32,21 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
+//Router Params
+#define MAX_CONECTIONS 30
+#define CLIENT_TIMEOUT 30 //maximum connection time per client (in seconds)
+
 TaskHandle_t routerLoopTaskHandle = NULL;
 
-const double MODULE_ID = 0; // Indicara el ID entre todos los productos de riego a nivel global, esto se hace para asociar el router o producto con la cuenta del usuario dentro de la plataforma
+const size_t MODULE_ID = 0; // Indicara el ID entre todos los productos de riego a nivel global, esto se hace para asociar el router o producto con la cuenta del usuario dentro de la plataforma
                          // Los clientes del router tambien tendran una ID como esta
 
-struct ClientInfo {
-  int direction;         // Dirección interna dentro de la red LoRa, se usa para calcular los marcos temporales de cada dispositivo en la RED (Definido mas adelante)
-  unsigned long lastConection; // Timestamp de la última conexión/actividad  --> IMPORTANTE!!! : Cuando se tengan los modulos DS1302 ,reemplazar por la fecha exacta de la ultima conexion
-};
+size_t conectedClients[MAX_CONECTIONS]; //Lista donde almacenamos los clientes conectados a la red gestionada por este router
+size_t blockedClients[MAX_CONECTIONS]; //Set donde guardaremos todos los clientes que el router o el usuario haya decidido bloquear
 
-std::unordered_map<double, ClientInfo> conectedClients; //Mapa donde la clave es el identificador global del cliente y el valor su informacion
-std::set<double> blockedClients; //Set donde guardaremos todos los clientes que el router o el usuario haya decidido bloquear
+//Cliente actual conectado
+size_t currentClient = NULL;
+
 
 String msg = "";
 double receivedPackages = 0;
@@ -60,7 +64,6 @@ enum class messageType : uint8_t {
     DATA_ACK = 0x21, // Acknowledge (Confirmación) de recepción de DATA
     
     // Mensajes de Mantenimiento / Finalización
-    NAK = 0x30,      // Negative Acknowledge (Error / No reconocido)
     FIN = 0x31,      // Finalizar la transmisión
 
     // --- Solicitud y Descubrimiento ---
@@ -74,9 +77,9 @@ enum class messageType : uint8_t {
     // --- Bloqueo y Mantenimiento ---
     NODE_BLOCKED = 0x60,      // Mensaje del coordinador para informar a un nodo que está bloqueado.
     NODE_LEAVING = 0x61,      // Mensaje de un nodo que desea salir de la red de forma controlada.
+
+    INVALID = 0x00  // Default o desconocido
     
-    // Default o desconocido
-    INVALID = 0x00
 };
 
 #define MAX_PAYLOAD_SIZE 240 // Máximo de bytes para DATA
@@ -91,11 +94,37 @@ typedef struct __attribute__((packed)) {
     uint8_t length; 
     
     // 3. Carga Útil (Máximo 240 Bytes)
-    uint8_t data[MAX_PAYLOAD_SIZE];
+    union {
+        uint8_t raw[MAX_PAYLOAD_SIZE];
+        ControlData ControlData;
+        SensorsData SensorsData;
+    } data;
     
     // 4. Checksum (2 Bytes) - Se recomienda CRC16
     uint16_t checksum; 
 } LoRaMessage;
+
+typedef struct __attribute__((packed)) {
+
+    size_t router; //Router al que va destinado el paquete
+
+    size_t id; // ID desde el que proviene el paquete
+
+}ControlData;
+
+typedef struct __attribute__((packed)) {
+
+    size_t router; //Router al que va destinado el paquete
+
+    size_t id; // ID desde el que proviene el paquete
+  
+  /*
+  GPS
+  HUM
+  BAT
+  */
+}SensorsData;
+
 
 
 // Función de CRC-16/CCITT-FALSE (una implementación común)
@@ -114,7 +143,7 @@ uint16_t calculateChecksum(const uint8_t* buf, size_t len) {
 }
 
 
-LoRaMessage makePackage(messageType type, String data){
+LoRaMessage makePackage(messageType type, String data){ //Se adjunta structs de distinto tipo!
 
   LoRaMessage msg;
 
@@ -125,7 +154,7 @@ LoRaMessage makePackage(messageType type, String data){
 
   //Copiar los datos del String al array data[]
   //Aseguramos que no exceda el MAX_PAYLOAD_SIZE
-  memcpy(msg.data, data_c_str, std::min((size_t)msg.length, (size_t)MAX_PAYLOAD_SIZE));
+  memcpy(msg.data.raw, data_c_str, std::min((size_t)msg.length, (size_t)MAX_PAYLOAD_SIZE));
 
   // El tamaño a calcular el checksum es todo el struct menos el campo checksum
   size_t checksum_area_size = sizeof(LoRaMessage) - sizeof(uint16_t);
@@ -189,7 +218,7 @@ void setup() {
 
   LoRaMessage outgoingPacket;
 
-  //Por defecto, el router solo estara a la escucha, nunca enviara un mensaje a la mota (ya que esta en deep sleep), sera esta ultima cuando despierte, la que inicie la comunicacion hacia el router
+  //Por defecto, el router solo estara a la escucha, nunca empezara una comunicacion con la mota (ya que esta en deep sleep), sera esta ultima cuando despierte, la que inicie la comunicacion hacia el router
 
   LoRa.onReceive(onReceive); //Configuramos a la funcion onRecibe como callback cuando se reciba un paquete, usa el pin dio0 para configurar una interrupcion
   LoRa.receive(); // Ponemos el router en modo escucha 
@@ -246,7 +275,7 @@ void setup() {
   
   -Marco temporal y colisiones:
     El marco temporal va en relacion con la identificacion interna del nodo en la red.
-    Cada nodo cuando se conecta recibe el numero que ocupa, por ejemplo el 10.
+    Cada nodo cuando se conecta recibe el numero que ocupa en la red, por ejemplo el 10.
     
     El usuario elige cada cuanto tiempo quiere que las motas recolecten informacion sobre la humedad, y el router le dira a cada mota cuando le tiene que entregar informacion.
     Este tiempo se calcula segun la identificacion interna de cada nodo y sera distinto para cada uno, con el fin de minimizar al maximo la posibilidad de que colisionen los paquetes.
@@ -302,7 +331,7 @@ void process(LoRaMessage incomingPackage){
 
     //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
 
-    case messageType::RTS : // El nodo solicita permiso para enviar, se le envia CLS si el canal esta libre o nada si esta ocupado 
+    case messageType::RTS : // El nodo solicita permiso para enviar, se le envia CTS si el canal esta libre o nada si esta ocupado 
       break;
 
     case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
@@ -311,13 +340,10 @@ void process(LoRaMessage incomingPackage){
     case messageType::FIN : // El nodo termina la comunicacion 
       break;
 
-    case messageType::INVALID : // El mensaje recivido por el nodo es invalido --> Enviamos NAK para que lo envie de nuevo
-      break;
-
     case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
       break;
 
-    case messageType::NAK : // El nodo envia NAK, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
+    case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
       break;
 
     case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
@@ -330,7 +356,7 @@ void process(LoRaMessage incomingPackage){
 
 }
 
-LoRaMessage receivePacket(){
+LoRaMessage receivePacket(){ //Falta colocar checksum
   
   // Define el tamaño mínimo de un paquete (Headers sin payload, 4B):
   const size_t MIN_PACKET_SIZE = sizeof(messageType) + sizeof(uint8_t) + sizeof(uint16_t); // 4 bytes (messageType, length, checksum)
@@ -393,7 +419,7 @@ LoRaMessage receivePacket(){
 
         size_t actualLength = std::min((size_t)incomingMessage.length, (size_t)MAX_PAYLOAD_SIZE);
 
-        memcpy(payloadBuffer, incomingMessage.data, actualLength);
+        memcpy(payloadBuffer, incomingMessage.data.raw, actualLength);
 
         payloadBuffer[actualLength] = '\0'; // Asegurar terminador nulo
 
