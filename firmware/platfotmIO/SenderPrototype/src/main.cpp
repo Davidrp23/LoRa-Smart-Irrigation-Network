@@ -1,18 +1,73 @@
 #include <Arduino.h>
+#include <Wire.h>               
+#include "HT_SSD1306Wire.h"
 
-// put function declarations here:
-int myFunction(int, int);
+static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
+
+
+
+void VextON(void)
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, LOW);
+}
+
+void VextOFF(void) //Vext default OFF
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, HIGH);
+}
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  // Initialize serial communication at 115200 bits per second:
+  Serial.begin(115200);
+
+  // Set the resolution of the analog-to-digital converter (ADC) to 12 bits (0-4095):
+  analogReadResolution(12);
+
+  // Set pin 37 as an output pin (used for ADC control):
+  pinMode(37, OUTPUT);
+
+  // Set pin 37 to HIGH (enable ADC control):
+  digitalWrite(37, HIGH);
+
+  VextON();
+  delay(100);
+
+  // Initialising the UI will init the display too.
+  display.init();
+
+  display.setFont(ArialMT_Plain_10);
+
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Read the raw analog value from pin 1 (range: 0-4095 for 12-bit resolution):
+  int analogValue = analogRead(1);
+
+  // Read the analog voltage in millivolts from pin 1:
+  int analogVolts = analogReadMilliVolts(1);
+
+  // Print the scaled analog value (scaled by a factor of 490/100):
+  Serial.printf("ADC analog value = %d\n", analogValue * 490 / 100);
+
+  // Print the scaled millivolts value (scaled by a factor of 490/100):
+  Serial.printf("ADC millivolts value = %d\n", analogVolts * 490 / 100);
+
+  // Add a delay of 1 second between readings for clear serial output:
+  delay(1000);
+
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+  // Sustituye tus líneas de impresión por estas:
+  float voltage = (analogVolts * 5.12) / 1000.0; // Factor 5.12 suele ser el "sweet spot" para la V3
+
+  Serial.printf("Voltaje real: %.2fV\n", voltage);
+
+  // En el OLED:
+  display.drawString(75, 30, String(voltage) + "V");
+  display.display();
 }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
-}
+

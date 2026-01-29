@@ -1,0 +1,62 @@
+/* 
+-- MODO DE OPERACION ROUTER LORA -- REVISAR
+
+  Un Router puede recibir los siguientes paquetes:
+
+    RTS -> Un nodo pide permiso para trasmitir 
+
+    DATA -> Un nodo envia informacion recolectada
+
+    NAK -> La respuesta que envio el router se recibio corrupta o no se pudo procesar en la mota por cualquier motivo
+
+    FIN -> Un nodo da por finalizada la comunicacion con el router
+
+    JOIN_REQUEST -> Un nodo quiere unirse a la Red
+
+    NODE_LEAVING -> Un nodo se va de la Red
+  
+  
+  Un Router puede enviar los siguientes paquetes:
+
+    CTS -> Se envia al cliente para indicarle que tiene el canal libre para trasmitir, hasta entonces espera.
+    
+    DATA_ACK -> Le indica al cliente que el dato que ha enviado se ha recibido correctamente
+    
+    NAK -> Le indica al cliente que el mensaje que envio esta corrupto o malformado (por ejemplo cuando el checksum no coincide) y que debe enviarlo de nuevo
+    
+    JOIN_ACCEPTED -> Le indica al cliente que ahora es parte de la red
+    
+    JOIN_DENIED -> Le indica al cliente que por algun motivo no se le admite en la red (porque esta llena por ejemplo)
+    
+    NODE_BLOCKED -> Le informa al cliente que esta en la lista negra del router y por ende no sera admitido (poruque el usuario desde la plataforma lo haya bloqueado)
+    
+    INVALID -> Se usa para indicar que el mensaje es invalido o no tiene sentido (pero no es por un error de trasmision, no indica malformacion o corrupcion en el paquete)
+
+  
+
+  -Una vez conectado:
+
+    Cada nodo o mota (dispositivo que manda informacion de la humedad de la tierra) contacta con el router periodicamente, segun el marco temporal que se le asigne.
+    El router (este dispositivo) enciende el AM-036 para pasarle la informacion de la mota para que lo envie usando datos moviles (de momento, el router solo imprimira el dato por serie)
+    Una vez que el AM-036 reciba la respuesta del servidor pasara la misma al router y el router a la mota con un DATA_ACK/INVALID. 
+    
+    Puede que al servidor cuando se le contacte, devuelva su respuesta junto a configuraciones para las motas o para el router. 
+    Por ejemplo, si el usuario ha hecho cambios en los ajustes de la motas, como cambiar la periodicidad de los datos o bloquear motas de la red. Estos cambios se envian cuando se contacta
+    con el servidor y no cuando se hacen en tiempo real ya que las motas y el AM-036 permanecen en deep-sleep la mayoria del tiempo por motivos de ahorro energetico.
+
+  
+  -Marco temporal y colisiones:
+    El marco temporal va en relacion con la identificacion interna del nodo en la red.
+    Cada nodo cuando se conecta recibe el numero que ocupa en la red, por ejemplo el 10.
+    
+    El usuario elige cada cuanto tiempo quiere que las motas recolecten informacion sobre la humedad, y el router le dira a cada mota cuando le tiene que entregar informacion.
+    
+    El router debera planificar de forma eficiente cuando despertar a las motas para recibir la informacion , actuara de planificador para reducir las colisiones en la mayor medida de lo posible.
+    Se podria usar el marco temporal para esta planificacion.
+
+    Los router y las motas que pertenezcan a diferentes redes deben estar en canales distitntos para no colisionar.
+    Por ejemplo las motas que recolecten informacion de parcelas agricolas adyaccentes pero que sean de distintos propietarios.
+
+
+
+*/

@@ -3,16 +3,12 @@
 #define TYPES_H          // 2. Define TYPES_H
 
 struct batteryStatus {
-  int adcValue;
   float realVoltage;
-  bool isCharging;
-  bool isCharged;
   int batteryPercentage;
 };
 
 struct senderStatus {
   batteryStatus battery;
-  String date;
   bool loraStatus;
   int humidity;
   String location;

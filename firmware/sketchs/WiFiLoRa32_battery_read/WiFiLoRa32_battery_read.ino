@@ -11,6 +11,65 @@
 
 static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
 
+struct batteryStatus {
+  int adcValue;
+  float realVoltage;
+  int batteryPercentage;
+};
+
+// --------------------------------Batery parameters--------------------------------
+
+// Pin de medición de batería (con divisor 100k/47k)
+const int V_BAT_PIN = 1; 
+
+// CALIBRACIÓN POR PUNTOS (Para corregir la no-linealidad)
+// PUNTOS DE REFERENCIA CALIBRADOS EN ADC
+const int ADC_BAT_MIN = 1104; // ADC a 3.30V real (0%)
+const int ADC_BAT_MAX = 1400; // ADC a 4.19V real (100% de reposo)
+
+// Voltajes Li-ion (para el mapeo de porcentaje)
+const int V_MIN_MAP = 330; // 3.30V * 100
+const int V_MAX_MAP = 419; // 4.20V * 100
+
+const int BATERY_MEASURE_ITERATIONS = 50;
+
+//------------------------------------------------------------------------------------
+
+batteryStatus checkBatteryStatus(){
+
+  batteryStatus status;
+  int adcVal = 0;
+
+  // --- 1. MEDICIÓN DE VOLTAJE ---  Se hacen varios para usar el promedio, ya que hay fluctuaciones.
+  delay(50);
+  for(int i=0; i<BATERY_MEASURE_ITERATIONS; i++){
+    adcVal += analogRead(V_BAT_PIN);
+    delay(10);
+  }
+
+  adcVal = adcVal/BATERY_MEASURE_ITERATIONS;
+
+  // --- CÁLCULO DE VOLTAJE Y PORCENTAJE ---
+  int realVoltageRaw = map(adcVal, ADC_BAT_MIN, ADC_BAT_MAX, V_MIN_MAP, V_MAX_MAP);
+  float realVoltage = (float)realVoltageRaw / 100.0;
+  
+  float voltageForMapping = realVoltage;
+  if (voltageForMapping > V_MAX_MAP/100.0) {
+      voltageForMapping = V_MAX_MAP/100.0; // Limita el voltaje al máximo mapeado
+  }
+  
+  int currentPercentage = map((int)(voltageForMapping * 100), V_MIN_MAP, V_MAX_MAP, 0, 100);
+  if (currentPercentage > 100) currentPercentage = 100; 
+  if (currentPercentage < 0) currentPercentage = 0; 
+  
+  
+  status.batteryPercentage=currentPercentage;
+  status.realVoltage=realVoltage;
+  status.adcValue=adcVal;
+
+  return status;
+  
+}
 
 void VextON(void)
 {
@@ -48,32 +107,17 @@ void setup() {
 }
 
 void loop() {
-  // Read the raw analog value from pin 1 (range: 0-4095 for 12-bit resolution):
-  int analogValue = analogRead(1);
-
-  // Read the analog voltage in millivolts from pin 1:
+  //batteryStatus bs = checkBatteryStatus();
   int analogVolts = analogReadMilliVolts(1);
 
-  // Print the scaled analog value (scaled by a factor of 490/100):
-  Serial.printf("ADC analog value = %d\n", analogValue * 490 / 100);
-
-  // Print the scaled millivolts value (scaled by a factor of 490/100):
-  Serial.printf("ADC millivolts value = %d\n", analogVolts * 490 / 100);
-
-  // Add a delay of 1 second between readings for clear serial output:
-  delay(1000);
-
   display.clear();
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.setFont(ArialMT_Plain_10);
-  // Sustituye tus líneas de impresión por estas:
-  float voltage = (analogVolts * 5.12) / 1000.0; // Factor 5.12 suele ser el "sweet spot" para la V3
-
-  Serial.printf("Voltaje real: %.2fV\n", voltage);
-
-  // En el OLED:
-  display.drawString(75, 30, String(voltage) + "V");
+  display.drawString(0, 0, "Lectura Bateria:");
+  display.setFont(ArialMT_Plain_16);
+  display.drawString(0, 15, String((float)(analogVolts * 490 / 100)/1000) + " V");
+  display.drawString(0, 30, String(analogRead(1)) + " adc");
+  
   display.display();
+
+  delay(1000);
 }
-
-
