@@ -8,6 +8,9 @@
 #include <Wire.h>               
 #include "HT_SSD1306Wire.h"
 
+//Icons
+#include "images.h"
+
 
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define RF_FREQUENCY                                865000000 // Hz
@@ -41,10 +44,22 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr );
 //-------------------------------------------------------------------------------------- 
 
 //Params displayed on the OLED screen
-double receivedPackages = 0;
-double sentPackcages = 0;
-double sentErroredPackages = 0;
-double receivedErroredPackages = 0;
+int lastOledUpdate = 0;
+int receivedPackages = 0;
+int sentPackcages = 0;
+int sentErroredPackages = 0;
+int receivedErroredPackages = 0;
+
+
+//Operating Router Params
+#define MAX_CLIENTS 30
+
+size_t connectedClients[MAX_CLIENTS];
+
+uint8_t activeClients = 0;
+
+const size_t routerId = 1; // Los id son siempre > 0 
+
 
 
 enum class messageType : uint8_t {
@@ -79,7 +94,7 @@ typedef struct __attribute__((packed)) {
 
     size_t router; //Router al que va destinado el paquete
 
-    size_t id; // ID desde el que proviene el paquete
+    size_t id; // ID desde el que proviene el paquete, siempre > 0
 
 }ControlData;
 
@@ -87,13 +102,13 @@ typedef struct __attribute__((packed)) {
 
   size_t router; //Router al que va destinado el paquete
 
-  size_t id; // ID desde el que proviene el paquete
-
-  char GPS[40];
+  size_t id; // ID desde el que proviene el paquete, siempre > 0
 
   uint8_t humidity;
 
   uint8_t battery;
+
+  char GPS[25];
   
 }SensorsData;
 
@@ -104,28 +119,44 @@ typedef struct __attribute__((packed)) {
     messageType type; 
     
     // 2. Longitud de los datos (1 Byte) - Es vital para saber cuántos bytes son DATA real.
-    uint8_t length; 
+    uint8_t length;
+
+    // 3. Checksum (2 Bytes)
+    uint16_t checksum;  
     
-    // 3. Carga Útil (Máximo 240 Bytes)
+    // 4. Carga Útil (Máximo 240 Bytes)
     union {
-        uint8_t raw[MAX_PAYLOAD_SIZE];
-        ControlData ControlData;
-        SensorsData SensorsData;
+      uint8_t raw[MAX_PAYLOAD_SIZE];
+      ControlData ControlData;
+      SensorsData SensorsData;
     } data;
     
-    // 4. Checksum (2 Bytes)
-    uint16_t checksum; 
 } LoRaMessage;
-
 
 static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
 
+//---------------------------------------------------------VEXTON-----------------------------------------------------------------------
+
+void VextON(void)
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, LOW);
+}
+
+//-----------------------------------------------------------VEXTOFF----------------------------------------------------------
+
+void VextOFF(void) //Vext default OFF
+{
+  pinMode(Vext,OUTPUT);
+  digitalWrite(Vext, HIGH);
+}
+//-----------------------------------------------------------------------------------------------------------------------------
 
 void setup() {
 
   Mcu.begin(HELTEC_BOARD,SLOW_CLK_TPYE);
 
-  initializeOled();
+  VextON();
   
   //initialize Serial Monitor
   Serial.begin(115200);
@@ -134,15 +165,21 @@ void setup() {
 
   initializeLora();
   
+  initializeOled();
+  
 }
 
 
-
-
 void loop() {
+
   // put your main code here, to run repeatedly:
   Radio.IrqProcess( );
-  updateDisplayStatistics();
+
+  if( (millis() - lastOledUpdate) > 1000 ){
+    updateDisplayStatistics();
+    lastOledUpdate = millis();
+  }
+  
 }
 
 void OnTxDone( void ){
@@ -155,10 +192,9 @@ void OnTxDone( void ){
 
 void OnTxTimeout( void )
 {
-  Radio.Sleep( );
   Serial.print("TX Timeout......");
   sentErroredPackages++;
-  //Volver a intentar enviarlo nuevamente
+  //De momento si ocurre esto, no enviaremos respuesta.
   Radio.Rx( 0 );
 }
 
@@ -176,65 +212,29 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
     size_t expectedSize = MIN_PACKET_SIZE + incomingMessage.length;
 
     if (size == expectedSize) {
-        
-      receivedPackages++;
 
-      Serial.println("\n--- PAQUETE LORA RECIBIDO ---");
+      uint16_t expectedChecksum = calculateChecksum(incomingMessage);
+      
+      if(expectedChecksum == incomingMessage.checksum){
 
-      // 1. Imprimir el Tipo de Mensaje (Type)
+        receivedPackages++;
 
-      Serial.print("1. Tipo (Enum): ");
+        //Debug
+        packageToSerial(incomingMessage, size, rssi, snr);
 
-      Serial.println((uint8_t)incomingMessage.type, HEX);
+        process(incomingMessage);
 
+      }else{
 
-      // 2. Imprimir la Longitud de los Datos (Length)
+        // checksum invalido, hay datos corruptos
+        receivedErroredPackages++;
+        Serial.print("Error de checksum, checksum del mensaje: ");
+        Serial.print(incomingMessage.checksum);
+        Serial.print(", checksum calculado: ");
+        Serial.println(expectedChecksum);
 
-      Serial.print("2. Longitud de datos (Bytes): ");
+      }
 
-      Serial.println(incomingMessage.length);
-
-
-      // 3. Imprimir los Datos (Payload)
-
-      Serial.print("3. Datos (Payload): ");
-
-      // Usamos LoRaData para mostrar el mensaje en el Serial y Display
-
-      char payloadBuffer[MAX_PAYLOAD_SIZE + 1]; // +1 para el terminador nulo
-
-
-      // Copiamos los datos del array interno de la estructura al buffer local
-
-      // y nos aseguramos de no leer más de lo que la longitud indica.
-
-      size_t actualLength = std::min((size_t)incomingMessage.length, (size_t)MAX_PAYLOAD_SIZE);
-
-      memcpy(payloadBuffer, incomingMessage.data.raw, actualLength);
-
-      payloadBuffer[actualLength] = '\0'; // Asegurar terminador nulo
-
-
-      String receivedData = String(payloadBuffer);
-
-      Serial.println(receivedData);
-
-
-      // 4. Imprimir el Checksum (sin verificación por ahora)
-
-      Serial.print("4. Checksum (Recibido): 0x");
-
-      Serial.println(incomingMessage.checksum, HEX);
-
-      // 5. Imprimir el RSSI
-
-      Serial.print("RSSI: ");
-
-      Serial.println(rssi);
-
-
-
-      Serial.println("-----------------------------");    
     } else {
       // El campo 'length' indica X, pero el paquete recibido era Y. Error de protocolo.
       receivedErroredPackages++;
@@ -254,47 +254,82 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
     Serial.println(" bytes.");
   }
 
-  Radio.Sleep( );
-  delay(30);
-  Radio.Rx( 0 );
 }
 
 void process(LoRaMessage incomingPackage){
 
-  switch(incomingPackage.type){
+  //Para todos los tipos excepto DATA, la carga util del paquete se interpreta como un ControlData, para recurperar el id y el router da igual como interpretemos el union ya que en 
+  //los 2 casos se encuentran en la misma posicion.
 
-    //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
+  const size_t CLIENT_ID = incomingPackage.data.ControlData.id;
+  const size_t DESTINATION_ROUTER = incomingPackage.data.ControlData.router;
 
-    case messageType::RTS : // El nodo solicita permiso para enviar, se le envia CTS si el canal esta libre o nada si esta ocupado 
-      break;
+  if(DESTINATION_ROUTER == routerId){
 
-    case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
-      break;
+    Serial.println("Se ha recibido un paquete con destino este router.");
+    
+    switch(incomingPackage.type){
 
-    case messageType::FIN : // El nodo termina la comunicacion 
-      break;
+      //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
 
-    case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
-      break;
+      case messageType::RTS : // El nodo solicita permiso para enviar, se le envia CTS si el canal esta libre o nada si esta ocupado 
+        break;
 
-    case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
-      break;
+      case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
+        break;
 
-    case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
-      break;
+      case messageType::FIN : // El nodo termina la comunicacion 
+        break;
 
-    default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
-      break;
+      case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
 
+        Serial.printf("El nodo %d esta intentando conectarse a la red.\n", CLIENT_ID);
+        
+        //Comprobamos si el cliente esta conectado ya a la red
+        if(getClientIndex(CLIENT_ID) == (char)-1){
+          //Incorporamos al nodo a la lista de clientes conectados
+          addClient(CLIENT_ID);
+          Serial.printf("El nodo %d se ha conectado a la red.\n", CLIENT_ID);
+          //Le informamos de que ha sido incorporado en la red
+        }else{
+          Serial.printf("El nodo %d se ha intentado conectar a la red, pero ya estaba conectado.\n", CLIENT_ID);
+          //Le respondemos que aceptamos su peticion pero no hacemos cambios en la lista de clientes.
+        }
+        sendPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
+        break;
+
+      case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
+        break;
+
+      case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
+        break;
+
+      default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
+        break;
+
+    }
+
+  }else{
+    Serial.printf("Este router ha recibido un paquete para el router con ID: %d, descartando...\n",DESTINATION_ROUTER);
   }
 
 }
 
 // Función de CRC-16/CCITT-FALSE (una implementación común)
-uint16_t calculateChecksum(const uint8_t* buf, size_t len) {
+uint16_t calculateChecksum(LoRaMessage msg) {
+
+  const size_t buffSize = sizeof(msg.type) + sizeof(msg.length) + msg.length;
+  uint8_t buff[buffSize];
+
+  // Metemos todos los datos del msg lora en un buffer
+  //Calculo el checksum de todos los campos menos del propio checksum, una forma seria poner el checksum al final (del struct) y excluirlo, pero el campo data es variable por lo que debe ir al final.
+  memcpy(&buff, &msg.type , sizeof(msg.type));
+  memcpy(&buff[sizeof(msg.type)], &msg.length , sizeof(msg.length));
+  memcpy(&buff[sizeof(msg.type) + sizeof(msg.length)], &msg.data, msg.length);
+
   uint16_t crc = 0xFFFF;
-  for (size_t i = 0; i < len; i++) {
-    crc ^= (uint16_t)buf[i] << 8;
+  for (size_t i = 0; i < sizeof(buff); i++) {
+    crc ^= (uint16_t)buff[i] << 8;
     for (int j = 0; j < 8; j++) {
       if (crc & 0x8000)
         crc = (crc << 1) ^ 0x1021; // Polinomio CRC-16/CCITT
@@ -305,23 +340,41 @@ uint16_t calculateChecksum(const uint8_t* buf, size_t len) {
   return crc;
 }
 
-void sendPacket(LoRaMessage msg){
-  // 1. Calcular el tamaño exacto del paquete.
-  // No vamos a enviar el tamaño completo del struct (244B) ya que el mensaje puede que no contenga el tamaño completo del buffer y estariamos desperdiciando tiempo valioso de trasmision
+//El router solo envia paquetes de control. Esta funcion tiene como parametro el tipo de mensaje y el ID del nodo destinatario.
+void sendPacket(messageType type, size_t clientID){
+
+  Radio.Sleep( ); //Quitamos la radio del modo escucha
+
+  //Formamos el paquete.
+  LoRaMessage msg;
+  msg.type = type;
+
+  ControlData cdata;
+  cdata.id = clientID;
+  cdata.router = routerId;
+
+  msg.length = sizeof(ControlData); //Tamaño de la carga util
+  msg.data.ControlData = cdata;
+  
+  msg.checksum = calculateChecksum(msg);
+
+  // Calcular el tamaño exacto del paquete.
+  // No vamos a enviar el tamaño completo del struct (244B) ya que el mensaje puede que no contenga el maximo tamaño posible (controldata vs sensordata) y estariamos desperdiciando tiempo valioso de trasmision
   // En lugar de enviar paquetes estaticos de 244B enviaremos paquetes dinamicos para aprovechar mejor el tiempo de trasmision
 
   // Calcula el tamaño real de los datos a transmitir:
   // 1 (type) + 1 (length) + msg.length (datos reales) + 2 (checksum)
 
-  size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
   
-  size_t realPacketSize = headers + msg.length;
+  const size_t realPacketSize = headers + msg.length; //Carga util + headers
 
   Serial.print("Enviando paquete binario de ");
   Serial.print(realPacketSize);
   Serial.println(" bytes...");
-  
+
   // --- Transmisión ---
+  delay(10); //Esperamos un poco antes de enviar
   Radio.Send((uint8_t *)&msg, realPacketSize);
 }
 
@@ -329,10 +382,28 @@ void initializeOled(){
   display.init();
   display.setFont(ArialMT_Plain_10);
   display.clear();
-  display.drawString(0, 0, String("Starting..."));
+  display.drawXbm(0,5,image_width,image_height,(const unsigned char *)image_bits);
   display.display();
-  delay(1000);
-  display.clear();
+  delay(2500);
+
+  //Draw progress bar 
+  for(int counter=0; counter<500; counter++){
+    display.clear();
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    display.drawString(0, 0, String("Initializing FLoRa Router..."));
+
+    int progress = (counter / 5) % 100;
+    // draw the progress bar
+    display.drawProgressBar(0, 38, 120, 10, progress);
+    counter++;
+
+    // draw the percentage as String
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+    display.drawString(64, 25, String(progress) + "%");
+    display.display();
+    delay(20);
+  }
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
 
 }
 
@@ -358,10 +429,94 @@ void initializeLora(){
 void updateDisplayStatistics(){
 
   display.clear();
-  display.drawString(0, 0, String("---Estadistica de paquetes:---"));
-  display.drawString(0, 20, String("Paquetes Enviados: ") + String(sentPackcages));
-  display.drawString(0, 40, String("Enviados Erroneos: ") + String(sentErroredPackages));
-  display.drawString(0, 50, String("Paquetes Recibidos: ") + String(receivedPackages));
-  display.drawString(0, 60, String("Recibidos Erroneos: ") + String(receivedErroredPackages));
+  display.drawString(0, 0, String("--Estadistica de paquetes:--"));
+  display.drawString(0, 15, String("Paquetes Enviados: ") + String(sentPackcages));
+  display.drawString(0, 25, String("Enviados Erroneos: ") + String(sentErroredPackages));
+  display.drawString(0, 35, String("Paquetes Recibidos: ") + String(receivedPackages));
+  display.drawString(0, 45, String("Recibidos Erroneos: ") + String(receivedErroredPackages));
   display.display();  
 }
+
+//--------------------------------------------------Clients Managment--------------------------------------------------
+
+//Devuelve la posicion del cliente en la lista ( >= 0 ) si estaba presente, -1 en caso contrario
+char getClientIndex(const size_t client){
+
+  for(uint8_t c = 0 ; c < activeClients; c++ ){ //Para que no de muchas vueltas, en vez de poner MAX_CLIENT podemos poner el numero de clientes activos, pero debemos tener el buffer siempre compacto
+    if(connectedClients[c] == client){                //Ver la funcion de eliminacion de clientes
+      return c;
+    }
+  }
+  return -1;
+}
+
+void addClient(const size_t client){
+  connectedClients[activeClients] = client;
+  activeClients++;
+}
+
+//Elimina un cliente. Coje al ultimo cliente de la lista y lo pone en la posicion del cliente que se va a eliminar, para tener siempre el array compacto.
+bool deleteClient(const size_t client){
+
+  char pos = getClientIndex(client);
+  if(pos >= 0){
+    connectedClients[pos] = connectedClients[activeClients - 1];
+    connectedClients[activeClients - 1] = 0;
+    activeClients--;
+    return true;
+  }
+  return false;
+}
+//------------------------------------------------------------------------------------------------------------------------
+
+//------------------------------------------------Debug functions--------------------------------------------------------
+
+void packageToSerial(LoRaMessage pkg, uint16_t size, int16_t rssi, int8_t snr){
+
+  Serial.println("\n--- PAQUETE LORA RECIBIDO ---");
+
+  Serial.printf("Tamaño total del paquete recibido: %d Bytes\n",size);
+
+  // 1. Imprimir el Tipo de Mensaje (Type)
+
+  Serial.print("1. Tipo (Enum): ");
+
+  Serial.println((uint8_t)pkg.type, HEX);
+
+
+  // 2. Imprimir la Longitud de los Datos (Length)
+
+  Serial.print("2. Longitud de datos (Bytes): ");
+
+  Serial.println(pkg.length);
+
+  // 3. Imprimir los Datos (Payload) 
+
+  Serial.print("3. Datos (Payload): ");
+
+  if(pkg.type == messageType::DATA){
+    
+    Serial.printf("Router: %d | ID: %d | Humidity: %d | Battery: %d | GPS: %s\n", pkg.data.SensorsData.router, pkg.data.SensorsData.id,
+    pkg.data.SensorsData.humidity, pkg.data.SensorsData.battery, pkg.data.SensorsData.GPS);
+
+  }else{ // Packetes de control
+
+    Serial.printf("Router: %d | ID: %d \n", pkg.data.ControlData.router, pkg.data.ControlData.id);
+
+  }
+  // 4. Imprimir el Checksum (sin verificación por ahora)
+
+  Serial.print("4. Checksum (Recibido): 0x");
+
+  Serial.println(pkg.checksum, HEX);
+
+  // 5. Imprimir el RSSI
+
+  Serial.print("5. RSSI: ");
+
+  Serial.println(rssi);
+
+  // 6. SNR
+  Serial.printf("6. SNR: %d\n", snr);
+}
+
