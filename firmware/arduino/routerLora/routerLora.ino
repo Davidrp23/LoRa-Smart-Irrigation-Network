@@ -41,40 +41,29 @@ void OnTxDone( void );
 void OnTxTimeout( void );
 void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr );
 
-//-------------------------------------------------------------------------------------- 
-
-//Params displayed on the OLED screen
-int lastOledUpdate = 0;
-int receivedPackages = 0;
-int sentPackcages = 0;
-int sentErroredPackages = 0;
-int receivedErroredPackages = 0;
-
-
 //Operating Router Params
 #define MAX_CLIENTS 30
+#define SSID_LENGTH 12 + 1 // +1 para el terminador nulo
 
-size_t connectedClients[MAX_CLIENTS];
 
-uint8_t activeClients = 0;
-
-const size_t routerId = 1; // Los id son siempre > 0 
-
+//-------------------------------------STRUCTS------------------------------------------------- 
 
 enum class messageType : uint8_t {
 
     // --- Solicitud y Descubrimiento ---
-    BEACON_FRAME = 0x00,      // Request To Send (Solicitud para enviar)
+    BEACON_REQUEST = 0x00,      // La mota envia este mensaje para descubir nuevos routers a los que conectarse.
     
-    JOIN_REQUEST = 0x01,      // Solicitud de union a la red
-    
-    JOIN_ACCEPTED = 0x02,     // Respuesta del coordinador que acepta la solicitud. 
-    
-    JOIN_DENIED = 0x03,       // Respuesta del coordinador que deniega la solicitud de unión.
+    BEACON_RESPONSE = 0x01,    // El router responde a un BEACON_REQUEST con un un BEACON_RESPONSE dando informacion de la red que gestiona.
 
-    NODE_BLOCKED = 0x04,      // Mensaje del coordinador para informar a un nodo que está bloqueado.
+    JOIN_REQUEST = 0x02,      // Solicitud de union a la red.
+    
+    JOIN_ACCEPTED = 0x03,     // Respuesta del coordinador que acepta la solicitud. 
+    
+    JOIN_DENIED = 0x04,       // Respuesta del coordinador que deniega la solicitud de unión.
 
-    NODE_LEAVING = 0x05,      // Mensaje de un nodo que desea salir de la red de forma controlada.
+    NODE_BLOCKED = 0x05,      // Mensaje del coordinador para informar a un nodo que está bloqueado.
+
+    NODE_LEAVING = 0x06,      // Mensaje de un nodo que desea salir de la red de forma controlada.
     
     // ---  Mensajes de Datos ---
     DATA = 0x20,     // Paquete que contiene la carga útil de datos, entre ellos se encuentra la huedad, bateria y localizacion.
@@ -83,7 +72,7 @@ enum class messageType : uint8_t {
 
     DATA_ACK = 0x22, // Acknowledge (Confirmación) de recepción de DATA
 
-    INVALID = 0xFF  // Default o desconocid o
+    INVALID = 0xFF  // Default o desconocido
     
 };
 
@@ -103,7 +92,7 @@ typedef struct __attribute__((packed)) {
 
   size_t router; //Router que gestiona la red anunciada
 
-  char SSID[12]; //Nombre descriptivo de la red anunciada, se muestra en la pantalla oled de las motas en el proceso de vinculacion.
+  char SSID[SSID_LENGTH]; //Nombre descriptivo de la red anunciada, se muestra en la pantalla oled de las motas en el proceso de vinculacion.
 
 
 }NetworkData;
@@ -162,6 +151,8 @@ typedef struct __attribute__((packed)) {
     
 } LoRaMessage;
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+
 static SSD1306Wire  display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
 
 //---------------------------------------------------------VEXTON-----------------------------------------------------------------------
@@ -179,7 +170,25 @@ void VextOFF(void) //Vext default OFF
   pinMode(Vext,OUTPUT);
   digitalWrite(Vext, HIGH);
 }
-//-----------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------GLOBAL VARIABLES--------------------------------------------------------------
+
+//Params displayed on the OLED screen
+int lastOledUpdate = 0;
+int receivedPackages = 0;
+int sentPackcages = 0;
+int sentErroredPackages = 0;
+int receivedErroredPackages = 0;
+
+size_t connectedClients[MAX_CLIENTS];
+
+uint8_t activeClients = 0;
+
+const size_t routerId = 1; // Los id son siempre > 0
+const char SSID[SSID_LENGTH] = "Parcela00001";
+NetworkData NETWORK_DATA;
+
+//----------------------------------------------------------------------------------------------------------------------------------------
+
 
 void setup() {
 
@@ -195,7 +204,10 @@ void setup() {
   initializeLora();
   
   initializeOled();
-  
+
+  NETWORK_DATA.router = routerId;
+  mempcpy(&NETWORK_DATA.SSID, SSID, SSID_LENGTH);
+
 }
 
 
@@ -287,57 +299,63 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
 
 void process(LoRaMessage incomingPackage){
 
-  //Para todos los tipos excepto DATA, la carga util del paquete se interpreta como un ControlData, para recurperar el id y el router da igual como interpretemos el union ya que en 
-  //los 2 casos se encuentran en la misma posicion.
 
-  const size_t CLIENT_ID = incomingPackage.data.ControlData.id;
-  const size_t DESTINATION_ROUTER = incomingPackage.data.ControlData.router;
-
-  if(DESTINATION_ROUTER == routerId){
-
-    Serial.println("Se ha recibido un paquete con destino este router.");
+  if(incomingPackage.type == messageType::BEACON_REQUEST){ //El nodo solicita un BEACON_RESPONSE para descubir nuevos routers.
     
-    switch(incomingPackage.type){
-
-      //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
-
-      case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
-        break;
-
-      case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
-
-        Serial.printf("El nodo %d esta intentando conectarse a la red.\n", CLIENT_ID);
-        
-        //Comprobamos si el cliente esta conectado ya a la red
-        if(getClientIndex(CLIENT_ID) == (char)-1){
-          //Incorporamos al nodo a la lista de clientes conectados
-          addClient(CLIENT_ID);
-          Serial.printf("El nodo %d se ha conectado a la red.\n", CLIENT_ID);
-          //Le informamos de que ha sido incorporado en la red
-        }else{
-          Serial.printf("El nodo %d se ha intentado conectar a la red, pero ya estaba conectado.\n", CLIENT_ID);
-          //Le respondemos que aceptamos su peticion pero no hacemos cambios en la lista de clientes.
-        }
-        sendPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
-        break;
-
-      
-      case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
-        break;
-     
-      case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
-        break;
-
-
-      default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
-        break;
-
-    }
+    sendBeaconResponse();
 
   }else{
-    Serial.printf("Este router ha recibido un paquete para el router con ID: %d, descartando...\n",DESTINATION_ROUTER);
-  }
+    //Para todos los tipos excepto DATA, la carga util del paquete se interpreta como un ControlData, para recurperar el id y el router da igual como interpretemos el union ya que en 
+    //los 2 casos se encuentran en la misma posicion.
 
+    const size_t CLIENT_ID = incomingPackage.data.ControlData.id;
+    const size_t DESTINATION_ROUTER = incomingPackage.data.ControlData.router;
+
+    if(DESTINATION_ROUTER == routerId){
+
+      Serial.println("Se ha recibido un paquete con destino este router.");
+      
+      switch(incomingPackage.type){
+
+        //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
+
+        case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
+          break;
+
+        case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
+
+          Serial.printf("El nodo %d esta intentando conectarse a la red.\n", CLIENT_ID);
+          
+          //Comprobamos si el cliente esta conectado ya a la red
+          if(getClientIndex(CLIENT_ID) == (char)-1){
+            //Incorporamos al nodo a la lista de clientes conectados
+            addClient(CLIENT_ID);
+            Serial.printf("El nodo %d se ha conectado a la red.\n", CLIENT_ID);
+            //Le informamos de que ha sido incorporado en la red
+          }else{
+            Serial.printf("El nodo %d se ha intentado conectar a la red, pero ya estaba conectado.\n", CLIENT_ID);
+            //Le respondemos que aceptamos su peticion pero no hacemos cambios en la lista de clientes.
+          }
+          sendControlPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
+          break;
+
+        
+        case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
+          break;
+        
+        case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
+          break;
+
+
+        default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
+          break;
+
+      }
+
+    }else{
+      Serial.printf("Este router ha recibido un paquete para el router con ID: %d, descartando...\n",DESTINATION_ROUTER);
+    }
+  }
 }
 
 // Función de CRC-16/CCITT-FALSE (una implementación común)
@@ -365,8 +383,8 @@ uint16_t calculateChecksum(LoRaMessage msg) {
   return crc;
 }
 
-//El router solo envia paquetes de control. Esta funcion tiene como parametro el tipo de mensaje y el ID del nodo destinatario.
-void sendPacket(messageType type, size_t clientID){
+//Esta funcion tiene como parametro el tipo de mensaje y el ID del nodo destinatario. Envia un paquete de control del tipo seleccionado al cliente seleccionado
+void sendControlPacket(messageType type, size_t clientID){
 
   Radio.Sleep( ); //Quitamos la radio del modo escucha
 
@@ -402,6 +420,34 @@ void sendPacket(messageType type, size_t clientID){
   delay(10); //Esperamos un poco antes de enviar
   Radio.Send((uint8_t *)&msg, realPacketSize);
 }
+
+//Esta funcion se usa para enviar un BEACON_RESPONSE cuando una mota lo solicita de forma previa con un BEACON_REQUEST
+void sendBeaconResponse(){
+
+  Radio.Sleep( ); //Quitamos la radio del modo escucha
+
+  //Formamos el paquete.
+  LoRaMessage msg;
+  msg.type = messageType::BEACON_RESPONSE;
+  msg.length = sizeof(NetworkData); //Tamaño de la carga util
+  msg.data.NetworkData = NETWORK_DATA;
+  
+  msg.checksum = calculateChecksum(msg);
+
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+  
+  const size_t realPacketSize = headers + msg.length; //Carga util + headers
+
+  Serial.print("Enviando paquete binario de ");
+  Serial.print(realPacketSize);
+  Serial.println(" bytes...");
+
+  // --- Transmisión ---
+  delay(10); //Esperamos un poco antes de enviar
+  Radio.Send((uint8_t *)&msg, realPacketSize);
+
+}
+
 
 void initializeOled(){
   display.init();
