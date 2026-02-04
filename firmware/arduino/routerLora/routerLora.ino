@@ -61,46 +61,71 @@ uint8_t activeClients = 0;
 const size_t routerId = 1; // Los id son siempre > 0 
 
 
-
 enum class messageType : uint8_t {
-    // Mensajes de Control de Canal
-    RTS = 0x10,      // Request To Send (Solicitud para enviar)
-    CTS = 0x11,      // Clear To Send (Permiso para enviar)
-    
-    // Mensajes de Datos
-    DATA = 0x20,     // Paquete que contiene la carga útil de datos
-    DATA_ACK = 0x21, // Acknowledge (Confirmación) de recepción de DATA
-    
-    // Mensajes de Mantenimiento / Finalización
-    FIN = 0x31,      // Finalizar la transmisión
 
     // --- Solicitud y Descubrimiento ---
-    JOIN_REQUEST = 0x50,      // Solicitud de un nuevo nodo para unirse a la red.
-
-    // --- Respuesta del Coordinador (Admision) / Gateway ---
-    JOIN_ACCEPTED = 0x55,     // Respuesta del coordinador que acepta la solicitud. 
-                              // Debe incluir información de configuración (ej. ID de red, clave).
-    JOIN_DENIED = 0x56,       // Respuesta del coordinador que deniega la solicitud de unión.
+    BEACON_FRAME = 0x00,      // Request To Send (Solicitud para enviar)
     
-    // --- Bloqueo y Mantenimiento ---
-    NODE_BLOCKED = 0x60,      // Mensaje del coordinador para informar a un nodo que está bloqueado.
-    NODE_LEAVING = 0x61,      // Mensaje de un nodo que desea salir de la red de forma controlada.
+    JOIN_REQUEST = 0x01,      // Solicitud de union a la red
+    
+    JOIN_ACCEPTED = 0x02,     // Respuesta del coordinador que acepta la solicitud. 
+    
+    JOIN_DENIED = 0x03,       // Respuesta del coordinador que deniega la solicitud de unión.
 
-    INVALID = 0x00  // Default o desconocido
+    NODE_BLOCKED = 0x04,      // Mensaje del coordinador para informar a un nodo que está bloqueado.
+
+    NODE_LEAVING = 0x05,      // Mensaje de un nodo que desea salir de la red de forma controlada.
+    
+    // ---  Mensajes de Datos ---
+    DATA = 0x20,     // Paquete que contiene la carga útil de datos, entre ellos se encuentra la huedad, bateria y localizacion.
+
+    DATA_CONF = 0x021, //Paquete que contiene datos de configuracion para la mota
+
+    DATA_ACK = 0x22, // Acknowledge (Confirmación) de recepción de DATA
+
+    INVALID = 0xFF  // Default o desconocid o
     
 };
 
 typedef struct __attribute__((packed)) {
 
-    size_t router; //Router al que va destinado el paquete
+  //Paquete de carga util que contiene los ID del router y mota que se estan comunicando, estos campos se usan para evitar que otras motas/router procesen un paquete que no van para ellos.
 
-    size_t id; // ID desde el que proviene el paquete, siempre > 0
+  size_t router; //Router al que va destinado el paquete, siempre > 0 
+
+  size_t id; // ID desde el que proviene el paquete, siempre > 0
 
 }ControlData;
 
 typedef struct __attribute__((packed)) {
 
-  size_t router; //Router al que va destinado el paquete
+  //Paquete de carga util que contiene el ID del router que manda el beacon frame, asi como el SSID de la red 
+
+  size_t router; //Router que gestiona la red anunciada
+
+  char SSID[12]; //Nombre descriptivo de la red anunciada, se muestra en la pantalla oled de las motas en el proceso de vinculacion.
+
+
+}NetworkData;
+
+typedef struct __attribute__((packed)) {
+
+  //Paquete de carga util que contiene los ID del router y mota que se estan comunicando, estos campos se usan para evitar que otras motas/router procesen un paquete que no van para ellos.
+
+  size_t router; //Router al que va destinado el paquete, siempre > 0 
+
+  size_t id; // ID desde el que proviene el paquete, siempre > 0
+
+  size_t sendInterval; // Periodo en segundos que la mota tarda en enviar informacion
+
+}ConfData;
+
+typedef struct __attribute__((packed)) {
+
+  //Paquete de carga util que contiene los ID del router y mota que se estan comunicando, estos campos se usan para evitar que otras motas/router procesen un paquete que no van para ellos.
+  //Ademas de los ID contiene los datos que recopila la mota.
+
+  size_t router; //Router al que va destinado el paquete, siempre > 0
 
   size_t id; // ID desde el que proviene el paquete, siempre > 0
 
@@ -108,7 +133,9 @@ typedef struct __attribute__((packed)) {
 
   uint8_t battery;
 
-  char GPS[25];
+  float latitude; // Mejor mandar las coordenadas como 2 float (4B cada uno) que como un array de caracteres (Ahorramos espacio).
+
+  float longitude;
   
 }SensorsData;
 
@@ -127,7 +154,9 @@ typedef struct __attribute__((packed)) {
     // 4. Carga Útil (Máximo 240 Bytes)
     union {
       uint8_t raw[MAX_PAYLOAD_SIZE];
+      NetworkData NetworkData;
       ControlData ControlData;
+      ConfData ConfData;
       SensorsData SensorsData;
     } data;
     
@@ -272,13 +301,7 @@ void process(LoRaMessage incomingPackage){
 
       //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
 
-      case messageType::RTS : // El nodo solicita permiso para enviar, se le envia CTS si el canal esta libre o nada si esta ocupado 
-        break;
-
       case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
-        break;
-
-      case messageType::FIN : // El nodo termina la comunicacion 
         break;
 
       case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
@@ -298,11 +321,13 @@ void process(LoRaMessage incomingPackage){
         sendPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
         break;
 
+      
+      case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
+        break;
+     
       case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
         break;
 
-      case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
-        break;
 
       default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
         break;
@@ -496,8 +521,8 @@ void packageToSerial(LoRaMessage pkg, uint16_t size, int16_t rssi, int8_t snr){
 
   if(pkg.type == messageType::DATA){
     
-    Serial.printf("Router: %d | ID: %d | Humidity: %d | Battery: %d | GPS: %s\n", pkg.data.SensorsData.router, pkg.data.SensorsData.id,
-    pkg.data.SensorsData.humidity, pkg.data.SensorsData.battery, pkg.data.SensorsData.GPS);
+    Serial.printf("Router: %d | ID: %d | Humidity: %d | Battery: %d | GPS: LAT -> %.5f  -- LONG -> %.5f\n", pkg.data.SensorsData.router, pkg.data.SensorsData.id,
+    pkg.data.SensorsData.humidity, pkg.data.SensorsData.battery, pkg.data.SensorsData.latitude, pkg.data.SensorsData.longitude);
 
   }else{ // Packetes de control
 
