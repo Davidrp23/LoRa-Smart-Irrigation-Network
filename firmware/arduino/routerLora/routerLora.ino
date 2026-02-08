@@ -13,7 +13,7 @@
 
 
 //----------------------------------LORA_PARAMETERS----------------------------------
-#define RF_FREQUENCY                                865000000 // Hz
+#define RF_FREQUENCY                                868100000 // Hz
 
 #define TX_OUTPUT_POWER                             5        // dBm
 
@@ -64,13 +64,18 @@ enum class messageType : uint8_t {
     NODE_BLOCKED = 0x05,      // Mensaje del coordinador para informar a un nodo que está bloqueado.
 
     NODE_LEAVING = 0x06,      // Mensaje de un nodo que desea salir de la red de forma controlada.
+
+    NODE_LEAVING_ACK = 0x07,  //Mensaje para informar al nodo de que ha sido eliminado de la red.
     
     // ---  Mensajes de Datos ---
     DATA = 0x20,     // Paquete que contiene la carga útil de datos, entre ellos se encuentra la huedad, bateria y localizacion.
 
-    DATA_CONF = 0x021, //Paquete que contiene datos de configuracion para la mota
+    DATA_CONF = 0x21, //Paquete que contiene datos de configuracion para la mota, confirma que ha recibido sus datos en el paquete anterior (piggibacking), 
+    //se aprovecha para confirmar y enviar nueva configuracion. Si no hubiera configuracion nueva se confirman los datos recibidos en el paquete anterior con DATA_ACK.
 
-    DATA_ACK = 0x22, // Acknowledge (Confirmación) de recepción de DATA
+    DATA_CONF_ACK = 0x22, //Paquete que confirma que la mota ha recibido la configuracion enviada anteriormente en un paquete tipo DATA_CONF.
+
+    DATA_ACK = 0x23, // Acknowledge (Confirmación) de recepción de DATA.
 
     INVALID = 0xFF  // Default o desconocido
     
@@ -101,9 +106,9 @@ typedef struct __attribute__((packed)) {
 
   //Paquete de carga util que contiene los ID del router y mota que se estan comunicando, estos campos se usan para evitar que otras motas/router procesen un paquete que no van para ellos.
 
-  size_t router; //Router al que va destinado el paquete, siempre > 0 
+  size_t router; //ID Router que manda el paquete, siempre > 0 
 
-  size_t id; // ID desde el que proviene el paquete, siempre > 0
+  size_t id; // ID mota a la que va destinada la configuracion, siempre > 0
 
   size_t sendInterval; // Periodo en segundos que la mota tarda en enviar informacion
 
@@ -186,6 +191,17 @@ uint8_t activeClients = 0;
 const size_t routerId = 1; // Los id son siempre > 0
 const char SSID[SSID_LENGTH] = "Parcela00001";
 NetworkData NETWORK_DATA;
+
+// Lista de canales seguros (en Hz)
+// Separación de 200kHz para evitar solapamiento de señal de 125kHz
+// const uint32_t channelList[] = {
+//     868100000, // Canal 1 (Estándar)
+//     868300000, // Canal 2 (Estándar)
+//     868500000, // Canal 3 (Estándar)
+//     869525000  // Canal 4 (Alta potencia / Reserva)
+// };
+
+// const uint8_t totalChannels = 4;
 
 //----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -300,11 +316,12 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
 void process(LoRaMessage incomingPackage){
 
 
-  if(incomingPackage.type == messageType::BEACON_REQUEST){ //El nodo solicita un BEACON_RESPONSE para descubir nuevos routers.
+  if(incomingPackage.type == messageType::BEACON_REQUEST){ //El nodo solicita un BEACON_RESPONSE para descubir nuevos routers. -- RECIBE UN MENSAJE "BROADCAST"
     
     sendBeaconResponse();
 
-  }else{
+  }else{ //RECIBE UN MENSAJE "DIRIGIDO"
+
     //Para todos los tipos excepto DATA, la carga util del paquete se interpreta como un ControlData, para recurperar el id y el router da igual como interpretemos el union ya que en 
     //los 2 casos se encuentran en la misma posicion.
 
@@ -320,6 +337,8 @@ void process(LoRaMessage incomingPackage){
         //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
 
         case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
+          Serial.println("Se ha recibido un paquete de datos de una mota, encendiendo AM-036 para enviar los datos al servidor de FLoRa...");
+          sendControlPacket(messageType::DATA_ACK, CLIENT_ID);
           break;
 
         case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
@@ -340,14 +359,27 @@ void process(LoRaMessage incomingPackage){
           break;
 
         
-        case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia messageType::FIN para aceptar la salida del nodo y terminar la comunicacion
+        case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia NODE_LEAVING_ACK para aceptar la salida del nodo y terminar la comunicacion
+          Serial.printf("El nodo %d esta intentando desconectarse de la red.\n", CLIENT_ID);
+
+            //Comprobamos si el cliente esta conectado ya a la red
+            if(getClientIndex(CLIENT_ID) == (char)-1){
+              //El nodo no estaba en la red, no hacemos nada.
+              Serial.printf("El nodo %d se ha intentado desconectarse de la red, pero no estaba en ella.\n", CLIENT_ID);
+            }else{
+              Serial.printf("El nodo %d se esta intentando desconectar de la red.\n", CLIENT_ID);
+              //Le respondemos que su solicitud de abandonar la red ha sido procesada con exito
+              deleteClient(CLIENT_ID);
+              sendControlPacket(messageType::NODE_LEAVING_ACK, CLIENT_ID);
+            }
           break;
         
         case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
+          Serial.println("La mota ha respondido que el ultimo paquete que recibio es invalido, posible colision.");
           break;
 
-
         default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
+          Serial.printf("El router ha recibido un paquete de tipo %X, lo cual no estaba previsto.\n",incomingPackage.type);
           break;
 
       }
@@ -425,6 +457,8 @@ void sendControlPacket(messageType type, size_t clientID){
 void sendBeaconResponse(){
 
   Radio.Sleep( ); //Quitamos la radio del modo escucha
+
+  Serial.println("Enviando Beacon Response...");
 
   //Formamos el paquete.
   LoRaMessage msg;
@@ -569,6 +603,10 @@ void packageToSerial(LoRaMessage pkg, uint16_t size, int16_t rssi, int8_t snr){
     
     Serial.printf("Router: %d | ID: %d | Humidity: %d | Battery: %d | GPS: LAT -> %.5f  -- LONG -> %.5f\n", pkg.data.SensorsData.router, pkg.data.SensorsData.id,
     pkg.data.SensorsData.humidity, pkg.data.SensorsData.battery, pkg.data.SensorsData.latitude, pkg.data.SensorsData.longitude);
+
+  }else if(pkg.type == messageType::BEACON_REQUEST){
+
+    Serial.println("Se ha recibido un BEACON REQUEST.");
 
   }else{ // Packetes de control
 
