@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant M as Mota
+    participant R as Router
+
+    Note over M: Menú -> "Salir de Red"
+    M->>+R: NODE_LEAVING (0x06)
+    Note right of M: Payload: struct ControlData
+
+    Note over R: Elimina ID de la tabla de rutas
+
+    R-->>-M: NODE_LEAVING_ACK (0x07)
+    Note right of M: Payload: struct ControlData
+
+    Note over M: Borra Credenciales y SSID
+    Note over M: Estado = SIN RED

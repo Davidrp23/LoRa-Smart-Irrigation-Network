@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant M as Mota
+    participant R as Router
+    participant S as Servidor GSM
+
+    Note over M: Usuario selecciona Red "Finca_Norte"
+    M->>+R: JOIN_REQUEST (0x02)
+    Note right of M: Payload: struct ControlData<br/>(Router: 10, ID: 50)
+
+    Note over R: Consulta Servidor
+    R->>S: Validar Nodo ID:50 para <br/>vincularse al router ID:10
+    S-->>R: Respuesta
+
+    alt Solicitud Aceptada
+        R-->>M: JOIN_ACCEPTED (0x03)
+        Note right of M: Payload: struct ControlData<br/>(Router: 10, ID: 50)
+        Note over M: Estado = VINCULADO
+    else Solicitud Denegada
+        R-->>-M: JOIN_DENIED (0x04)
+        Note right of M: Payload: struct ControlData<br/>(Router: 10, ID: 50)
+        Note over M: Muestra Error en OLED
+    end

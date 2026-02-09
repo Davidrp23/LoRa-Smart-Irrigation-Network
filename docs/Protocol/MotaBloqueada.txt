@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant M as Mota
+    participant R as Router
+
+    Note over M: Despierta y envía datos
+    M->>+R: DATA (0x20)
+
+    Note over R: Verifica ID en Lista Negra
+    Note over R: ¡Nodo Bloqueado!
+
+    R-->>-M: NODE_BLOCKED (0x05)
+    Note right of M: Payload: struct ControlData
+
+    Note over M: Muestra "BLOQUEADO" en OLED
+    Note over M: Borra red y entra en modo Standby infinito

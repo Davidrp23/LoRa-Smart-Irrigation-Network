@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant M as Mota (Nodo)
+    participant R as Router
+
+    Note over M: Usuario inicia "Buscar Red"
+
+    loop Barrido de canales
+        Note over M: Cambia frecuencia (Salto de canal)
+        M->>+R: BEACON_REQUEST (0x00)
+        Note right of M: Payload: Vacío
+
+        Note right of R: Recibe solicitud
+        Note right of R: Espera Jitter aleatorio (50-200ms)
+
+        R-->>-M: BEACON_RESPONSE (0x01)
+        Note right of M: Payload: struct NetworkData<br/>(SSID: "Finca_Norte", RouterID: 10)
+
+        Note over M: Guarda Red en lista temporal
+    end
+
+    Note over M: Muestra lista en OLED
