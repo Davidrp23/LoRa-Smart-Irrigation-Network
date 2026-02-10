@@ -1,0 +1,25 @@
+flowchart TD
+    Start((Inicio)) --> WakeUp[Despertar y Leer Sensores]
+    WakeUp --> ResetRetries[Intentos = 0]
+    ResetRetries --> Listen{¿Canal Libre? RSSI < -90?}
+
+    %% Caso Canal Ocupado
+    Listen -- No (Ocupado) --> Backoff1[Esperar Random Backoff - ej. 100ms a 2000ms]
+    Backoff1 --> Listen
+
+    %% Caso Canal Libre
+    Listen -- Sí (Libre) --> Send[Enviar DATA]
+    Send --> WaitAck{¿Recibido ACK?}
+
+    %% Caso Éxito
+    WaitAck -- Sí --> Sleep((Deep Sleep))
+
+    %% Caso Fallo (Colisión o Error)
+    WaitAck -- No (Timeout) --> CheckRetries{¿Intentos < Max?}
+
+    CheckRetries -- Sí --> IncRetries[Intentos++]
+    IncRetries --> Backoff2[Esperar Jitter Aleatorio]
+    Backoff2 --> Listen
+
+    CheckRetries -- No --> Error[Marcar Error Tx]
+    Error --> Sleep

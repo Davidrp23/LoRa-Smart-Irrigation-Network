@@ -1,0 +1,39 @@
+sequenceDiagram
+    participant A as Mota A
+    participant B as Mota B (Tú)
+    participant R as Router
+
+    Note over A, R: La Mota A ya está transmitiendo
+    A->>+R: DATA (Enviando...)
+
+    Note over B: B despierta para enviar
+
+    rect rgb(255, 200, 200)
+        Note right of B: 1. Carrier Sense (Escucha)
+        Note right of B: Detecta RSSI > -90dBm
+        Note over B: ¡CANAL OCUPADO!
+    end
+
+    Note over B: 2. Random Backoff<br/>(Espera aleatoria: 2s)
+
+    R-->>-A: DATA_ACK
+    Note over A: A termina y duerme
+
+    Note over B: Fin del Backoff
+
+    rect rgb(200, 255, 200)
+        Note right of B: 3. Carrier Sense (Reintento)
+        Note right of B: Detecta RSSI < -110dBm (Ruido base)
+        Note over B: ¡CANAL LIBRE!
+    end
+
+    B->>+R: DATA (Enviando mis datos)
+
+    alt Router recibe OK
+        R-->>-B: DATA_ACK
+        Note over B: Éxito. A dormir.
+    else Colisión (Dos motas hablaron a la vez)
+        Note right of B: Timeout (Sin ACK)
+        Note over B: Incrementa contador reintentos
+        Note over B: Nuevo Random Backoff (más largo)
+    end

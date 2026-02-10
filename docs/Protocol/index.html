@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Galería Estática de SVGs</title>
+    <style>
+    body {
+        background-color: #f0f2f5;
+        display: flex;
+        flex-wrap: wrap; /* Para que se pongan uno al lado del otro si hay espacio */
+        justify-content: center;
+        gap: 20px;
+        padding: 40px;
+        font-family: sans-serif;
+    }
+
+    .item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        text-align: center;
+    }
+
+    .name {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 13px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 300px; /* Ajusta esto al ancho que elijas */
+    }
+
+    img {
+        /* Define aquí el tamaño que prefieras para todos */
+        width: 300px;
+        height: 300px;
+
+        /* Mantiene la proporción del dibujo sin deformarlo */
+        object-fit: contain;
+
+        /* Fondo gris muy claro por si el SVG es blanco */
+        background-color: #fafafa;
+        border: 1px solid #eee;
+    }
+</style>
+</head>
+<body>
+
+    <div class="item">
+        <span class="name">LogicaMotaFlujo.svg</span>
+        <img src="LogicaMotaFlujo.svg" alt="Lógica Mota Flujo">
+    </div>
+
+    <div class="item">
+        <span class="name">DiagramaSecuenciasLogicaMota.svg</span>
+        <img src="DiagramaSecuenciasLogicaMota.svg" alt="Diagrama de Secuencias">
+    </div>
+
+    <div class="item">
+        <span class="name">DescubrimientoRed.svg</span>
+        <img src="DescubrimientoRed.svg" alt="DescubrimientoRed">
+    </div>
+
+    <div class="item">
+        <span class="name">VinculacionMotaRed.svg</span>
+        <img src="VinculacionMotaRed.svg" alt="Vinculacion Mota Red">
+    </div>
+
+    <div class="item">
+        <span class="name">MotaDatos.svg</span>
+        <img src="MotaDatos.svg" alt="Mota Datos">
+    </div>
+
+    <div class="item">
+        <span class="name">MotaDatosConf.svg</span>
+        <img src="MotaDatosConf.svg" alt="Mota Datos Conf">
+    </div>
+
+    <div class="item">
+        <span class="name">MotaBloqueada.svg</span>
+        <img src="MotaBloqueada.svg" alt="Mota Bloqueada">
+    </div>
+
+    <div class="item">
+        <span class="name">DesconexionMota.svg</span>
+        <img src="DesconexionMota.svg" alt="DesconexionMota">
+    </div>
+
+</body>
+</html>

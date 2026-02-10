@@ -11,6 +11,11 @@
 //Icons
 #include "images.h"
 
+// --- FreeRTOS ---
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
 
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define RF_FREQUENCY                                868100000 // Hz
@@ -178,20 +183,35 @@ void VextOFF(void) //Vext default OFF
 }
 //--------------------------------------------------------GLOBAL VARIABLES--------------------------------------------------------------
 
-//Params displayed on the OLED screen
-int lastOledUpdate = 0;
-int receivedPackages = 0;
-int sentPackcages = 0;
-int sentErroredPackages = 0;
-int receivedErroredPackages = 0;
+// Candado para proteger las variables compartidas
+SemaphoreHandle_t statsMutex; 
 
+// Estructura para pasar datos de forma segura a la pantalla
+struct DisplayStats {
+  size_t rx_pkts;
+  size_t tx_pkts;
+  size_t rx_err;
+  size_t tx_err;
+  size_t last_client;
+  int16_t last_rssi;
+};
+
+// Variables globales oled
+volatile size_t shared_rx = 0;
+volatile size_t shared_tx = 0;
+volatile size_t shared_rx_err = 0;
+volatile size_t shared_tx_err = 0;
+volatile int16_t shared_rssi = 0;
+
+//Router params
 size_t connectedClients[MAX_CLIENTS];
 
 uint8_t activeClients = 0;
 
 const size_t routerId = 1; // Los id son siempre > 0
-const char SSID[SSID_LENGTH] = "Parcela00001";
+const char SSID[SSID_LENGTH] = "Finca_Norte";
 NetworkData NETWORK_DATA;
+size_t shared_lastClient = 0;
 
 // Lista de canales seguros (en Hz)
 // Separación de 200kHz para evitar solapamiento de señal de 125kHz
@@ -225,6 +245,24 @@ void setup() {
   NETWORK_DATA.router = routerId;
   mempcpy(&NETWORK_DATA.SSID, SSID, SSID_LENGTH);
 
+  // --- FREERTOS SETUP ---
+  
+  // 1. Crear el semáforo (Mutex)
+  statsMutex = xSemaphoreCreateMutex();
+
+  // 2. Crear la tarea en el Core 0
+  xTaskCreatePinnedToCore(
+    TaskDisplay,    // Función de la tarea
+    "DisplayTask",  // Nombre (para depuración)
+    4096,           // Tamaño de pila (Stack size) en words
+    NULL,           // Parámetros
+    1,              // Prioridad (1 = Baja, suficiente para pantalla)
+    NULL,           // Handle de la tarea
+    0               // Core ID (0 = Protocolo/Display, 1 = Arduino Loop)
+  );
+
+  Serial.println("Sistema Multitarea Iniciado.");
+
 }
 
 
@@ -232,26 +270,29 @@ void loop() {
 
   // put your main code here, to run repeatedly:
   Radio.IrqProcess( );
-
-  if( (millis() - lastOledUpdate) > 1000 ){
-    updateDisplayStatistics();
-    lastOledUpdate = millis();
-  }
-  
 }
 
 void OnTxDone( void ){
 
   Serial.print("TX done......");
-  sentPackcages++;
-  updateDisplayStatistics();
+
+  if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+    shared_tx++;
+    xSemaphoreGive(statsMutex);
+  }
+
   Radio.Rx( 0 );
 }
 
 void OnTxTimeout( void )
 {
   Serial.print("TX Timeout......");
-  sentErroredPackages++;
+
+  if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+    shared_tx_err++;
+    xSemaphoreGive(statsMutex);
+  }
+
   //De momento si ocurre esto, no enviaremos respuesta.
   Radio.Rx( 0 );
 }
@@ -275,7 +316,11 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
       
       if(expectedChecksum == incomingMessage.checksum){
 
-        receivedPackages++;
+        if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+          shared_rx++;
+          shared_rssi = rssi;
+          xSemaphoreGive(statsMutex);
+        }
 
         //Debug
         packageToSerial(incomingMessage, size, rssi, snr);
@@ -285,7 +330,12 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
       }else{
 
         // checksum invalido, hay datos corruptos
-        receivedErroredPackages++;
+
+        if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+          shared_rx_err++;
+          xSemaphoreGive(statsMutex);
+        }
+
         Serial.print("Error de checksum, checksum del mensaje: ");
         Serial.print(incomingMessage.checksum);
         Serial.print(", checksum calculado: ");
@@ -295,7 +345,12 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
 
     } else {
       // El campo 'length' indica X, pero el paquete recibido era Y. Error de protocolo.
-      receivedErroredPackages++;
+
+      if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+        shared_rx_err++;
+        xSemaphoreGive(statsMutex);
+      }
+
       Serial.print("Error de longitud en el protocolo! Paquete real: ");
       Serial.print(size);
       Serial.print(", Esperado por Header: ");
@@ -304,7 +359,12 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
     
   } else if (size > 0) {
     // Paquete demasiado pequeño para siquiera contener los headers (corrupto)
-    receivedErroredPackages++;
+    
+    if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+      shared_rx_err++;
+      xSemaphoreGive(statsMutex);
+    }
+
     Serial.print("Paquete demasiado corto (");
     Serial.print(size);
     Serial.print(" bytes). Mínimo: ");
@@ -328,6 +388,11 @@ void process(LoRaMessage incomingPackage){
 
     const size_t CLIENT_ID = incomingPackage.data.ControlData.id;
     const size_t DESTINATION_ROUTER = incomingPackage.data.ControlData.router;
+
+    if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+      shared_lastClient = CLIENT_ID;
+      xSemaphoreGive(statsMutex);
+    }
 
     if(DESTINATION_ROUTER == routerId){
 
@@ -532,15 +597,48 @@ void initializeLora(){
   Radio.Rx( 0 );
 }
 
-void updateDisplayStatistics(){
+void TaskDisplay(void *pvParameters) {
+  // Configuración inicial de la pantalla (si no la hiciste en setup)
+  // initializeOled(); 
+  
+  DisplayStats localStats; // Copia local para pintar tranquilo
 
-  display.clear();
-  display.drawString(0, 0, String("--Estadistica de paquetes:--"));
-  display.drawString(0, 15, String("Paquetes Enviados: ") + String(sentPackcages));
-  display.drawString(0, 25, String("Enviados Erroneos: ") + String(sentErroredPackages));
-  display.drawString(0, 35, String("Paquetes Recibidos: ") + String(receivedPackages));
-  display.drawString(0, 45, String("Recibidos Erroneos: ") + String(receivedErroredPackages));
-  display.display();  
+  for (;;) { // Bucle infinito (como un loop propio)
+    
+    // 1. COPIAR DATOS (SECCIÓN CRÍTICA)
+    // Intentamos coger el candado. Si el Core 1 lo tiene ocupado, esperamos máx 10ms.
+    if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+        
+        // Copiamos rápido las variables globales a locales
+        localStats.rx_pkts = shared_rx;
+        localStats.tx_pkts = shared_tx;
+        localStats.rx_err = shared_rx_err;
+        localStats.tx_err = shared_tx_err;
+        localStats.last_client = shared_lastClient;
+        localStats.last_rssi = shared_rssi;
+        
+        // Soltamos el candado inmediatamente para que la radio pueda seguir escribiendo
+        xSemaphoreGive(statsMutex);
+    }
+
+    // 2. PINTAR EN PANTALLA (LENTO)
+    // Esto puede tardar lo que quiera, NO bloqueará a la radio
+    display.clear();
+    display.drawString(10, 0,  "--- ROUTER FLoRa ---");
+    display.drawString(0, 15, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
+    display.drawString(0, 25, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
+    display.drawString(0, 35, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));
+
+    // Barra de vida o animación para saber que no está colgado
+    display.drawString(0, 45, (millis() / 1000) % 2 == 0 ? "." : "..");
+    
+    display.display();
+
+    // 3. DORMIR TAREA
+    // Actualizamos la pantalla 1 veces por segundo (cada 1000ms)
+    // vTaskDelay es vital para no saturar el Core 0 y que el Watchdog no salte
+    vTaskDelay(1000 / portTICK_PERIOD_MS); 
+  }
 }
 
 //--------------------------------------------------Clients Managment--------------------------------------------------
