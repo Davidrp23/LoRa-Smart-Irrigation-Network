@@ -6,6 +6,7 @@
 
 
 #include <TinyGsmClient.h>
+#include <ArduinoHttpClient.h>
 
 
 #ifdef DUMP_AT_COMMANDS
@@ -35,6 +36,10 @@ const char gprsUser[] = "movistar";
 const char gprsPass[] = "movistar";
 
 const char* number = "+34684457438";
+
+// Configuración del servidor
+const char server[] = "httpbin.org";
+const int  port   = 80;
 
 
 
@@ -109,6 +114,7 @@ void setup() {
 
   //callSomeOne(number);
   //sendSMS("+34684457438", "Hola! El ESP32 con SIM800L esta vivo.");
+  hacerGet("/get");
 
 }
 
@@ -168,4 +174,32 @@ void sendSMS(String number, String msg) {
   } else {
     SerialMon.println("Error al enviar el SMS.");
   }
+}
+
+void hacerGet(String path) {
+  SerialMon.println("Iniciando petición GET...");
+  
+  // Creamos el cliente HTTP
+  HttpClient http(client, server, port);
+
+  // Realizamos la petición
+  int err = http.get(path);
+  if (err != 0) {
+    SerialMon.println("Error al conectar");
+    return;
+  }
+
+  // Leemos el código de estado (ej: 200 si es OK, 404 si no existe)
+  int status = http.responseStatusCode();
+  SerialMon.print("Código de estado: ");
+  SerialMon.println(status);
+
+  if (status <= 0) {
+    return; 
+  }
+
+  // Leemos el cuerpo de la respuesta
+  String body = http.responseBody();
+  SerialMon.println("Respuesta del servidor:");
+  SerialMon.println(body);
 }
