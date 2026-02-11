@@ -34,6 +34,8 @@ const char apn[]  = "movistar.es";
 const char gprsUser[] = "movistar";
 const char gprsPass[] = "movistar";
 
+const char* number = "+34684457438";
+
 
 
 void setup() {
@@ -104,6 +106,10 @@ void setup() {
   int signalQuality = modem.getSignalQuality();
   SerialMon.print("Signal Quality (0-31): ");
   SerialMon.println(signalQuality);
+
+  //callSomeOne(number);
+  //sendSMS("+34684457438", "Hola! El ESP32 con SIM800L esta vivo.");
+
 }
 
 void loop() {
@@ -124,4 +130,42 @@ void loop() {
   }
 
   delay(100);
+}
+
+void callSomeOne(const char* number){
+
+  SerialMon.print("Llamando a: ");
+  SerialMon.println(number);
+
+  // Realiza la llamada
+  bool res = modem.callNumber(number);
+
+  if (res) {
+    SerialMon.println("Llamada iniciada correctamente.");
+    
+    // Esperar 10 segundos antes de colgar
+    delay(10000);
+    
+    // Colgar la llamada
+    modem.callHangup();
+    SerialMon.println("Llamada finalizada.");
+  } else {
+    SerialMon.println("Error al intentar llamar.");
+  }
+}
+
+void sendSMS(String number, String msg) {
+  SerialMon.print("Enviando SMS a ");
+  SerialMon.print(number);
+  SerialMon.print(": ");
+  SerialMon.println(msg);
+
+  // Intentar enviar el mensaje
+  bool resultado = modem.sendSMS(number, msg);
+
+  if (resultado) {
+    SerialMon.println("¡SMS enviado con éxito!");
+  } else {
+    SerialMon.println("Error al enviar el SMS.");
+  }
 }
