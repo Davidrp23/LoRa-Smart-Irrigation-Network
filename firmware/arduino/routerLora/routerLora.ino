@@ -403,11 +403,23 @@ void process(LoRaMessage incomingPackage){
         //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
 
         case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
-          Serial.println("Se ha recibido un paquete de datos de una mota, encendiendo AM-036 para enviar los datos al servidor de FLoRa...");
-          sendControlPacket(messageType::DATA_ACK, CLIENT_ID);
+
+          if(getClientIndex(CLIENT_ID) == (char)-1){
+            Serial.println("Se ha recibido un paquete de datos de una mota que NO estaba en la red, enviando respuesta...");
+            sendControlPacket(messageType::JOIN_REQUEST, CLIENT_ID); //El JOIN_REQUEST solo lo envia la mota para conectarse a la red que gestiona el router, cuando el router lo envia como 
+            //respuesta a un paquete anterior quiere decir que se requiere unirse a la red para enviar ese paquete (porque no lo esta actualmente), la mota interpretara ese paquete como que no esta en la red,
+            //pero deberia estarlo, por algun motivo se ha perdido la lista de clientes conectados, asi que enviara de vuelta un JOIN_REQUEST para unirse de nuevo a la misma.
+            //No se tendra en cuenta la trama de datos en estos casos.
+          }else{
+            Serial.println("Se ha recibido un paquete de datos de una mota, encendiendo AM-036 para enviar los datos al servidor de FLoRa...");
+            sendControlPacket(messageType::DATA_ACK, CLIENT_ID);
+          }
+          
           break;
 
         case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
+
+        //Por ahora siempre va a aceptar la peticion de union.
 
           Serial.printf("El nodo %d esta intentando conectarse a la red.\n", CLIENT_ID);
           
@@ -520,9 +532,12 @@ void sendControlPacket(messageType type, size_t clientID){
 }
 
 //Esta funcion se usa para enviar un BEACON_RESPONSE cuando una mota lo solicita de forma previa con un BEACON_REQUEST
+//Espera un tiempo aleatorio entre 50-200ms para que todos los routers en el mismo alcance no colisionen a la vez, la probabilidad de que 2 emitan a la vez es baja.
 void sendBeaconResponse(){
 
   Radio.Sleep( ); //Quitamos la radio del modo escucha
+
+  delay(random(50,200)); //jitter de espera aleatoria para evitar colisiones con otros routers en el mismo alcance 
 
   Serial.println("Enviando Beacon Response...");
 

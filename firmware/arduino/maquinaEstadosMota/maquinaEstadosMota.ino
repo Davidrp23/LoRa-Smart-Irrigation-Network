@@ -84,6 +84,8 @@ volatile ButtonEvent globalButtonState = NO_PRESS;
 unsigned long pressStartTime = 0;
 bool isPressing = false;
 bool defaultMenu = 1;
+
+#define SCAN_TIME 6000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre
 //---------------------------------------------------------------------------------------
 
 //Maquina de estados
@@ -265,6 +267,14 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
             Serial.println("ACK recibido -> SLEEP");
             lastSleepTime = millis(); // Marcamos hora de dormir
             currentState = STATE_SLEEP;
+          }
+          break;
+
+      case messageType::JOIN_REQUEST:
+          if (currentState == STATE_RX_DATA) {
+            Serial.println("El router no ha procesado el paquete de datos anterior porque no estaba en la red, enviado solicitud de union...");
+            lastSleepTime = millis(); // Marcamos hora de dormir
+            currentState = STATE_START_JOIN;
           }
           break;
   }
