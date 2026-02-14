@@ -18,7 +18,12 @@
 
 
 //----------------------------------LORA_PARAMETERS----------------------------------
-#define RF_FREQUENCY                                868100000 // Hz
+#define CHANEL_0 868100000
+#define CHANEL_1 868300000
+#define CHANEL_2 868500000
+#define CHANEL_3 869525000
+
+#define RF_FREQUENCY                                CHANEL_2 // Hz
 
 #define TX_OUTPUT_POWER                             5        // dBm
 
@@ -639,7 +644,7 @@ void TaskDisplay(void *pvParameters) {
     // 2. PINTAR EN PANTALLA (LENTO)
     // Esto puede tardar lo que quiera, NO bloqueará a la radio
     display.clear();
-    display.drawString(10, 0,  "--- ROUTER FLoRa ---");
+    display.drawString(10, 0,  "=== FLoRa Router  ===");
     display.drawString(0, 15, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
     display.drawString(0, 25, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
     display.drawString(0, 35, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));

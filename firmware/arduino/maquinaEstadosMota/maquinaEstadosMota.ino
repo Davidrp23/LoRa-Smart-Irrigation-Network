@@ -3,9 +3,18 @@
 #include <Wire.h>               
 #include "HT_SSD1306Wire.h"
 #include "images.h"
+#include <vector>
+#include <algorithm> // Necesario para std::sort
 
 //----------------------------------LORA PARAMETERS--------------------------------
-#define RF_FREQUENCY                                868100000 // Hz
+#define NUM_CHANELS 4
+
+#define CHANEL_0 868100000
+#define CHANEL_1 868300000
+#define CHANEL_2 868500000
+#define CHANEL_3 869525000
+
+#define RF_FREQUENCY                                CHANEL_0 // Hz
 #define TX_OUTPUT_POWER                             14        // dBm
 #define LORA_BANDWIDTH                              0         // [0: 125 kHz]
 #define LORA_SPREADING_FACTOR                       7         // [SF7]
@@ -16,6 +25,8 @@
 #define LORA_IQ_INVERSION_ON                        false
 #define RX_TIMEOUT_VALUE                            3000 // Aumentado a 3000 para dar margen      
 #define MAX_PAYLOAD_SIZE                            240 
+
+
 
 //----------------------------------ESTRUCTURAS---------------------------
 #define SSID_LENGTH 13 
@@ -29,7 +40,12 @@ enum class messageType : uint8_t {
 };
 
 typedef struct __attribute__((packed)) { size_t router; size_t id; } ControlData;
-typedef struct __attribute__((packed)) { size_t router; char SSID[SSID_LENGTH]; } NetworkData;
+typedef struct __attribute__((packed)) {
+  size_t router; 
+  char SSID[SSID_LENGTH]; 
+  int16_t rssi; // <--- NUEVO CAMPO (2 bytes), SOLO en la mota, ya que el router no sabe con que rssi escucha el beacon frame, se agrega al final para no ocasionar problemas.
+  uint8_t channel; // <--- NUEVO CAMPO (4 bytes), SOLO en la mota, ya la mota no tiene porque fiarse del canal que dice el router por el que esta trasmitiendo, mejor comprobarlo.
+} NetworkData;
 typedef struct __attribute__((packed)) { size_t router; size_t id; size_t sendInterval; } ConfData;
 typedef struct __attribute__((packed)) { 
   size_t router; size_t id; uint8_t humidity; uint8_t battery; float latitude; float longitude; 
@@ -49,6 +65,7 @@ typedef struct __attribute__((packed)) {
 const size_t MY_NODE_ID = 50; 
 size_t TARGET_ROUTER_ID = 0; 
 char currentNetwork[SSID_LENGTH];
+NetworkData selectedNW;
 
 // Estadísticas
 uint16_t receivedPackets = 0;
@@ -77,21 +94,43 @@ enum ButtonEvent {
   LONG_PRESS    // Pulsación larga detectada
 };
 
-// Esta es la variable que tu loop() va a leer
-volatile ButtonEvent globalButtonState = NO_PRESS;
 
-// --- VARIABLES INTERNAS (No tocar desde fuera) ---
+// --- VARIABLES INTERNAS (No tocar desde fuera) [button press] ---
 unsigned long pressStartTime = 0;
 bool isPressing = false;
-bool defaultMenu = 1;
+volatile ButtonEvent globalButtonState = NO_PRESS;
 
-#define SCAN_TIME 6000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre
+
+//OLED UI 
+bool defaultMenu = 1; //Indica que vista del menu se tiene. 1 indica los datos visualizados por defecto 0 los demas... Todos no caben en 1 pantalla
+unsigned long startScan = 0; // Indica el momento exacto en el que se empieza a escanear las redes lora
+
+
+#define SCAN_TIME 13000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre
+unsigned long lastBeaconFrameSended = 0;
+std::vector<NetworkData> foundNetworks;
+int selectedNetworkIndex = 0; // Índice de la red que estamos "mirando" ahora mismo
+
+// Lista de canales seguros (en Hz)
+// Separación de 200kHz para evitar solapamiento de señal de 125kHz
+const uint32_t channelList[] = {
+    CHANEL_0, // Canal 0 (Estándar)
+    CHANEL_1, // Canal 1 (Estándar)
+    CHANEL_2, // Canal 2 (Estándar)
+    CHANEL_3  // Canal 3 (Alta potencia / Reserva)
+};
+
+uint8_t scaningChanel = 0;
+
 //---------------------------------------------------------------------------------------
 
 //Maquina de estados
 enum MotaState {
   STATE_INIT,
   STATE_START_SCAN, STATE_TX_SCAN, STATE_RX_SCAN,
+  
+  STATE_WAIT_USER_SELECTION,
+  
   STATE_START_JOIN, STATE_TX_JOIN, STATE_RX_JOIN,
   STATE_START_DATA, STATE_TX_DATA, STATE_RX_DATA,
   STATE_SLEEP
@@ -138,7 +177,17 @@ void loop()
   Radio.IrqProcess();
 
   // 1. GESTION DE PANTALLA
-  updateOled();
+
+  // Si estamos eligiendo red, la pantalla la controla el menú exclusivo
+  if (currentState == STATE_WAIT_USER_SELECTION) {
+      handleNetworkSelectionMenu();
+  } 
+  // Si estamos en cualquier otro estado, usamos la pantalla genérica
+  else {
+      updateOled(); 
+  }
+
+  //GESTION BOTON:
   checkButton();
 
   // 2. WATCHDOG DE SOFTWARE (SEGURIDAD)
@@ -149,18 +198,35 @@ void loop()
     
     // ================== SCAN ==================
     case STATE_START_SCAN:
-      Serial.println("[APP] Enviando Beacon Request...");
-      sendBeaconRequest(); 
-      currentState = STATE_TX_SCAN; 
-      stateStartTime = millis();
+      Serial.println("Comenzando a escanear redes...");
+      startScan = millis();
+      currentState = STATE_TX_SCAN;
+      foundNetworks.clear();
       break;
 
     case STATE_TX_SCAN:
       // Esperando OnTxDone...
+     
+      if(millis() > lastBeaconFrameSended + random(1000,1500)){ //jitter de espera aleatoria para evitar colisiones [1000-1500] ms
+        if(scaningChanel > NUM_CHANELS - 1) scaningChanel = 0;
+        Serial.println("[APP] Enviando Beacon Request...");
+        Radio.SetChannel(channelList[scaningChanel]);
+        sendBeaconRequest();
+        lastBeaconFrameSended = millis(); 
+      }
+      
+      stateStartTime = millis();
       break;
 
     case STATE_RX_SCAN:
       // Esperando OnRxDone o Watchdog...
+      break;
+
+
+    case STATE_WAIT_USER_SELECTION:
+      // Aquí no hacemos nada de radio. Solo esperamos al usuario.
+      // La función handleNetworkSelectionMenu() se encarga de cambiar 
+      // el estado a STATE_START_JOIN cuando el usuario elige.
       break;
 
     // ================== JOIN ==================
@@ -187,8 +253,8 @@ void loop()
 
     // ================== SLEEP (NO BLOQUEANTE) ==================
     case STATE_SLEEP:
-        // Usamos millis en vez de delay(1000)
-        if (millis() - lastSleepTime > 2000) { // 2 segundos de sleep
+        // Usamos millis en vez de delay
+        if (millis() - lastSleepTime > 5000) { // 5 segundos de sleep
           Serial.println("Despertando...");
           currentState = STATE_START_DATA;
         }
@@ -247,11 +313,24 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   // MAQUINA DE ESTADOS
   switch(incomingMsg.type) {
       case messageType::BEACON_RESPONSE:
-          if (currentState == STATE_RX_SCAN) {
-            TARGET_ROUTER_ID = incomingMsg.data.NetworkData.router;
-            memcpy(currentNetwork, incomingMsg.data.NetworkData.SSID, SSID_LENGTH);
-            Serial.println("Router encontrado -> JOIN");
-            currentState = STATE_START_JOIN;
+          // Si estamos en tiempo de escaneo, seguimos guardando redes
+          if (currentState == STATE_RX_SCAN && millis() <= startScan + SCAN_TIME) {
+            incomingMsg.data.NetworkData.channel = scaningChanel;
+            saveNetwork(incomingMsg.data.NetworkData, rssi);
+            scaningChanel++;
+            currentState = STATE_TX_SCAN; 
+          }
+          // Si se acabó el tiempo...
+          else if (currentState == STATE_RX_SCAN) {
+             Serial.println("Fin del escaneo. Entrando en menú de selección...");
+             
+             if (foundNetworks.empty()) {
+                Serial.println("No se encontraron redes. Reintentando...");
+                currentState = STATE_START_SCAN;
+             } else {
+                selectedNetworkIndex = 0; // Resetear cursor
+                currentState = STATE_WAIT_USER_SELECTION; // <--- Vamos al menú
+             }
           }
           break;
 
@@ -397,18 +476,18 @@ void updateOled(){
         display.drawString(0, 10, "Not Conected");
       }
       
-      display.drawString(0, 30, "ID: " + String(MY_NODE_ID) + "| R_ID: " + String(TARGET_ROUTER_ID));
-      display.drawString(0, 40, "TX: " + String(sendedPackets) + "| RX: " + String(receivedPackets));
+      display.drawString(0, 30, "ID: " + String(MY_NODE_ID) + " | R_ID: " + String(TARGET_ROUTER_ID) + " | [CH:" + String(selectedNW.channel) + "]");
+      display.drawString(0, 40, "TX: " + String(sendedPackets) + " | RX: " + String(receivedPackets));
       
       
       
       // Mostrar estado actual para depurar
       String estadoStr = "";
 
-      if(currentState == STATE_RX_SCAN) estadoStr = "Wait Beacon";
-      else if(currentState == STATE_RX_JOIN) estadoStr = "Wait Join";
+      if(currentState == STATE_RX_JOIN) estadoStr = "Wait Join";
       else if(currentState == STATE_RX_DATA) estadoStr = "Wait ACK";
       else if(currentState == STATE_SLEEP) estadoStr = "Sleeping";
+      else estadoStr = "Scaning...   [CH:" + String(scaningChanel) + "]"; //Fix scanning chanel
       display.drawString(0, 50, "State: " + estadoStr);
 
       display.display();
@@ -446,7 +525,7 @@ void watchdogRX(){
     
     // Decisión de recuperación
     if(currentState == STATE_RX_DATA) currentState = STATE_START_DATA;
-    else currentState = STATE_START_SCAN;
+    else currentState = STATE_TX_SCAN; scaningChanel++;
   }
 }
 
@@ -481,4 +560,125 @@ void checkButton() {
       globalButtonState = LONG_PRESS;
     }
   }
+}
+
+// Función de comparación para el ordenamiento (Mayor RSSI primero)
+bool compareRSSI(const NetworkData &a, const NetworkData &b) {
+  return a.rssi > b.rssi; // Eje: -50 > -90 (Verdadero, -50 va antes)
+}
+
+void saveNetwork(NetworkData newNet, int16_t currentRssi) {
+  
+  // 1. Asignamos el RSSI que acabamos de medir
+  newNet.rssi = currentRssi;
+
+  bool found = false;
+
+  // 2. Buscamos si ya existe
+  for (int i = 0; i < foundNetworks.size(); i++) {
+    if (foundNetworks[i].router == newNet.router) {
+      // YA EXISTE: Actualizamos su RSSI con el valor más reciente
+      foundNetworks[i].rssi = currentRssi;
+      found = true;
+      break; // Dejamos de buscar
+    }
+  }
+
+  // 3. Si NO existe, la añadimos
+  if (!found) {
+    foundNetworks.push_back(newNet);
+    Serial.printf("Nueva red: %s (RSSI: %d) [CANAL: %d] \n", newNet.SSID, newNet.rssi, scaningChanel);
+  }
+
+  // 4. ORDENAR LA LISTA (La magia de C++)
+  // Esto reordena el vector para que los RSSI más altos (mejores) queden en la posición [0]
+  std::sort(foundNetworks.begin(), foundNetworks.end(), compareRSSI);
+}
+
+void handleNetworkSelectionMenu() {
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 0, "== SELECT NETWORK ==");
+
+  // Si no hay redes (por seguridad)
+  if (foundNetworks.empty()) {
+     display.drawString(0, 20, "There are no networks :(");
+     display.display();
+     delay(2000);
+     currentState = STATE_START_SCAN;
+     return;
+  }
+
+  // --- LÓGICA DE BOTONES ---
+  
+  // 1. Pulsación CORTA -> Siguiente red (Scroll circular)
+  if (globalButtonState == SHORT_PRESS) {
+      selectedNetworkIndex++;
+      if (selectedNetworkIndex >= foundNetworks.size()) {
+          selectedNetworkIndex = 0; // Volver al principio
+      }
+      globalButtonState = NO_PRESS; // Consumir evento
+  }
+
+  // 2. Pulsación LARGA -> Seleccionar y Conectar
+  if (globalButtonState == LONG_PRESS) {
+      // Guardar selección
+      selectedNW = foundNetworks[selectedNetworkIndex];
+      TARGET_ROUTER_ID = selectedNW.router;
+      memcpy(currentNetwork, selectedNW.SSID, SSID_LENGTH);
+      Radio.SetChannel(channelList[selectedNW.channel]); //Seteamos la radio a ese canal
+
+      // Feedback visual
+      display.clear();
+      display.drawString(35, 25, "[Connecting]");
+      display.display();
+      delay(2000);
+      
+      globalButtonState = NO_PRESS; // Consumir evento
+      currentState = STATE_START_JOIN; // <--- INICIAR PROCESO DE UNION
+      return;
+  }
+
+
+  // --- DIBUJADO DE LA LISTA (CON SCROLL) ---
+  
+  // Calculamos qué parte de la lista mostrar (Ventana de 4 elementos)
+  const int ITEMS_PER_PAGE = 4;
+  int startList = 0;
+  
+  // Si el seleccionado está más allá de la página 1, movemos el inicio
+  if (selectedNetworkIndex >= ITEMS_PER_PAGE) {
+      startList = selectedNetworkIndex - (ITEMS_PER_PAGE - 1);
+  }
+
+  for (int i = 0; i < ITEMS_PER_PAGE; i++) {
+      int currentIndex = startList + i;
+      
+      // Si nos salimos de la lista total, paramos
+      if (currentIndex >= foundNetworks.size()) break;
+
+      int yPos = 15 + (i * 12);
+      
+      // Construimos el texto: "Finca_A (-80)"
+      String linea = String(foundNetworks[currentIndex].SSID);
+      linea += " (" + String(foundNetworks[currentIndex].rssi) + ")";
+      linea += " [CH:" + String(foundNetworks[currentIndex].channel) + "]";
+
+      // Si es el seleccionado, lo pintamos INVERTIDO (Fondo blanco, texto negro)
+      if (currentIndex == selectedNetworkIndex) {
+          // Dibujar caja blanca de fondo
+          display.setColor(WHITE);
+          display.fillRect(0, yPos, 128, 12);
+          // Dibujar texto en negro
+          display.setColor(BLACK);
+          display.drawString(1, yPos, linea); // +1px margen
+          // Volver a color normal para el resto
+          display.setColor(WHITE);
+      } else {
+          // Normal
+          display.drawString(1, yPos, linea);
+      }
+  }
+
+  display.display();
 }
