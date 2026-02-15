@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: flora_user
+      POSTGRES_PASSWORD: rcGwXEsgJ2bJdM
+      POSTGRES_DB: flora_db
+    volumes:
+      - flora_data:/var/lib/postgresql/data
+
+volumes:
+  flora_data:
