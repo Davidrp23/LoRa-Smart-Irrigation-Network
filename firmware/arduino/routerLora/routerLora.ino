@@ -18,10 +18,13 @@
 
 
 //----------------------------------LORA_PARAMETERS----------------------------------
+#define NUM_CHANELS 4
+
 #define CHANEL_0 868100000
 #define CHANEL_1 868300000
 #define CHANEL_2 868500000
 #define CHANEL_3 869525000
+
 
 #define RF_FREQUENCY                                CHANEL_2 // Hz
 
@@ -214,18 +217,19 @@ size_t connectedClients[MAX_CLIENTS];
 uint8_t activeClients = 0;
 
 const size_t routerId = 1; // Los id son siempre > 0
-const char SSID[SSID_LENGTH] = "Finca_Norte";
+const char SSID[SSID_LENGTH] = "Finca_Sur";
 NetworkData NETWORK_DATA;
 size_t shared_lastClient = 0;
+char numChannel = -1;
 
 // Lista de canales seguros (en Hz)
 // Separación de 200kHz para evitar solapamiento de señal de 125kHz
-// const uint32_t channelList[] = {
-//     868100000, // Canal 1 (Estándar)
-//     868300000, // Canal 2 (Estándar)
-//     868500000, // Canal 3 (Estándar)
-//     869525000  // Canal 4 (Alta potencia / Reserva)
-// };
+const uint32_t channelList[] = {
+    CHANEL_0, // Canal 0 (Estándar)
+    CHANEL_1, // Canal 1 (Estándar)
+    CHANEL_2, // Canal 2 (Estándar)
+    CHANEL_3  // Canal 3 (Alta potencia / Reserva)
+};
 
 // const uint8_t totalChannels = 4;
 
@@ -244,6 +248,8 @@ void setup() {
   Serial.println("Iniciando Router");
 
   initializeLora();
+
+  numChannel = findChannelNumber(RF_FREQUENCY);
   
   initializeOled();
 
@@ -645,12 +651,13 @@ void TaskDisplay(void *pvParameters) {
     // Esto puede tardar lo que quiera, NO bloqueará a la radio
     display.clear();
     display.drawString(10, 0,  "=== FLoRa Router  ===");
-    display.drawString(0, 15, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
-    display.drawString(0, 25, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
-    display.drawString(0, 35, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));
+    display.drawString(0, 15, "ID: " + String(routerId) + " |" + String(SSID) + "[CH: " + String((int)numChannel) + "]"); 
+    display.drawString(0, 25, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
+    display.drawString(0, 35, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
+    display.drawString(0, 45, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));
 
     // Barra de vida o animación para saber que no está colgado
-    display.drawString(0, 45, (millis() / 1000) % 2 == 0 ? "." : "..");
+    display.drawString(120, 45, (millis() / 1000) % 2 == 0 ? "." : "..");
     
     display.display();
 
@@ -746,5 +753,16 @@ void packageToSerial(LoRaMessage pkg, uint16_t size, int16_t rssi, int8_t snr){
 
   // 6. SNR
   Serial.printf("6. SNR: %d\n", snr);
+}
+
+char findChannelNumber(uint32_t ch){
+  char result = -1; // No encontrado por defecto
+  for(char i = 0; i<NUM_CHANELS; i++){
+    if(ch == channelList[i]){
+      result = i;
+      return result;
+    }
+  }
+  return result;
 }
 
