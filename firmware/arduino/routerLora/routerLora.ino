@@ -16,6 +16,13 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
+//Operating Router Params
+#define MAX_CLIENTS 30
+#define SSID_LENGTH 12 + 1 // +1 para el terminador nulo
+
+const size_t routerId = 1; // Los id son siempre > 0
+const char SSID[SSID_LENGTH] = "Finca_Sur";
+
 
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define NUM_CHANELS 4
@@ -25,8 +32,7 @@
 #define CHANEL_2 868500000
 #define CHANEL_3 869525000
 
-
-#define RF_FREQUENCY                                CHANEL_2 // Hz
+#define RF_FREQUENCY                                CHANEL_1 // Hz
 
 #define TX_OUTPUT_POWER                             5        // dBm
 
@@ -53,11 +59,6 @@ static RadioEvents_t RadioEvents;
 void OnTxDone( void );
 void OnTxTimeout( void );
 void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr );
-
-//Operating Router Params
-#define MAX_CLIENTS 30
-#define SSID_LENGTH 12 + 1 // +1 para el terminador nulo
-
 
 //-------------------------------------STRUCTS------------------------------------------------- 
 
@@ -216,8 +217,6 @@ size_t connectedClients[MAX_CLIENTS];
 
 uint8_t activeClients = 0;
 
-const size_t routerId = 1; // Los id son siempre > 0
-const char SSID[SSID_LENGTH] = "Finca_Sur";
 NetworkData NETWORK_DATA;
 size_t shared_lastClient = 0;
 char numChannel = -1;
@@ -244,6 +243,9 @@ void setup() {
   
   //initialize Serial Monitor
   Serial.begin(115200);
+
+  //Imprimimos el logo de inicio por serie
+  Serial.println(SerialLogoFlora);
   
   Serial.println("Iniciando Router");
 

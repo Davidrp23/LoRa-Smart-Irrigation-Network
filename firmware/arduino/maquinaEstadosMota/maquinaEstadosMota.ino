@@ -106,7 +106,7 @@ bool defaultMenu = 1; //Indica que vista del menu se tiene. 1 indica los datos v
 unsigned long startScan = 0; // Indica el momento exacto en el que se empieza a escanear las redes lora
 
 
-#define SCAN_TIME 13000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre
+#define SCAN_TIME 20000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre
 unsigned long lastBeaconFrameSended = 0;
 std::vector<NetworkData> foundNetworks;
 int selectedNetworkIndex = 0; // Índice de la red que estamos "mirando" ahora mismo
@@ -157,6 +157,11 @@ void setup() {
   delay(100); 
 
   Serial.begin(115200);
+
+  //Imprimimos el logo de inicio por serie
+  Serial.println(SerialLogoFlora);
+  Serial.println("Inciando Mota...");
+
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
   
   initializeOled(); 
@@ -583,7 +588,7 @@ void saveNetwork(NetworkData newNet, int16_t currentRssi) {
       break; // Dejamos de buscar
     }
   }
-
+  
   // 3. Si NO existe, la añadimos
   if (!found) {
     foundNetworks.push_back(newNet);
