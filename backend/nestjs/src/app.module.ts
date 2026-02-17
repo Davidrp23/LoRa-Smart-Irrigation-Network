@@ -2,9 +2,15 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MotasModule } from './motas/motas.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
+import { RoutersModule } from './routers/routers.module';
+import { ParcelasModule } from './parcelas/parcelas.module';
+import { MedicionesModule } from './mediciones/mediciones.module';
+import { BigPacketModule } from './big-packet/big-packet.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [MotasModule],
+  imports: [MotasModule, UsuariosModule, RoutersModule, ParcelasModule, MedicionesModule, BigPacketModule, PrismaModule],
   controllers: [AppController],
   providers: [AppService],
 })

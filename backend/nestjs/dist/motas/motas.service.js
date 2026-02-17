@@ -9,18 +9,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MotasService = void 0;
 const common_1 = require("@nestjs/common");
 let MotasService = class MotasService {
-    motas = [];
     create(createMotaDto) {
-        const nuevaMota = {
-            id: this.motas.length + 1,
-            ...createMotaDto,
-            fecha_alta: new Date(),
-        };
-        this.motas.push(nuevaMota);
-        return 'Mota registrada con éxito: ' + nuevaMota.alias;
+        return 'This action adds a new mota';
     }
     findAll() {
-        return this.motas;
+        return `This action returns all motas`;
     }
     findOne(id) {
         return `This action returns a #${id} mota`;
