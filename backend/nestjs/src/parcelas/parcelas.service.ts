@@ -1,26 +1,40 @@
 import { Injectable } from '@nestjs/common';
 import { CreateParcelaDto } from './dto/create-parcela.dto';
 import { UpdateParcelaDto } from './dto/update-parcela.dto';
+import { Parcela } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ParcelasService {
-  create(createParcelaDto: CreateParcelaDto) {
-    return 'This action adds a new parcela';
+
+  constructor(private prisma: PrismaService) {}
+  
+  async create(userId: number, createParcelaDto: CreateParcelaDto): Promise<Parcela> {
+    return this.prisma.parcela.create({
+      data: {usuarioId: userId, ...createParcelaDto}
+    });
   }
 
-  findAll() {
-    return `This action returns all parcelas`;
+  async findAll(): Promise<Parcela[]> {
+    return this.prisma.parcela.findMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} parcela`;
+  async findOne(id: number): Promise<Parcela | null> {
+    return this.prisma.parcela.findUnique({
+      where: {id}
+    });
   }
 
-  update(id: number, updateParcelaDto: UpdateParcelaDto) {
-    return `This action updates a #${id} parcela`;
+  async update(id: number, updateParcelaDto: UpdateParcelaDto): Promise<Parcela> {
+    return this.prisma.parcela.update({
+      where: {id},
+      data: updateParcelaDto
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} parcela`;
+  async remove(id: number): Promise<Parcela> {
+    return this.prisma.parcela.delete({
+      where: {id},
+    });
   }
 }

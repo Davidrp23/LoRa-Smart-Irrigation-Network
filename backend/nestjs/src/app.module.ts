@@ -8,9 +8,10 @@ import { ParcelasModule } from './parcelas/parcelas.module';
 import { MedicionesModule } from './mediciones/mediciones.module';
 import { BigPacketModule } from './big-packet/big-packet.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [MotasModule, UsuariosModule, RoutersModule, ParcelasModule, MedicionesModule, BigPacketModule, PrismaModule],
+  imports: [MotasModule, UsuariosModule, RoutersModule, ParcelasModule, MedicionesModule, BigPacketModule, PrismaModule, AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })

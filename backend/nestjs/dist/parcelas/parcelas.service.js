@@ -5,28 +5,46 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ParcelasService = void 0;
 const common_1 = require("@nestjs/common");
+const prisma_service_1 = require("../prisma/prisma.service");
 let ParcelasService = class ParcelasService {
-    create(createParcelaDto) {
-        return 'This action adds a new parcela';
+    prisma;
+    constructor(prisma) {
+        this.prisma = prisma;
     }
-    findAll() {
-        return `This action returns all parcelas`;
+    async create(userId, createParcelaDto) {
+        return this.prisma.parcela.create({
+            data: { usuarioId: userId, ...createParcelaDto }
+        });
     }
-    findOne(id) {
-        return `This action returns a #${id} parcela`;
+    async findAll() {
+        return this.prisma.parcela.findMany();
     }
-    update(id, updateParcelaDto) {
-        return `This action updates a #${id} parcela`;
+    async findOne(id) {
+        return this.prisma.parcela.findUnique({
+            where: { id }
+        });
     }
-    remove(id) {
-        return `This action removes a #${id} parcela`;
+    async update(id, updateParcelaDto) {
+        return this.prisma.parcela.update({
+            where: { id },
+            data: updateParcelaDto
+        });
+    }
+    async remove(id) {
+        return this.prisma.parcela.delete({
+            where: { id },
+        });
     }
 };
 exports.ParcelasService = ParcelasService;
 exports.ParcelasService = ParcelasService = __decorate([
-    (0, common_1.Injectable)()
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], ParcelasService);
 //# sourceMappingURL=parcelas.service.js.map

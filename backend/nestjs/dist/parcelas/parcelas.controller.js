@@ -17,33 +17,36 @@ const common_1 = require("@nestjs/common");
 const parcelas_service_1 = require("./parcelas.service");
 const create_parcela_dto_1 = require("./dto/create-parcela.dto");
 const update_parcela_dto_1 = require("./dto/update-parcela.dto");
+const common_2 = require("@nestjs/common");
+const passport_1 = require("@nestjs/passport");
 let ParcelasController = class ParcelasController {
     parcelasService;
     constructor(parcelasService) {
         this.parcelasService = parcelasService;
     }
-    create(createParcelaDto) {
-        return this.parcelasService.create(createParcelaDto);
+    create(req, createParcelaDto) {
+        return this.parcelasService.create(req.user.id, createParcelaDto);
     }
     findAll() {
         return this.parcelasService.findAll();
     }
     findOne(id) {
-        return this.parcelasService.findOne(+id);
+        return this.parcelasService.findOne(id);
     }
     update(id, updateParcelaDto) {
-        return this.parcelasService.update(+id, updateParcelaDto);
+        return this.parcelasService.update(id, updateParcelaDto);
     }
     remove(id) {
-        return this.parcelasService.remove(+id);
+        return this.parcelasService.remove(id);
     }
 };
 exports.ParcelasController = ParcelasController;
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_parcela_dto_1.CreateParcelaDto]),
+    __metadata("design:paramtypes", [Object, create_parcela_dto_1.CreateParcelaDto]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "create", null);
 __decorate([
@@ -54,27 +57,28 @@ __decorate([
 ], ParcelasController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_parcela_dto_1.UpdateParcelaDto]),
+    __metadata("design:paramtypes", [Number, update_parcela_dto_1.UpdateParcelaDto]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "remove", null);
 exports.ParcelasController = ParcelasController = __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('parcelas'),
     __metadata("design:paramtypes", [parcelas_service_1.ParcelasService])
 ], ParcelasController);

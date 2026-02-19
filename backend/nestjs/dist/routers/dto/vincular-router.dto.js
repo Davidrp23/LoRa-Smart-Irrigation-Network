@@ -14,7 +14,6 @@ const class_validator_1 = require("class-validator");
 class VincularRouterDto {
     id;
     codigoVinculacion;
-    email;
 }
 exports.VincularRouterDto = VincularRouterDto;
 __decorate([
@@ -25,8 +24,4 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], VincularRouterDto.prototype, "codigoVinculacion", void 0);
-__decorate([
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], VincularRouterDto.prototype, "email", void 0);
 //# sourceMappingURL=vincular-router.dto.js.map

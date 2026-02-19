@@ -28,19 +28,19 @@ let UsuariosController = class UsuariosController {
     findAll() {
         return this.usuariosService.findAll();
     }
-    findOne(id) {
+    async findOne(id) {
         return this.usuariosService.findOne(id);
     }
-    updateById(id, updateUsuarioDto) {
+    async updateById(id, updateUsuarioDto) {
         return this.usuariosService.updateById(id, updateUsuarioDto);
     }
-    updateByEmail(email, updateUsuarioDto) {
+    async updateByEmail(email, updateUsuarioDto) {
         return this.usuariosService.updateByEmail(email, updateUsuarioDto);
     }
-    removeById(id) {
+    async removeById(id) {
         return this.usuariosService.removeByID(id);
     }
-    removeByEmail(email) {
+    async removeByEmail(email) {
         return this.usuariosService.removeByEmail(email);
     }
 };

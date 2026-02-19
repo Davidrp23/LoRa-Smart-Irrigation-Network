@@ -32,6 +32,12 @@ export class UsuariosService {
     });
   }
 
+  async findByEmail(email: string): Promise<Usuario | null> {
+    return this.prisma.usuario.findUnique({
+      where: { email: email }, 
+    });
+  }
+
   async updateById(id: number, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
     // Si el DTO trae una password, hay que hashearla antes de guardar
     if (updateUsuarioDto.password) {

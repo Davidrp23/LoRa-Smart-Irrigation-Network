@@ -19,27 +19,27 @@ export class UsuariosController {
   }
 
   @Get('id/:id')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<Usuario | null> {
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Usuario | null> {
     return this.usuariosService.findOne(id);
   }
 
   @Patch('id/:id')
-  updateById(@Param('id', ParseIntPipe) id: number, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+  async updateById(@Param('id', ParseIntPipe) id: number, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
     return this.usuariosService.updateById(id, updateUsuarioDto);
   }
 
   @Patch('email/:email')
-  updateByEmail(@Param('email') email: string, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+  async updateByEmail(@Param('email') email: string, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
     return this.usuariosService.updateByEmail(email, updateUsuarioDto);
   }
 
   @Delete('id/:id')
-  removeById(@Param('id', ParseIntPipe) id: number): Promise<Usuario> {
+  async removeById(@Param('id', ParseIntPipe) id: number): Promise<Usuario> {
     return this.usuariosService.removeByID(id);
   }
 
   @Delete('email/:email')
-  removeByEmail(@Param('email') email: string): Promise<Usuario> {
+  async removeByEmail(@Param('email') email: string): Promise<Usuario> {
     return this.usuariosService.removeByEmail(email);
   }
 }

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RoutersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const common_2 = require("@nestjs/common");
 let RoutersService = class RoutersService {
     prisma;
     constructor(prisma) {
@@ -22,24 +23,55 @@ let RoutersService = class RoutersService {
             data: createRouterDto
         });
     }
-    findAll() {
+    async findAll() {
         return this.prisma.router.findMany();
     }
-    findOne(id) {
+    async findOne(id) {
         return this.prisma.router.findUnique({
             where: { id },
         });
     }
-    update(id, updateRouterDto) {
+    async update(id, updateRouterDto) {
         return this.prisma.router.update({
             where: { id },
             data: updateRouterDto,
         });
     }
-    remove(id) {
+    async remove(id) {
         return this.prisma.router.delete({
             where: { id },
         });
+    }
+    async vincularRouter(Userid, vincularRouterDto) {
+        const { id, codigoVinculacion } = vincularRouterDto;
+        const router = await this.prisma.router.findUnique({ where: { id } });
+        if (!router) {
+            throw new common_2.NotFoundException(`El router con ID ${id} no fue encontrado.`);
+        }
+        if (router.usuarioId !== null) {
+            throw new common_2.ConflictException('Este router ya pertenece a otro usuario.');
+        }
+        if (router.codigoVinculacion !== codigoVinculacion) {
+            throw new common_2.ForbiddenException('El código de vinculación es incorrecto.');
+        }
+        try {
+            const routerActualizado = await this.prisma.router.update({
+                where: { id },
+                data: {
+                    usuario: {
+                        connect: { id: Userid }
+                    },
+                    claimedAt: new Date(),
+                },
+            });
+            return routerActualizado;
+        }
+        catch (error) {
+            if (error.code === 'P2025') {
+                throw new common_2.NotFoundException(`El usuario al que se pretende vincular no existe.`);
+            }
+            throw error;
+        }
     }
 };
 exports.RoutersService = RoutersService;

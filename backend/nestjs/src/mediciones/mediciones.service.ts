@@ -1,26 +1,41 @@
 import { Injectable } from '@nestjs/common';
-import { CreateMedicioneDto } from './dto/create-medicione.dto';
-import { UpdateMedicioneDto } from './dto/update-medicione.dto';
+import { CreateMedicionDto } from './dto/create-medicion.dto';
+import { Medicion } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class MedicionesService {
-  create(createMedicioneDto: CreateMedicioneDto) {
-    return 'This action adds a new medicione';
+
+  constructor(private prisma: PrismaService) {}
+
+  async create(createMedicionDto: CreateMedicionDto): Promise<Medicion> {
+
+    const mota = await this.prisma.mota.findUnique({where: {id: createMedicionDto.motaId}});
+
+    if(!mota){
+      throw new NotFoundException(`La mota con ID ${createMedicionDto.motaId} no fue encontrada.`);
+    }
+    
+    return this.prisma.medicion.create({
+      data: createMedicionDto
+    });
+    
   }
 
   findAll() {
-    return `This action returns all mediciones`;
+    return this.prisma.medicion.findMany();
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} medicione`;
-  }
-
-  update(id: number, updateMedicioneDto: UpdateMedicioneDto) {
-    return `This action updates a #${id} medicione`;
+    return this.prisma.medicion.findUnique({
+      where: {id}
+    });
   }
 
   remove(id: number) {
-    return `This action removes a #${id} medicione`;
+    return this.prisma.medicion.delete({
+      where: {id}
+    });
   }
 }

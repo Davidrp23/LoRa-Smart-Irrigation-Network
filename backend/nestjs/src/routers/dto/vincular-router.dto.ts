@@ -1,4 +1,4 @@
-import { IsEmail, IsNumber, IsString } from "class-validator";
+import {IsNumber, IsString } from "class-validator";
 
 export class VincularRouterDto {
 
@@ -6,10 +6,6 @@ export class VincularRouterDto {
     id:number; //Id del router
 
     @IsString()
-    codigoVinculacion: string; //Id del codigo de vinculacion
-
-    @IsEmail()
-    email: string;
-
+    codigoVinculacion: string; //codigo de vinculacion
 }
 

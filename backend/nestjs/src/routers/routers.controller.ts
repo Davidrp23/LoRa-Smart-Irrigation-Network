@@ -1,34 +1,45 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { RoutersService } from './routers.service';
 import { CreateRouterDto } from './dto/create-router.dto';
 import { UpdateRouterDto } from './dto/update-router.dto';
+import { Router } from '@prisma/client';
+import { VincularRouterDto } from './dto/vincular-router.dto';
+
+import { UseGuards, Request } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('routers')
 export class RoutersController {
   constructor(private readonly routersService: RoutersService) {}
 
   @Post()
-  create(@Body() createRouterDto: CreateRouterDto) {
+  async create(@Body() createRouterDto: CreateRouterDto): Promise<Router> {
     return this.routersService.create(createRouterDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Post('vincular/')
+  async vincularRouter(@Request() req, @Body() vincularRouterDto: VincularRouterDto): Promise<Router>{
+    return this.routersService.vincularRouter(req.user.id, vincularRouterDto);
+  }
+
   @Get()
-  findAll() {
+  async findAll(): Promise<Router[]>  {
     return this.routersService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.routersService.findOne(+id);
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Router | null>  {
+    return this.routersService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRouterDto: UpdateRouterDto) {
-    return this.routersService.update(+id, updateRouterDto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() updateRouterDto: UpdateRouterDto): Promise<Router>  {
+    return this.routersService.update(id, updateRouterDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.routersService.remove(+id);
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<Router>  {
+    return this.routersService.remove(id);
   }
 }

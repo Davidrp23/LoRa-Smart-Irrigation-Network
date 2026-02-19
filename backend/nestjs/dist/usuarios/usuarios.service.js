@@ -65,6 +65,11 @@ let UsuariosService = class UsuariosService {
             where: { id },
         });
     }
+    async findByEmail(email) {
+        return this.prisma.usuario.findUnique({
+            where: { email: email },
+        });
+    }
     async updateById(id, updateUsuarioDto) {
         if (updateUsuarioDto.password) {
             updateUsuarioDto.password = await this.hashString(updateUsuarioDto.password);

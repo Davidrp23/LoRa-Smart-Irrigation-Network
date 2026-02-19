@@ -15,8 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MedicionesController = void 0;
 const common_1 = require("@nestjs/common");
 const mediciones_service_1 = require("./mediciones.service");
-const create_medicione_dto_1 = require("./dto/create-medicione.dto");
-const update_medicione_dto_1 = require("./dto/update-medicione.dto");
+const create_medicion_dto_1 = require("./dto/create-medicion.dto");
+const common_2 = require("@nestjs/common");
+const passport_1 = require("@nestjs/passport");
 let MedicionesController = class MedicionesController {
     medicionesService;
     constructor(medicionesService) {
@@ -29,13 +30,10 @@ let MedicionesController = class MedicionesController {
         return this.medicionesService.findAll();
     }
     findOne(id) {
-        return this.medicionesService.findOne(+id);
-    }
-    update(id, updateMedicioneDto) {
-        return this.medicionesService.update(+id, updateMedicioneDto);
+        return this.medicionesService.findOne(id);
     }
     remove(id) {
-        return this.medicionesService.remove(+id);
+        return this.medicionesService.remove(id);
     }
 };
 exports.MedicionesController = MedicionesController;
@@ -43,7 +41,7 @@ __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_medicione_dto_1.CreateMedicioneDto]),
+    __metadata("design:paramtypes", [create_medicion_dto_1.CreateMedicionDto]),
     __metadata("design:returntype", void 0)
 ], MedicionesController.prototype, "create", null);
 __decorate([
@@ -54,27 +52,20 @@ __decorate([
 ], MedicionesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], MedicionesController.prototype, "findOne", null);
 __decorate([
-    (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_medicione_dto_1.UpdateMedicioneDto]),
-    __metadata("design:returntype", void 0)
-], MedicionesController.prototype, "update", null);
-__decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], MedicionesController.prototype, "remove", null);
 exports.MedicionesController = MedicionesController = __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('mediciones'),
     __metadata("design:paramtypes", [mediciones_service_1.MedicionesService])
 ], MedicionesController);

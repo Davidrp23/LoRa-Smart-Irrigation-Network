@@ -1,15 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { ParcelasService } from './parcelas.service';
 import { CreateParcelaDto } from './dto/create-parcela.dto';
 import { UpdateParcelaDto } from './dto/update-parcela.dto';
 
+import { UseGuards, Request } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@UseGuards(AuthGuard('jwt'))
 @Controller('parcelas')
 export class ParcelasController {
   constructor(private readonly parcelasService: ParcelasService) {}
 
   @Post()
-  create(@Body() createParcelaDto: CreateParcelaDto) {
-    return this.parcelasService.create(createParcelaDto);
+  create(@Request() req, @Body() createParcelaDto: CreateParcelaDto) {
+    return this.parcelasService.create(req.user.id, createParcelaDto);
   }
 
   @Get()
@@ -18,17 +22,17 @@ export class ParcelasController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.parcelasService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.parcelasService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateParcelaDto: UpdateParcelaDto) {
-    return this.parcelasService.update(+id, updateParcelaDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateParcelaDto: UpdateParcelaDto) {
+    return this.parcelasService.update(id, updateParcelaDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.parcelasService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.parcelasService.remove(id);
   }
 }

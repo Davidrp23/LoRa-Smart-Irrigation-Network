@@ -137,7 +137,7 @@ model Medicion {
   
   // --- DATOS AGRÍCOLAS ---
   humedad   Float
-  tempSuelo Float?
+
 
   // --- TELEMETRÍA DEL DISPOSITIVO ---
   bateria   Int      // Historial de descarga
@@ -147,7 +147,7 @@ model Medicion {
   snr       Float?   // Relación Señal/Ruido
   
   // --- DIAGNÓSTICO (DOWNLINK - Reportado por la Mota) ---
-  // Opcional: Solo si la mota lo envía en modo "mochila"
+
   erroresRxMota Int? // Paquetes corruptos que la mota detectó
 
   // Relaciones

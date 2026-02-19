@@ -17,25 +17,31 @@ const common_1 = require("@nestjs/common");
 const routers_service_1 = require("./routers.service");
 const create_router_dto_1 = require("./dto/create-router.dto");
 const update_router_dto_1 = require("./dto/update-router.dto");
+const vincular_router_dto_1 = require("./dto/vincular-router.dto");
+const common_2 = require("@nestjs/common");
+const passport_1 = require("@nestjs/passport");
 let RoutersController = class RoutersController {
     routersService;
     constructor(routersService) {
         this.routersService = routersService;
     }
-    create(createRouterDto) {
+    async create(createRouterDto) {
         return this.routersService.create(createRouterDto);
     }
-    findAll() {
+    async vincularRouter(req, vincularRouterDto) {
+        return this.routersService.vincularRouter(req.user.id, vincularRouterDto);
+    }
+    async findAll() {
         return this.routersService.findAll();
     }
-    findOne(id) {
-        return this.routersService.findOne(+id);
+    async findOne(id) {
+        return this.routersService.findOne(id);
     }
-    update(id, updateRouterDto) {
-        return this.routersService.update(+id, updateRouterDto);
+    async update(id, updateRouterDto) {
+        return this.routersService.update(id, updateRouterDto);
     }
-    remove(id) {
-        return this.routersService.remove(+id);
+    async remove(id) {
+        return this.routersService.remove(id);
     }
 };
 exports.RoutersController = RoutersController;
@@ -44,35 +50,44 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_router_dto_1.CreateRouterDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "create", null);
+__decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Post)('vincular/'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, vincular_router_dto_1.VincularRouterDto]),
+    __metadata("design:returntype", Promise)
+], RoutersController.prototype, "vincularRouter", null);
 __decorate([
     (0, common_1.Get)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_router_dto_1.UpdateRouterDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number, update_router_dto_1.UpdateRouterDto]),
+    __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "remove", null);
 exports.RoutersController = RoutersController = __decorate([
     (0, common_1.Controller)('routers'),
