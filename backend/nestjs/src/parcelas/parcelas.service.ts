@@ -15,26 +15,26 @@ export class ParcelasService {
     });
   }
 
-  async findAll(): Promise<Parcela[]> {
-    return this.prisma.parcela.findMany();
+  async findAll(usuarioId: number): Promise<Parcela[]> {
+    return this.prisma.parcela.findMany({where: {usuarioId}});
   }
 
-  async findOne(id: number): Promise<Parcela | null> {
+  async findOne(usuarioId: number, id: number): Promise<Parcela | null> {
     return this.prisma.parcela.findUnique({
-      where: {id}
+      where: {id, usuarioId}
     });
   }
 
-  async update(id: number, updateParcelaDto: UpdateParcelaDto): Promise<Parcela> {
+  async update(usuarioId: number, id: number, updateParcelaDto: UpdateParcelaDto): Promise<Parcela> {
     return this.prisma.parcela.update({
-      where: {id},
+      where: {id, usuarioId},
       data: updateParcelaDto
     });
   }
 
-  async remove(id: number): Promise<Parcela> {
+  async remove(usuarioId: number, id: number): Promise<Parcela> {
     return this.prisma.parcela.delete({
-      where: {id},
+      where: {id, usuarioId},
     });
   }
 }

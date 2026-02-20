@@ -31,17 +31,20 @@ let MotasController = class MotasController {
     async vincularMota(req, vincularMotaDto) {
         return this.motasService.vincularMota(req.user.id, vincularMotaDto);
     }
-    async findAll() {
-        return this.motasService.findAll();
+    async desvincularMota(req, id) {
+        return this.motasService.desvincularMota(req.user.id, id);
     }
-    async findOne(id) {
-        return this.motasService.findOne(id);
+    async findAll(req) {
+        const miPropioId = req.user.id;
+        return this.motasService.findAll(miPropioId);
     }
-    async update(id, updateMotaDto) {
-        return this.motasService.update(id, updateMotaDto);
+    async findOne(req, id) {
+        const miPropioId = req.user.id;
+        return this.motasService.findOne(miPropioId, id);
     }
-    async remove(id) {
-        return this.motasService.remove(id);
+    async update(req, id, updateMotaDto) {
+        const miPropioId = req.user.id;
+        return this.motasService.update(miPropioId, id, updateMotaDto);
     }
 };
 exports.MotasController = MotasController;
@@ -53,7 +56,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MotasController.prototype, "create", null);
 __decorate([
-    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('vincular/'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -62,34 +64,39 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MotasController.prototype, "vincularMota", null);
 __decorate([
-    (0, common_1.Get)(),
+    (0, common_1.Post)('desvincular/:id'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], MotasController.prototype, "desvincularMota", null);
+__decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, common_2.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], MotasController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", Promise)
 ], MotasController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, update_mota_dto_1.UpdateMotaDto]),
+    __metadata("design:paramtypes", [Object, Number, update_mota_dto_1.UpdateMotaDto]),
     __metadata("design:returntype", Promise)
 ], MotasController.prototype, "update", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", Promise)
-], MotasController.prototype, "remove", null);
 exports.MotasController = MotasController = __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('motas'),
     __metadata("design:paramtypes", [motas_service_1.MotasService])
 ], MotasController);

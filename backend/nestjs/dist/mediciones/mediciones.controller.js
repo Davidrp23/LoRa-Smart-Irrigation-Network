@@ -26,15 +26,6 @@ let MedicionesController = class MedicionesController {
     create(createMedicioneDto) {
         return this.medicionesService.create(createMedicioneDto);
     }
-    findAll() {
-        return this.medicionesService.findAll();
-    }
-    findOne(id) {
-        return this.medicionesService.findOne(id);
-    }
-    remove(id) {
-        return this.medicionesService.remove(id);
-    }
 };
 exports.MedicionesController = MedicionesController;
 __decorate([
@@ -44,26 +35,6 @@ __decorate([
     __metadata("design:paramtypes", [create_medicion_dto_1.CreateMedicionDto]),
     __metadata("design:returntype", void 0)
 ], MedicionesController.prototype, "create", null);
-__decorate([
-    (0, common_1.Get)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], MedicionesController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", void 0)
-], MedicionesController.prototype, "findOne", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", void 0)
-], MedicionesController.prototype, "remove", null);
 exports.MedicionesController = MedicionesController = __decorate([
     (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('mediciones'),

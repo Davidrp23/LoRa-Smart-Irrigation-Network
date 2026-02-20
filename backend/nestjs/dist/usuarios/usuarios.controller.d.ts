@@ -6,10 +6,7 @@ export declare class UsuariosController {
     private readonly usuariosService;
     constructor(usuariosService: UsuariosService);
     create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario>;
-    findAll(): Promise<Usuario[]>;
-    findOne(id: number): Promise<Usuario | null>;
-    updateById(id: number, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario>;
-    updateByEmail(email: string, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario>;
-    removeById(id: number): Promise<Usuario>;
-    removeByEmail(email: string): Promise<Usuario>;
+    findOne(req: any): Promise<Usuario | null>;
+    updateById(req: any, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario>;
+    removeById(req: any): Promise<Usuario>;
 }

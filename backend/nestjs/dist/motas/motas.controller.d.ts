@@ -8,8 +8,8 @@ export declare class MotasController {
     constructor(motasService: MotasService);
     create(createMotaDto: CreateMotaDto): Promise<Mota>;
     vincularMota(req: any, vincularMotaDto: vincularMotaDto): Promise<Mota>;
-    findAll(): Promise<Mota[]>;
-    findOne(id: number): Promise<Mota | null>;
-    update(id: number, updateMotaDto: UpdateMotaDto): Promise<Mota>;
-    remove(id: number): Promise<Mota>;
+    desvincularMota(req: any, id: number): Promise<Mota>;
+    findAll(req: any): Promise<Mota[]>;
+    findOne(req: any, id: number): Promise<Mota | null>;
+    update(req: any, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota>;
 }

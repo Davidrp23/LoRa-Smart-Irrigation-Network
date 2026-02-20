@@ -19,19 +19,21 @@ export class RoutersService {
     });
   }
 
-  async findAll(): Promise<Router[]> {
-    return this.prisma.router.findMany();
-  }
-
-  async findOne(id: number): Promise<Router | null> {
-    return this.prisma.router.findUnique({
-      where: {id},
+  async findAll(usuarioId: number): Promise<Router[]> {
+    return this.prisma.router.findMany({
+      where: {usuarioId}
     });
   }
 
-  async update(id: number, updateRouterDto: UpdateRouterDto): Promise<Router> {
+  async findOne(usuarioId: number, id: number): Promise<Router | null> {
+    return this.prisma.router.findUnique({
+      where: {id, usuarioId},
+    });
+  }
+
+  async update(usuarioId: number, id: number, updateRouterDto: UpdateRouterDto): Promise<Router> {
     return this.prisma.router.update({
-      where: {id},
+      where: {id, usuarioId},
       data: updateRouterDto,
     });
   }
@@ -42,8 +44,8 @@ export class RoutersService {
     });
   }
 
-  async isPublic(id: number): Promise<Boolean | null>{
-    const router: Router | null = await this.findOne(id);
+  async isPublic(usuarioId: number, id: number): Promise<Boolean | null>{
+    const router: Router | null = await this.findOne(usuarioId, id);
 
     if(!router){
       throw new NotFoundException(`El router con ID ${id} no fue encontrado.`);
@@ -95,6 +97,40 @@ export class RoutersService {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
         throw new NotFoundException(`El usuario al que se pretende vincular no existe.`);
+      }
+      // Si es otro error de base de datos, lo dejamos pasar
+      throw error; 
+    }
+  }
+
+  async desvincularRouter(Userid: number ,routerId: number): Promise<Router> {
+
+    //Buscar el router
+    const router = await this.prisma.router.findUnique({ where: {id: routerId, usuarioId: Userid} });
+
+    //Router no existe
+    if (!router) {
+      throw new NotFoundException(`El router con ID ${routerId} no fue encontrado o no te pertenece.`);
+    }
+
+    //Conectar y Actualizar
+    try {
+      const routerActualizado: Router = await this.prisma.router.update({
+        where: {id: routerId, usuarioId: Userid},
+        data: {
+          //Desenparejar del usuario
+          usuarioId : null,
+          // Borrar fecha
+          claimedAt: null,
+        },
+      });
+
+      return routerActualizado;
+
+    } catch (error) {
+      // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`El usuario no existe.`);
       }
       // Si es otro error de base de datos, lo dejamos pasar
       throw error; 

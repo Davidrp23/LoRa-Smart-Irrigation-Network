@@ -22,23 +22,23 @@ let ParcelasService = class ParcelasService {
             data: { usuarioId: userId, ...createParcelaDto }
         });
     }
-    async findAll() {
-        return this.prisma.parcela.findMany();
+    async findAll(usuarioId) {
+        return this.prisma.parcela.findMany({ where: { usuarioId } });
     }
-    async findOne(id) {
+    async findOne(usuarioId, id) {
         return this.prisma.parcela.findUnique({
-            where: { id }
+            where: { id, usuarioId }
         });
     }
-    async update(id, updateParcelaDto) {
+    async update(usuarioId, id, updateParcelaDto) {
         return this.prisma.parcela.update({
-            where: { id },
+            where: { id, usuarioId },
             data: updateParcelaDto
         });
     }
-    async remove(id) {
+    async remove(usuarioId, id) {
         return this.prisma.parcela.delete({
-            where: { id },
+            where: { id, usuarioId },
         });
     }
 };

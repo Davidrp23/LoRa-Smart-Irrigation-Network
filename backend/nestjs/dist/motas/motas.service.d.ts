@@ -7,9 +7,10 @@ export declare class MotasService {
     private prisma;
     constructor(prisma: PrismaService);
     create(createMotaDto: CreateMotaDto): Promise<Mota>;
-    findAll(): Promise<Mota[]>;
-    findOne(id: number): Promise<Mota | null>;
-    update(id: number, updateMotaDto: UpdateMotaDto): Promise<Mota>;
-    remove(id: number): Promise<Mota>;
+    findAll(usuarioId: number): Promise<Mota[]>;
+    findOne(usuarioId: number, id: number): Promise<Mota | null>;
+    update(usuarioId: number, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota>;
+    remove(usuarioId: number, id: number): Promise<Mota>;
     vincularMota(Userid: number, vincularMotaDto: vincularMotaDto): Promise<Mota>;
+    desvincularMota(usuarioId: number, id: number): Promise<Mota>;
 }

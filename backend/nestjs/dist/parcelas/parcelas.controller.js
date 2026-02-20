@@ -27,17 +27,21 @@ let ParcelasController = class ParcelasController {
     create(req, createParcelaDto) {
         return this.parcelasService.create(req.user.id, createParcelaDto);
     }
-    findAll() {
-        return this.parcelasService.findAll();
+    findAll(req) {
+        const miPropioId = req.user.id;
+        return this.parcelasService.findAll(miPropioId);
     }
-    findOne(id) {
-        return this.parcelasService.findOne(id);
+    findOne(req, id) {
+        const miPropioId = req.user.id;
+        return this.parcelasService.findOne(miPropioId, id);
     }
-    update(id, updateParcelaDto) {
-        return this.parcelasService.update(id, updateParcelaDto);
+    update(req, id, updateParcelaDto) {
+        const miPropioId = req.user.id;
+        return this.parcelasService.update(miPropioId, id, updateParcelaDto);
     }
-    remove(id) {
-        return this.parcelasService.remove(id);
+    remove(req, id) {
+        const miPropioId = req.user.id;
+        return this.parcelasService.remove(miPropioId, id);
     }
 };
 exports.ParcelasController = ParcelasController;
@@ -51,30 +55,34 @@ __decorate([
 ], ParcelasController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_2.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, update_parcela_dto_1.UpdateParcelaDto]),
+    __metadata("design:paramtypes", [Object, Number, update_parcela_dto_1.UpdateParcelaDto]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "remove", null);
 exports.ParcelasController = ParcelasController = __decorate([

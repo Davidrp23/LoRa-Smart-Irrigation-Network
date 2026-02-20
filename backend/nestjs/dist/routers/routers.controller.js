@@ -31,20 +31,24 @@ let RoutersController = class RoutersController {
     async vincularRouter(req, vincularRouterDto) {
         return this.routersService.vincularRouter(req.user.id, vincularRouterDto);
     }
-    async findAll() {
-        return this.routersService.findAll();
+    async desvincularRouter(req, id) {
+        return this.routersService.desvincularRouter(req.user.id, id);
     }
-    async findOne(id) {
-        return this.routersService.findOne(id);
+    async findAll(req) {
+        const miPropioId = req.user.id;
+        return this.routersService.findAll(miPropioId);
     }
-    isPublic(id) {
-        return this.routersService.isPublic(id);
+    async findOne(req, id) {
+        const miPropioId = req.user.id;
+        return this.routersService.findOne(miPropioId, id);
     }
-    async update(id, updateRouterDto) {
-        return this.routersService.update(id, updateRouterDto);
+    isPublic(req, id) {
+        const miPropioId = req.user.id;
+        return this.routersService.isPublic(miPropioId, id);
     }
-    async remove(id) {
-        return this.routersService.remove(id);
+    async update(req, id, updateRouterDto) {
+        const miPropioId = req.user.id;
+        return this.routersService.update(miPropioId, id, updateRouterDto);
     }
 };
 exports.RoutersController = RoutersController;
@@ -56,7 +60,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "create", null);
 __decorate([
-    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('vincular/'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -65,41 +68,47 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "vincularRouter", null);
 __decorate([
-    (0, common_1.Get)(),
+    (0, common_1.Post)('desvincular/:id'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], RoutersController.prototype, "desvincularRouter", null);
+__decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, common_2.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Get)('esPublico/:id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", void 0)
 ], RoutersController.prototype, "isPublic", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, update_router_dto_1.UpdateRouterDto]),
+    __metadata("design:paramtypes", [Object, Number, update_router_dto_1.UpdateRouterDto]),
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "update", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
-    __metadata("design:returntype", Promise)
-], RoutersController.prototype, "remove", null);
 exports.RoutersController = RoutersController = __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('routers'),
     __metadata("design:paramtypes", [routers_service_1.RoutersService])
 ], RoutersController);

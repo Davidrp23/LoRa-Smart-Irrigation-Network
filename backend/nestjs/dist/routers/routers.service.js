@@ -23,17 +23,19 @@ let RoutersService = class RoutersService {
             data: createRouterDto
         });
     }
-    async findAll() {
-        return this.prisma.router.findMany();
-    }
-    async findOne(id) {
-        return this.prisma.router.findUnique({
-            where: { id },
+    async findAll(usuarioId) {
+        return this.prisma.router.findMany({
+            where: { usuarioId }
         });
     }
-    async update(id, updateRouterDto) {
+    async findOne(usuarioId, id) {
+        return this.prisma.router.findUnique({
+            where: { id, usuarioId },
+        });
+    }
+    async update(usuarioId, id, updateRouterDto) {
         return this.prisma.router.update({
-            where: { id },
+            where: { id, usuarioId },
             data: updateRouterDto,
         });
     }
@@ -42,8 +44,8 @@ let RoutersService = class RoutersService {
             where: { id },
         });
     }
-    async isPublic(id) {
-        const router = await this.findOne(id);
+    async isPublic(usuarioId, id) {
+        const router = await this.findOne(usuarioId, id);
         if (!router) {
             throw new common_2.NotFoundException(`El router con ID ${id} no fue encontrado.`);
         }
@@ -76,6 +78,28 @@ let RoutersService = class RoutersService {
         catch (error) {
             if (error.code === 'P2025') {
                 throw new common_2.NotFoundException(`El usuario al que se pretende vincular no existe.`);
+            }
+            throw error;
+        }
+    }
+    async desvincularRouter(Userid, routerId) {
+        const router = await this.prisma.router.findUnique({ where: { id: routerId, usuarioId: Userid } });
+        if (!router) {
+            throw new common_2.NotFoundException(`El router con ID ${routerId} no fue encontrado o no te pertenece.`);
+        }
+        try {
+            const routerActualizado = await this.prisma.router.update({
+                where: { id: routerId, usuarioId: Userid },
+                data: {
+                    usuarioId: null,
+                    claimedAt: null,
+                },
+            });
+            return routerActualizado;
+        }
+        catch (error) {
+            if (error.code === 'P2025') {
+                throw new common_2.NotFoundException(`El usuario no existe.`);
             }
             throw error;
         }

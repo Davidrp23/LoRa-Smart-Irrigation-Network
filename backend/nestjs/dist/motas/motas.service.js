@@ -23,23 +23,23 @@ let MotasService = class MotasService {
             data: createMotaDto
         });
     }
-    async findAll() {
-        return this.prisma.mota.findMany();
+    async findAll(usuarioId) {
+        return this.prisma.mota.findMany({ where: { usuarioId } });
     }
-    async findOne(id) {
+    async findOne(usuarioId, id) {
         return this.prisma.mota.findUnique({
-            where: { id }
+            where: { id, usuarioId }
         });
     }
-    async update(id, updateMotaDto) {
+    async update(usuarioId, id, updateMotaDto) {
         return this.prisma.mota.update({
-            where: { id },
+            where: { id, usuarioId },
             data: updateMotaDto
         });
     }
-    async remove(id) {
+    async remove(usuarioId, id) {
         return this.prisma.mota.delete({
-            where: { id }
+            where: { id, usuarioId }
         });
     }
     async vincularMota(Userid, vincularMotaDto) {
@@ -69,6 +69,28 @@ let MotasService = class MotasService {
         catch (error) {
             if (error.code === 'P2025') {
                 throw new common_2.NotFoundException(`El usuario al que se pretende vincular no existe.`);
+            }
+            throw error;
+        }
+    }
+    async desvincularMota(usuarioId, id) {
+        const mota = await this.prisma.mota.findUnique({ where: { id, usuarioId } });
+        if (!mota) {
+            throw new common_2.NotFoundException(`La mota con ID ${id} no fue encontrada o no te pertenece.`);
+        }
+        try {
+            const motaActualizada = await this.prisma.mota.update({
+                where: { id, usuarioId },
+                data: {
+                    usuarioId: null,
+                    claimedAt: null,
+                },
+            });
+            return motaActualizada;
+        }
+        catch (error) {
+            if (error.code === 'P2025') {
+                throw new common_2.NotFoundException(`El usuario no existe.`);
             }
             throw error;
         }

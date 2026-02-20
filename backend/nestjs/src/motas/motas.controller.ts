@@ -23,23 +23,32 @@ export class MotasController {
     return this.motasService.vincularMota(req.user.id, vincularMotaDto);
   }
 
+  @Post('desvincular/:id')
+  async desvincularMota(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Mota>{
+    return this.motasService.desvincularMota(req.user.id, id);
+  }
+
   @Get()
-  async findAll(): Promise<Mota[]> {
-    return this.motasService.findAll();
+  async findAll(@Request() req): Promise<Mota[]> {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.motasService.findAll(miPropioId);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Mota | null> {
-    return this.motasService.findOne(id);
+  async findOne(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Mota | null> {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.motasService.findOne(miPropioId, id);
   }
 
   @Patch(':id')
-  async update(@Param('id',ParseIntPipe) id: number, @Body() updateMotaDto: UpdateMotaDto): Promise<Mota> {
-    return this.motasService.update(id, updateMotaDto);
+  async update(@Request() req, @Param('id',ParseIntPipe) id: number, @Body() updateMotaDto: UpdateMotaDto): Promise<Mota> {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.motasService.update(miPropioId, id, updateMotaDto);
   }
 
-  @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<Mota> {
-    return this.motasService.remove(id);
-  }
+  // @Delete(':id') //No podemos eliminar una mota ya que sigue existiendo, solo podemos desvincularla
+  // async remove(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Mota> {
+  //   const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+  //   return this.motasService.remove(miPropioId, id);
+  // }
 }

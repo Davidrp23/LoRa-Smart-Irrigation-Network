@@ -59,7 +59,8 @@ model Router {
 
   // Relaciones
   usuarioId       Int? //No tiene propietario al crearse (fabricarse) 
-  usuario         Usuario?  @relation(fields: [usuarioId], references: [id])
+  usuario         Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull) //Si el usuario se elimina 
+                                                                                            //se queda sin propietario
   
   // ¿Quién está conectado a mí ahora mismo?
   motasConectadas Mota[] 
@@ -84,7 +85,8 @@ model Parcela {
   
   // Relaciones
   usuarioId      Int
-  usuario        Usuario @relation(fields: [usuarioId], references: [id])
+  usuario        Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)//Si el usuario se elimina 
+                                                                                            //se elimina la parcela
   
   motas          Mota[]  // Qué sensores están trabajando aquí
 }
@@ -101,11 +103,13 @@ model Mota {
 
   // --- PROPIEDAD ---
   usuarioId       Int? //No tiene propietario al crearse (fabricarse)      
-  usuario         Usuario?  @relation(fields: [usuarioId], references: [id])
+  usuario         Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull) //Si el usuario se elimina 
+                                                                                            //se queda sin propietario
 
   // --- UBICACIÓN LÓGICA (¿Qué estoy regando?) ---
   parcelaId       Int?     
-  parcela         Parcela? @relation(fields: [parcelaId], references: [id])
+  parcela         Parcela? @relation(fields: [parcelaId], references: [id], onDelete: SetNull) //Si se elimina la parcela
+                                                                                                // en la que esta, se queda sin parcela
 
   // --- UBICACIÓN FÍSICA (GPS Real) ---
   latitud         Float?   

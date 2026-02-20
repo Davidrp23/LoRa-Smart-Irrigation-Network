@@ -17,22 +17,26 @@ export class ParcelasController {
   }
 
   @Get()
-  findAll() {
-    return this.parcelasService.findAll();
+  findAll(@Request() req) {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.parcelasService.findAll(miPropioId);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.parcelasService.findOne(id);
+  findOne(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.parcelasService.findOne(miPropioId, id);
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateParcelaDto: UpdateParcelaDto) {
-    return this.parcelasService.update(id, updateParcelaDto);
+  update(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() updateParcelaDto: UpdateParcelaDto) {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.parcelasService.update(miPropioId, id, updateParcelaDto);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.parcelasService.remove(id);
+  remove(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.parcelasService.remove(miPropioId, id);
   }
 }

@@ -23,28 +23,37 @@ export class RoutersController {
     return this.routersService.vincularRouter(req.user.id, vincularRouterDto);
   }
 
+  @Post('desvincular/:id')
+  async desvincularRouter(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Router>{
+    return this.routersService.desvincularRouter(req.user.id, id);
+  }
+
   @Get()
-  async findAll(): Promise<Router[]>  {
-    return this.routersService.findAll();
+  async findAll(@Request() req): Promise<Router[]>  { //Devuelve todos los routers de un usuario
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.routersService.findAll(miPropioId);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Router | null>  {
-    return this.routersService.findOne(id);
+  async findOne(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Router | null>  {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.routersService.findOne(miPropioId,id);
   }
 
   @Get('esPublico/:id')
-  isPublic(@Param('id', ParseIntPipe) id: number) {
-    return this.routersService.isPublic(id);
+  isPublic(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.routersService.isPublic(miPropioId, id);
   }
 
   @Patch(':id')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateRouterDto: UpdateRouterDto): Promise<Router>  {
-    return this.routersService.update(id, updateRouterDto);
+  async update(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() updateRouterDto: UpdateRouterDto): Promise<Router>  {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.routersService.update(miPropioId, id, updateRouterDto);
   }
 
-  @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<Router>  {
-    return this.routersService.remove(id);
-  }
+  // @Delete(':id')
+  // async remove(@Param('id', ParseIntPipe) id: number): Promise<Router>  { //Un router no se puede eliminar (sigue existiendo)
+  //   return this.routersService.remove(id);                                 //se puede desvincular del usuario
+  // }
 }

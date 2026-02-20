@@ -17,26 +17,26 @@ export class MotasService {
     });
   }
 
-  async findAll(): Promise<Mota[]> {
-    return this.prisma.mota.findMany();
+  async findAll(usuarioId: number): Promise<Mota[]> {
+    return this.prisma.mota.findMany({where: {usuarioId}});
   }
 
-  async findOne(id: number): Promise<Mota | null> {
+  async findOne(usuarioId: number, id: number): Promise<Mota | null> {
     return this.prisma.mota.findUnique({
-      where: {id}
+      where: {id, usuarioId}
     });
   }
 
-  async update(id: number, updateMotaDto: UpdateMotaDto): Promise<Mota> {
+  async update(usuarioId: number, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota> {
     return this.prisma.mota.update({
-      where: {id},
+      where: {id, usuarioId},
       data: updateMotaDto
     });
   }
 
-  async remove(id: number): Promise<Mota> {
+  async remove(usuarioId: number, id: number): Promise<Mota> {
     return this.prisma.mota.delete({
-      where: {id}
+      where: {id, usuarioId}
     });
   }
 
@@ -81,6 +81,40 @@ export class MotasService {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
         throw new NotFoundException(`El usuario al que se pretende vincular no existe.`);
+      }
+      // Si es otro error de base de datos, lo dejamos pasar
+      throw error; 
+    }
+  }
+
+  async desvincularMota(usuarioId: number ,id: number): Promise<Mota> {
+
+    //Buscar la mota
+    const mota = await this.prisma.mota.findUnique({ where: {id, usuarioId} });
+
+    //Mota no existe
+    if (!mota) {
+      throw new NotFoundException(`La mota con ID ${id} no fue encontrada o no te pertenece.`);
+    }
+
+    //Conectar y Actualizar
+    try {
+      const motaActualizada: Mota = await this.prisma.mota.update({
+        where: { id, usuarioId },
+        data: {
+          //Desemparejar usuario
+          usuarioId: null,
+          // Borrar fecha de adjudicacion
+          claimedAt: null,
+        },
+      });
+
+      return motaActualizada;
+
+    } catch (error) {
+      // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`El usuario no existe.`);
       }
       // Si es otro error de base de datos, lo dejamos pasar
       throw error; 

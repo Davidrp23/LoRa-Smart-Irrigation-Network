@@ -12,7 +12,7 @@ export declare class ParcelasController {
         latitudCentro: number;
         longitudCentro: number;
     }>;
-    findAll(): Promise<{
+    findAll(req: any): Promise<{
         id: number;
         nombre: string;
         usuarioId: number;
@@ -20,7 +20,7 @@ export declare class ParcelasController {
         latitudCentro: number;
         longitudCentro: number;
     }[]>;
-    findOne(id: number): Promise<{
+    findOne(req: any, id: number): Promise<{
         id: number;
         nombre: string;
         usuarioId: number;
@@ -28,7 +28,7 @@ export declare class ParcelasController {
         latitudCentro: number;
         longitudCentro: number;
     } | null>;
-    update(id: number, updateParcelaDto: UpdateParcelaDto): Promise<{
+    update(req: any, id: number, updateParcelaDto: UpdateParcelaDto): Promise<{
         id: number;
         nombre: string;
         usuarioId: number;
@@ -36,7 +36,7 @@ export declare class ParcelasController {
         latitudCentro: number;
         longitudCentro: number;
     }>;
-    remove(id: number): Promise<{
+    remove(req: any, id: number): Promise<{
         id: number;
         nombre: string;
         usuarioId: number;

@@ -6,8 +6,8 @@ export declare class ParcelasService {
     private prisma;
     constructor(prisma: PrismaService);
     create(userId: number, createParcelaDto: CreateParcelaDto): Promise<Parcela>;
-    findAll(): Promise<Parcela[]>;
-    findOne(id: number): Promise<Parcela | null>;
-    update(id: number, updateParcelaDto: UpdateParcelaDto): Promise<Parcela>;
-    remove(id: number): Promise<Parcela>;
+    findAll(usuarioId: number): Promise<Parcela[]>;
+    findOne(usuarioId: number, id: number): Promise<Parcela | null>;
+    update(usuarioId: number, id: number, updateParcelaDto: UpdateParcelaDto): Promise<Parcela>;
+    remove(usuarioId: number, id: number): Promise<Parcela>;
 }

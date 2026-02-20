@@ -12,44 +12,47 @@ import { AuthGuard } from '@nestjs/passport';
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
-  @Post()
+  @Post() //Crea un usuario
   create(@Body() createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     return this.usuariosService.create(createUsuarioDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  // @UseGuards(AuthGuard('jwt')) //No tiene sentido devolver todos los usuarios -> falla de seguridad
+  // @Get()
+  // findAll(): Promise<Usuario[]> {
+  //   return this.usuariosService.findAll();
+  // }
+
+  @UseGuards(AuthGuard('jwt')) //Le devuelve la informacion de si mismo, de nadie mas
   @Get()
-  findAll(): Promise<Usuario[]> {
-    return this.usuariosService.findAll();
+  async findOne(@Request() req): Promise<Usuario | null> {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.usuariosService.findOne(miPropioId);
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Get('id/:id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Usuario | null> {
-    return this.usuariosService.findOne(id);
+  @UseGuards(AuthGuard('jwt')) //Solo se puede actualizar a si mismo, a nadie mas
+  @Patch()
+  async updateById(@Request() req, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.usuariosService.updateById(miPropioId, updateUsuarioDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Patch('id/:id')
-  async updateById(@Param('id', ParseIntPipe) id: number, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
-    return this.usuariosService.updateById(id, updateUsuarioDto);
+  // @UseGuards(AuthGuard('jwt'))
+  // @Patch('email/:email')
+  // async updateByEmail(@Param('email') email: string, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+  //   return this.usuariosService.updateByEmail(email, updateUsuarioDto);
+  // }
+
+  @UseGuards(AuthGuard('jwt'))  //Un usuario solo se puede eliminar a si mismo, a nadie mas
+  @Delete()
+  async removeById(@Request() req): Promise<Usuario> {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.usuariosService.removeByID(miPropioId);
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Patch('email/:email')
-  async updateByEmail(@Param('email') email: string, @Body() updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
-    return this.usuariosService.updateByEmail(email, updateUsuarioDto);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Delete('id/:id')
-  async removeById(@Param('id', ParseIntPipe) id: number): Promise<Usuario> {
-    return this.usuariosService.removeByID(id);
-  }
-
-  @UseGuards(AuthGuard('jwt'))
-  @Delete('email/:email')
-  async removeByEmail(@Param('email') email: string): Promise<Usuario> {
-    return this.usuariosService.removeByEmail(email);
-  }
+  // @UseGuards(AuthGuard('jwt'))
+  // @Delete('email/:email')
+  // async removeByEmail(@Param('email') email: string): Promise<Usuario> {
+  //   return this.usuariosService.removeByEmail(email);
+  // }
 }

@@ -14,19 +14,21 @@ export class MedicionesController {
   create(@Body() createMedicioneDto: CreateMedicionDto) {
     return this.medicionesService.create(createMedicioneDto);
   }
+  //Las mediciones no se pueden borrar, se consultan las mediciones de cada mota con el campo de "mediciones" en la BD,
+  //no hay necesidad de hacerlo directamente.
 
-  @Get()
-  findAll() {
-    return this.medicionesService.findAll();
-  }
+  // @Get()
+  // findAll() {
+  //   return this.medicionesService.findAll();
+  // }
 
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.medicionesService.findOne(id);
-  }
+  // @Get(':id')
+  // findOne(@Param('id', ParseIntPipe) id: number) {
+  //   return this.medicionesService.findOne(id);
+  // }
 
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.medicionesService.remove(id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id', ParseIntPipe) id: number) {
+  //   return this.medicionesService.remove(id);
+  // }
 }

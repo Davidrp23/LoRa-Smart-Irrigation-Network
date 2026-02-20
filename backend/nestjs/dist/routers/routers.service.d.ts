@@ -7,10 +7,11 @@ export declare class RoutersService {
     private prisma;
     constructor(prisma: PrismaService);
     create(createRouterDto: CreateRouterDto): Promise<Router>;
-    findAll(): Promise<Router[]>;
-    findOne(id: number): Promise<Router | null>;
-    update(id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
+    findAll(usuarioId: number): Promise<Router[]>;
+    findOne(usuarioId: number, id: number): Promise<Router | null>;
+    update(usuarioId: number, id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
     remove(id: number): Promise<Router>;
-    isPublic(id: number): Promise<Boolean | null>;
+    isPublic(usuarioId: number, id: number): Promise<Boolean | null>;
     vincularRouter(Userid: number, vincularRouterDto: VincularRouterDto): Promise<Router>;
+    desvincularRouter(Userid: number, routerId: number): Promise<Router>;
 }
