@@ -8,6 +8,7 @@ import { VincularRouterDto } from './dto/vincular-router.dto';
 import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('routers')
 export class RoutersController {
   constructor(private readonly routersService: RoutersService) {}
@@ -17,7 +18,6 @@ export class RoutersController {
     return this.routersService.create(createRouterDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @Post('vincular/')
   async vincularRouter(@Request() req, @Body() vincularRouterDto: VincularRouterDto): Promise<Router>{
     return this.routersService.vincularRouter(req.user.id, vincularRouterDto);

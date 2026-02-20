@@ -8,6 +8,7 @@ import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('motas')
 export class MotasController {
   constructor(private readonly motasService: MotasService) {}
@@ -17,7 +18,6 @@ export class MotasController {
     return this.motasService.create(createMotaDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @Post('vincular/')
   async vincularMota(@Request() req, @Body() vincularMotaDto: vincularMotaDto): Promise<Mota>{
     return this.motasService.vincularMota(req.user.id, vincularMotaDto);
