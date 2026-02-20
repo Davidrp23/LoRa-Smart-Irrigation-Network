@@ -1,34 +1,34 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateMotaDto } from './create-mota.dto';
-import { IsDate, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateMotaDto extends PartialType(CreateMotaDto) {
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     nombre: string;
 
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     parcelaId: number;
 
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     latitud: number;
 
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     longitud: number;
 
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     routerId: number;
 
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     bateriaUltima: number;
 
     @IsDate()
-    @IsNotEmpty()
+    @IsOptional()
     fechaUltimaConexion: Date;
 }

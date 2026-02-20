@@ -37,6 +37,9 @@ let RoutersController = class RoutersController {
     async findOne(id) {
         return this.routersService.findOne(id);
     }
+    isPublic(id) {
+        return this.routersService.isPublic(id);
+    }
     async update(id, updateRouterDto) {
         return this.routersService.update(id, updateRouterDto);
     }
@@ -74,6 +77,13 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Get)('esPublico/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], RoutersController.prototype, "isPublic", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

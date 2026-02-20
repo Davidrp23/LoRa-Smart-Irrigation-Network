@@ -42,6 +42,16 @@ export class RoutersService {
     });
   }
 
+  async isPublic(id: number): Promise<Boolean | null>{
+    const router: Router | null = await this.findOne(id);
+
+    if(!router){
+      throw new NotFoundException(`El router con ID ${id} no fue encontrado.`);
+    }
+
+    return router.esPublico;
+  }
+
   
 
   async vincularRouter(Userid: number ,vincularRouterDto: VincularRouterDto): Promise<Router> {

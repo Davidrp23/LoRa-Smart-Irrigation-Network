@@ -10,6 +10,7 @@ export declare class RoutersController {
     vincularRouter(req: any, vincularRouterDto: VincularRouterDto): Promise<Router>;
     findAll(): Promise<Router[]>;
     findOne(id: number): Promise<Router | null>;
+    isPublic(id: number): Promise<Boolean | null>;
     update(id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
     remove(id: number): Promise<Router>;
 }

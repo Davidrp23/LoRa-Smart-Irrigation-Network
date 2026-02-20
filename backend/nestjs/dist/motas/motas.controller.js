@@ -17,25 +17,31 @@ const common_1 = require("@nestjs/common");
 const motas_service_1 = require("./motas.service");
 const create_mota_dto_1 = require("./dto/create-mota.dto");
 const update_mota_dto_1 = require("./dto/update-mota.dto");
+const common_2 = require("@nestjs/common");
+const passport_1 = require("@nestjs/passport");
+const vincular_mota_dto_1 = require("./dto/vincular-mota.dto");
 let MotasController = class MotasController {
     motasService;
     constructor(motasService) {
         this.motasService = motasService;
     }
-    create(createMotaDto) {
+    async create(createMotaDto) {
         return this.motasService.create(createMotaDto);
     }
-    findAll() {
+    async vincularMota(req, vincularMotaDto) {
+        return this.motasService.vincularMota(req.user.id, vincularMotaDto);
+    }
+    async findAll() {
         return this.motasService.findAll();
     }
-    findOne(id) {
-        return this.motasService.findOne(+id);
+    async findOne(id) {
+        return this.motasService.findOne(id);
     }
-    update(id, updateMotaDto) {
-        return this.motasService.update(+id, updateMotaDto);
+    async update(id, updateMotaDto) {
+        return this.motasService.update(id, updateMotaDto);
     }
-    remove(id) {
-        return this.motasService.remove(+id);
+    async remove(id) {
+        return this.motasService.remove(id);
     }
 };
 exports.MotasController = MotasController;
@@ -44,35 +50,44 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_mota_dto_1.CreateMotaDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], MotasController.prototype, "create", null);
+__decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Post)('vincular/'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, vincular_mota_dto_1.vincularMotaDto]),
+    __metadata("design:returntype", Promise)
+], MotasController.prototype, "vincularMota", null);
 __decorate([
     (0, common_1.Get)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], MotasController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
 ], MotasController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_mota_dto_1.UpdateMotaDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number, update_mota_dto_1.UpdateMotaDto]),
+    __metadata("design:returntype", Promise)
 ], MotasController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
 ], MotasController.prototype, "remove", null);
 exports.MotasController = MotasController = __decorate([
     (0, common_1.Controller)('motas'),

@@ -33,6 +33,11 @@ export class RoutersController {
     return this.routersService.findOne(id);
   }
 
+  @Get('esPublico/:id')
+  isPublic(@Param('id', ParseIntPipe) id: number) {
+    return this.routersService.isPublic(id);
+  }
+
   @Patch(':id')
   async update(@Param('id', ParseIntPipe) id: number, @Body() updateRouterDto: UpdateRouterDto): Promise<Router>  {
     return this.routersService.update(id, updateRouterDto);

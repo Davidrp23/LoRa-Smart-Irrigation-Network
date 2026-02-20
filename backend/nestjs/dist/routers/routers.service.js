@@ -42,6 +42,13 @@ let RoutersService = class RoutersService {
             where: { id },
         });
     }
+    async isPublic(id) {
+        const router = await this.findOne(id);
+        if (!router) {
+            throw new common_2.NotFoundException(`El router con ID ${id} no fue encontrado.`);
+        }
+        return router.esPublico;
+    }
     async vincularRouter(Userid, vincularRouterDto) {
         const { id, codigoVinculacion } = vincularRouterDto;
         const router = await this.prisma.router.findUnique({ where: { id } });

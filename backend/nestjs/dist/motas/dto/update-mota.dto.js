@@ -25,37 +25,37 @@ class UpdateMotaDto extends (0, swagger_1.PartialType)(create_mota_dto_1.CreateM
 exports.UpdateMotaDto = UpdateMotaDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateMotaDto.prototype, "nombre", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "parcelaId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "latitud", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "longitud", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "routerId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "bateriaUltima", void 0);
 __decorate([
     (0, class_validator_1.IsDate)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Date)
 ], UpdateMotaDto.prototype, "fechaUltimaConexion", void 0);
 //# sourceMappingURL=update-mota.dto.js.map
