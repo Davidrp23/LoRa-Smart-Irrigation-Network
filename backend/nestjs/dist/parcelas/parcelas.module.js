@@ -17,6 +17,7 @@ exports.ParcelasModule = ParcelasModule = __decorate([
     (0, common_1.Module)({
         controllers: [parcelas_controller_1.ParcelasController],
         providers: [parcelas_service_1.ParcelasService],
+        exports: [parcelas_service_1.ParcelasService],
     })
 ], ParcelasModule);
 //# sourceMappingURL=parcelas.module.js.map

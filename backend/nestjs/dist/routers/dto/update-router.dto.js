@@ -13,6 +13,7 @@ exports.UpdateRouterDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const create_router_dto_1 = require("./create-router.dto");
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 class UpdateRouterDto extends (0, swagger_1.PartialType)(create_router_dto_1.CreateRouterDto) {
     ssid;
     esPublico;
@@ -54,7 +55,7 @@ __decorate([
 ], UpdateRouterDto.prototype, "bateria", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDate)(),
+    (0, class_transformer_1.Type)(() => Date),
     __metadata("design:type", Date)
 ], UpdateRouterDto.prototype, "fechaUltimaConexion", void 0);
 __decorate([

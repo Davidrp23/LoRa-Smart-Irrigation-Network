@@ -17,6 +17,7 @@ exports.RoutersModule = RoutersModule = __decorate([
     (0, common_1.Module)({
         controllers: [routers_controller_1.RoutersController],
         providers: [routers_service_1.RoutersService],
+        exports: [routers_service_1.RoutersService],
     })
 ], RoutersModule);
 //# sourceMappingURL=routers.module.js.map

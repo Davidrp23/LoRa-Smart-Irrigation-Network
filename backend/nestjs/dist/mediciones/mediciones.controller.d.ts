@@ -5,12 +5,12 @@ export declare class MedicionesController {
     constructor(medicionesService: MedicionesService);
     create(createMedicioneDto: CreateMedicionDto): Promise<{
         id: number;
-        fecha: Date;
-        humedad: number;
         bateria: number;
+        humedad: number;
         rssi: number | null;
         snr: number | null;
         erroresRxMota: number | null;
         motaId: number;
+        fecha: Date;
     }>;
 }

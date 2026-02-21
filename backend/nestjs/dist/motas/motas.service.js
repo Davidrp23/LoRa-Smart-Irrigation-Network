@@ -13,10 +13,13 @@ exports.MotasService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const common_2 = require("@nestjs/common");
+const parcelas_service_1 = require("../parcelas/parcelas.service");
 let MotasService = class MotasService {
     prisma;
-    constructor(prisma) {
+    parcelasService;
+    constructor(prisma, parcelasService) {
         this.prisma = prisma;
+        this.parcelasService = parcelasService;
     }
     async create(createMotaDto) {
         return this.prisma.mota.create({
@@ -32,6 +35,18 @@ let MotasService = class MotasService {
         });
     }
     async update(usuarioId, id, updateMotaDto) {
+        const parcelaId = updateMotaDto.parcelaId;
+        if (parcelaId != null) {
+            if (await this.parcelasService.findOne(usuarioId, parcelaId) == null) {
+                throw new common_2.NotFoundException(`La parcela con ID ${parcelaId} no existe o no le pertenece al usuario propietario de la mota.`);
+            }
+        }
+        const routerId = updateMotaDto.routerId;
+        if (routerId != null) {
+            if (await this.prisma.router.findUnique({ where: { id: routerId } }) == null) {
+                throw new common_2.NotFoundException(`El router con ID ${routerId} no existe.`);
+            }
+        }
         return this.prisma.mota.update({
             where: { id, usuarioId },
             data: updateMotaDto
@@ -99,6 +114,6 @@ let MotasService = class MotasService {
 exports.MotasService = MotasService;
 exports.MotasService = MotasService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService, parcelas_service_1.ParcelasService])
 ], MotasService);
 //# sourceMappingURL=motas.service.js.map

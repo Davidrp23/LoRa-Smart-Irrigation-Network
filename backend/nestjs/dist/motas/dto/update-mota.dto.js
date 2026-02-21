@@ -13,6 +13,7 @@ exports.UpdateMotaDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const create_mota_dto_1 = require("./create-mota.dto");
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 class UpdateMotaDto extends (0, swagger_1.PartialType)(create_mota_dto_1.CreateMotaDto) {
     nombre;
     parcelaId;
@@ -54,7 +55,7 @@ __decorate([
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "bateriaUltima", void 0);
 __decorate([
-    (0, class_validator_1.IsDate)(),
+    (0, class_transformer_1.Type)(() => Date),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Date)
 ], UpdateMotaDto.prototype, "fechaUltimaConexion", void 0);

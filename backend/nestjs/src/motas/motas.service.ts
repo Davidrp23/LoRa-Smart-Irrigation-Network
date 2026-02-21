@@ -5,11 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Mota } from '@prisma/client';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { ParcelasService } from 'src/parcelas/parcelas.service';
 
 @Injectable()
 export class MotasService {
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private parcelasService: ParcelasService) {}
+
 
   async create(createMotaDto: CreateMotaDto): Promise<Mota> {
     return this.prisma.mota.create({
@@ -28,6 +30,26 @@ export class MotasService {
   }
 
   async update(usuarioId: number, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota> {
+    //Tenemos que verificar si la parcela a la que se pretende vincular existe
+    const parcelaId: number = updateMotaDto.parcelaId;
+
+    if(parcelaId != null){
+      if(await this.parcelasService.findOne(usuarioId,parcelaId) == null){
+        throw new NotFoundException(`La parcela con ID ${parcelaId} no existe o no le pertenece al usuario propietario de la mota.`);
+      }
+    }
+  
+    //Tambien tenemos que verificar que el router exista, una mota puede estar conectada a un router que no 
+    //sea propiedad del usuario
+
+    const routerId: number = updateMotaDto.routerId;
+
+    if(routerId != null){
+      if(await this.prisma.router.findUnique({where: {id:routerId}}) == null){
+        throw new NotFoundException(`El router con ID ${routerId} no existe.`);
+      }
+    }
+    
     return this.prisma.mota.update({
       where: {id, usuarioId},
       data: updateMotaDto

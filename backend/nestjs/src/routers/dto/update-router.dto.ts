@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateRouterDto } from './create-router.dto';
 import { IsBoolean, IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateRouterDto extends PartialType(CreateRouterDto) {
     @IsOptional()
@@ -27,7 +28,7 @@ export class UpdateRouterDto extends PartialType(CreateRouterDto) {
     bateria: number;     // Si va con placa solar
 
     @IsOptional()
-    @IsDate()
+    @Type(() => Date)
     fechaUltimaConexion: Date;
     
     // --- CONTADORES DE TRÁFICO (Monitorización de Red) ---

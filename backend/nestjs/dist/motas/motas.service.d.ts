@@ -3,9 +3,11 @@ import { UpdateMotaDto } from './dto/update-mota.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { Mota } from '@prisma/client';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
+import { ParcelasService } from 'src/parcelas/parcelas.service';
 export declare class MotasService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private parcelasService;
+    constructor(prisma: PrismaService, parcelasService: ParcelasService);
     create(createMotaDto: CreateMotaDto): Promise<Mota>;
     findAll(usuarioId: number): Promise<Mota[]>;
     findOne(usuarioId: number, id: number): Promise<Mota | null>;

@@ -10,13 +10,17 @@ exports.MotasModule = void 0;
 const common_1 = require("@nestjs/common");
 const motas_service_1 = require("./motas.service");
 const motas_controller_1 = require("./motas.controller");
+const parcelas_module_1 = require("../parcelas/parcelas.module");
+const routers_module_1 = require("../routers/routers.module");
 let MotasModule = class MotasModule {
 };
 exports.MotasModule = MotasModule;
 exports.MotasModule = MotasModule = __decorate([
     (0, common_1.Module)({
+        imports: [parcelas_module_1.ParcelasModule, routers_module_1.RoutersModule],
         controllers: [motas_controller_1.MotasController],
         providers: [motas_service_1.MotasService],
+        exports: [motas_service_1.MotasService],
     })
 ], MotasModule);
 //# sourceMappingURL=motas.module.js.map

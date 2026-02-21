@@ -17,6 +17,7 @@ exports.MedicionesModule = MedicionesModule = __decorate([
     (0, common_1.Module)({
         controllers: [mediciones_controller_1.MedicionesController],
         providers: [mediciones_service_1.MedicionesService],
+        exports: [mediciones_service_1.MedicionesService],
     })
 ], MedicionesModule);
 //# sourceMappingURL=mediciones.module.js.map

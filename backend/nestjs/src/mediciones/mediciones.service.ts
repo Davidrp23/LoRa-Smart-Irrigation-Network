@@ -14,7 +14,7 @@ export class MedicionesService {
     const mota = await this.prisma.mota.findUnique({where: {id: createMedicionDto.motaId}});
 
     if(!mota){
-      throw new NotFoundException(`La mota con ID ${createMedicionDto.motaId} no fue encontrada.`);
+      throw new NotFoundException(`La mota con ID ${createMedicionDto.motaId} no existe.`);
     }
     
     return this.prisma.medicion.create({

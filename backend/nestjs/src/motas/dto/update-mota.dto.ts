@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateMotaDto } from './create-mota.dto';
 import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateMotaDto extends PartialType(CreateMotaDto) {
 
@@ -28,7 +29,7 @@ export class UpdateMotaDto extends PartialType(CreateMotaDto) {
     @IsOptional()
     bateriaUltima: number;
 
-    @IsDate()
+    @Type(() => Date)
     @IsOptional()
     fechaUltimaConexion: Date;
 }

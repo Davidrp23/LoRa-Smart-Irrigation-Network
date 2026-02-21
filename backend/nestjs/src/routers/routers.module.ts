@@ -5,5 +5,6 @@ import { RoutersController } from './routers.controller';
 @Module({
   controllers: [RoutersController],
   providers: [RoutersService],
+  exports: [RoutersService],
 })
 export class RoutersModule {}

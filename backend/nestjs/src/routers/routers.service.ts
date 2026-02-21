@@ -48,7 +48,7 @@ export class RoutersService {
     const router: Router | null = await this.findOne(usuarioId, id);
 
     if(!router){
-      throw new NotFoundException(`El router con ID ${id} no fue encontrado.`);
+      throw new NotFoundException(`El router con ID ${id} no existe o no te pertenece.`);
     }
 
     return router.esPublico;
@@ -110,7 +110,7 @@ export class RoutersService {
 
     //Router no existe
     if (!router) {
-      throw new NotFoundException(`El router con ID ${routerId} no fue encontrado o no te pertenece.`);
+      throw new NotFoundException(`El router con ID ${routerId} no existe o no te pertenece.`);
     }
 
     //Conectar y Actualizar

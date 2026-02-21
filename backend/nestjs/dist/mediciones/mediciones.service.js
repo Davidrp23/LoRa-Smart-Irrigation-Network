@@ -21,7 +21,7 @@ let MedicionesService = class MedicionesService {
     async create(createMedicionDto) {
         const mota = await this.prisma.mota.findUnique({ where: { id: createMedicionDto.motaId } });
         if (!mota) {
-            throw new common_2.NotFoundException(`La mota con ID ${createMedicionDto.motaId} no fue encontrada.`);
+            throw new common_2.NotFoundException(`La mota con ID ${createMedicionDto.motaId} no existe.`);
         }
         return this.prisma.medicion.create({
             data: createMedicionDto

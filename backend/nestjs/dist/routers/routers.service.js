@@ -47,7 +47,7 @@ let RoutersService = class RoutersService {
     async isPublic(usuarioId, id) {
         const router = await this.findOne(usuarioId, id);
         if (!router) {
-            throw new common_2.NotFoundException(`El router con ID ${id} no fue encontrado.`);
+            throw new common_2.NotFoundException(`El router con ID ${id} no existe o no te pertenece.`);
         }
         return router.esPublico;
     }
@@ -85,7 +85,7 @@ let RoutersService = class RoutersService {
     async desvincularRouter(Userid, routerId) {
         const router = await this.prisma.router.findUnique({ where: { id: routerId, usuarioId: Userid } });
         if (!router) {
-            throw new common_2.NotFoundException(`El router con ID ${routerId} no fue encontrado o no te pertenece.`);
+            throw new common_2.NotFoundException(`El router con ID ${routerId} no existe o no te pertenece.`);
         }
         try {
             const routerActualizado = await this.prisma.router.update({

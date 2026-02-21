@@ -1,0 +1,6 @@
+=========================
+PROBLEMAS DETECTADOS API 
+=========================
+
+-fallo de llaves foraneas al actualizar una mota --> ok
+- se puede adjudicar mediciones a motas que no son del usuario --> problemas de autenticaion en routers y motas
