@@ -13,15 +13,38 @@ exports.RoutersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const common_2 = require("@nestjs/common");
+const crypto_1 = require("crypto");
 let RoutersService = class RoutersService {
     prisma;
     constructor(prisma) {
         this.prisma = prisma;
     }
     async create(createRouterDto) {
-        return this.prisma.router.create({
-            data: createRouterDto
-        });
+        let intentos = 0;
+        while (intentos < 3) {
+            const apiToken = (0, crypto_1.randomBytes)(16).toString('hex');
+            const rawCode = (0, crypto_1.randomBytes)(6).toString('hex').toUpperCase();
+            const codigoVinculacion = `${rawCode.slice(0, 4)}-${rawCode.slice(4, 8)}-${rawCode.slice(8, 12)}`;
+            try {
+                const nuevoRouter = await this.prisma.router.create({
+                    data: {
+                        ...createRouterDto,
+                        codigoVinculacion: codigoVinculacion,
+                        apiToken: apiToken,
+                    },
+                });
+                return nuevoRouter;
+            }
+            catch (error) {
+                if (error.code === 'P2002') {
+                    intentos++;
+                }
+                else {
+                    throw error;
+                }
+            }
+        }
+        throw new common_1.InternalServerErrorException('No se pudo generar un código único para el router.');
     }
     async findAll(usuarioId) {
         return this.prisma.router.findMany({
@@ -52,20 +75,17 @@ let RoutersService = class RoutersService {
         return router.esPublico;
     }
     async vincularRouter(Userid, vincularRouterDto) {
-        const { id, codigoVinculacion } = vincularRouterDto;
-        const router = await this.prisma.router.findUnique({ where: { id } });
+        const { codigoVinculacion } = vincularRouterDto;
+        const router = await this.prisma.router.findUnique({ where: { codigoVinculacion } });
         if (!router) {
-            throw new common_2.NotFoundException(`El router con ID ${id} no fue encontrado.`);
+            throw new common_2.NotFoundException(`Router no encontrado.`);
         }
         if (router.usuarioId !== null) {
             throw new common_2.ConflictException('Este router ya pertenece a otro usuario.');
         }
-        if (router.codigoVinculacion !== codigoVinculacion) {
-            throw new common_2.ForbiddenException('El código de vinculación es incorrecto.');
-        }
         try {
             const routerActualizado = await this.prisma.router.update({
-                where: { id },
+                where: { codigoVinculacion },
                 data: {
                     usuario: {
                         connect: { id: Userid }
@@ -77,7 +97,7 @@ let RoutersService = class RoutersService {
         }
         catch (error) {
             if (error.code === 'P2025') {
-                throw new common_2.NotFoundException(`El usuario al que se pretende vincular no existe.`);
+                throw new common_2.NotFoundException(`El usuario no existe.`);
             }
             throw error;
         }

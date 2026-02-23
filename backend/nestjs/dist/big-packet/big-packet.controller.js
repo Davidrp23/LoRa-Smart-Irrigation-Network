@@ -15,66 +15,30 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BigPacketController = void 0;
 const common_1 = require("@nestjs/common");
 const big_packet_service_1 = require("./big-packet.service");
-const create_big_packet_dto_1 = require("./dto/create-big-packet.dto");
-const update_big_packet_dto_1 = require("./dto/update-big-packet.dto");
+const big_packet_dto_1 = require("./dto/big-packet.dto");
+const device_auth_guard_1 = require("../auth/guards/device-auth.guard");
+const common_2 = require("@nestjs/common");
 let BigPacketController = class BigPacketController {
     bigPacketService;
     constructor(bigPacketService) {
         this.bigPacketService = bigPacketService;
     }
-    create(createBigPacketDto) {
-        return this.bigPacketService.create(createBigPacketDto);
-    }
-    findAll() {
-        return this.bigPacketService.findAll();
-    }
-    findOne(id) {
-        return this.bigPacketService.findOne(+id);
-    }
-    update(id, updateBigPacketDto) {
-        return this.bigPacketService.update(+id, updateBigPacketDto);
-    }
-    remove(id) {
-        return this.bigPacketService.remove(+id);
+    create(req, BigPacketDto) {
+        const routerID = req.device.id;
+        return this.bigPacketService.create(routerID, BigPacketDto);
     }
 };
 exports.BigPacketController = BigPacketController;
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_big_packet_dto_1.CreateBigPacketDto]),
-    __metadata("design:returntype", void 0)
-], BigPacketController.prototype, "create", null);
-__decorate([
-    (0, common_1.Get)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], BigPacketController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], BigPacketController.prototype, "findOne", null);
-__decorate([
-    (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
+    __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_big_packet_dto_1.UpdateBigPacketDto]),
+    __metadata("design:paramtypes", [Object, big_packet_dto_1.BigPacketDto]),
     __metadata("design:returntype", void 0)
-], BigPacketController.prototype, "update", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], BigPacketController.prototype, "remove", null);
+], BigPacketController.prototype, "create", null);
 exports.BigPacketController = BigPacketController = __decorate([
+    (0, common_2.UseGuards)(device_auth_guard_1.DeviceAuthGuard),
     (0, common_1.Controller)('big-packet'),
     __metadata("design:paramtypes", [big_packet_service_1.BigPacketService])
 ], BigPacketController);

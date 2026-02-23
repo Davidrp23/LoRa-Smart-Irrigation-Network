@@ -12,19 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateRouterDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateRouterDto {
-    id;
-    codigoVinculacion;
     modelo;
 }
 exports.CreateRouterDto = CreateRouterDto;
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateRouterDto.prototype, "id", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateRouterDto.prototype, "codigoVinculacion", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)

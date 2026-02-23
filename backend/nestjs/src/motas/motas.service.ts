@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateMotaDto } from './dto/create-mota.dto';
 import { UpdateMotaDto } from './dto/update-mota.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,6 +6,7 @@ import { Mota } from '@prisma/client';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { ParcelasService } from 'src/parcelas/parcelas.service';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class MotasService {
@@ -13,11 +14,42 @@ export class MotasService {
   constructor(private prisma: PrismaService, private parcelasService: ParcelasService) {}
 
 
-  async create(createMotaDto: CreateMotaDto): Promise<Mota> {
-    return this.prisma.mota.create({
-      data: createMotaDto
-    });
-  }
+  async create(CreateMotaDto: CreateMotaDto): Promise<Mota> {
+    let intentos: number = 0;
+
+    // Solo comprobamos los intentos
+    while (intentos < 3) {
+      
+      // 1. Pedimos 6 bytes en lugar de 4 (6 bytes = 12 caracteres hexadecimales)
+      const rawCode = randomBytes(6).toString('hex').toUpperCase(); 
+      
+      // 2. Lo partimos en 3 bloques separados por guiones (Ej: "A1B2-C3D4-E5F6")
+      const codigoVinculacion = `${rawCode.slice(0, 4)}-${rawCode.slice(4, 8)}-${rawCode.slice(8, 12)}`;
+
+      try {
+        const nuevaMota = await this.prisma.mota.create({
+          data: {
+            ...CreateMotaDto,
+            codigoVinculacion: codigoVinculacion,
+          },
+        });
+
+        // ESCAPE 1: Si funciona, rompemos la función y salimos
+        return nuevaMota; 
+
+      } catch (error) {
+        if (error.code === 'P2002') {
+          // ESCAPE 2: Vamos sumando hasta llegar a 3
+          intentos++; 
+        } else {
+          // ESCAPE 3: Error grave, abortamos misión
+          throw error; 
+        }
+      }
+    }
+
+    throw new InternalServerErrorException('No se pudo generar un código único para el router.');
+}
 
   async findAll(usuarioId: number): Promise<Mota[]> {
     return this.prisma.mota.findMany({where: {usuarioId}});
@@ -30,6 +62,7 @@ export class MotasService {
   }
 
   async update(usuarioId: number, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota> {
+    
     //Tenemos que verificar si la parcela a la que se pretende vincular existe
     const parcelaId: number = updateMotaDto.parcelaId;
 
@@ -64,14 +97,14 @@ export class MotasService {
 
   async vincularMota(Userid: number ,vincularMotaDto: vincularMotaDto): Promise<Mota> {
 
-    const { id, codigoVinculacion} = vincularMotaDto;
+    const {codigoVinculacion} = vincularMotaDto;
 
     //Buscar la mota
-    const mota = await this.prisma.mota.findUnique({ where: {id} });
+    const mota = await this.prisma.mota.findUnique({ where: {codigoVinculacion} });
 
     //Mota no existe
     if (!mota) {
-      throw new NotFoundException(`La mota con ID ${id} no fue encontrada.`);
+      throw new NotFoundException(`Mota no encontrada.`);
     }
 
     //Evitar que alguien robe una mota ya vinculada
@@ -79,15 +112,10 @@ export class MotasService {
       throw new ConflictException('Esta mota ya pertenece a otro usuario.');
     }
 
-    //Código incorrecto
-    if (mota.codigoVinculacion !== codigoVinculacion) {
-      throw new ForbiddenException('El código de vinculación es incorrecto.');
-    }
-
     //Conectar y Actualizar
     try {
       const motaActualizada: Mota = await this.prisma.mota.update({
-        where: { id },
+        where: { codigoVinculacion },
         data: {
           usuario : {
             connect: {id: Userid}
@@ -102,7 +130,7 @@ export class MotasService {
     } catch (error) {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
-        throw new NotFoundException(`El usuario al que se pretende vincular no existe.`);
+        throw new NotFoundException(`El usuario no existe.`);
       }
       // Si es otro error de base de datos, lo dejamos pasar
       throw error; 

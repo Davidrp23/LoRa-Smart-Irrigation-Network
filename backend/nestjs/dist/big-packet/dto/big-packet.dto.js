@@ -154,4 +154,4 @@ __decorate([
     (0, class_transformer_1.Expose)({ name: 'ms' }),
     __metadata("design:type", Array)
 ], BigPacketDto.prototype, "motas", void 0);
-//# sourceMappingURL=create-big-packet.dto.js.map
+//# sourceMappingURL=big-packet.dto.js.map

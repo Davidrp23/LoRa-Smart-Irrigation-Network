@@ -1,34 +1,20 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { BigPacketService } from './big-packet.service';
-import { CreateBigPacketDto } from './dto/create-big-packet.dto';
-import { UpdateBigPacketDto } from './dto/update-big-packet.dto';
+import { BigPacketDto } from './dto/big-packet.dto';
+import { DeviceAuthGuard } from 'src/auth/guards/device-auth.guard';
+import { UseGuards, Request } from '@nestjs/common';
 
+@UseGuards(DeviceAuthGuard)
 @Controller('big-packet')
 export class BigPacketController {
+
   constructor(private readonly bigPacketService: BigPacketService) {}
 
+  //Solo se pueden crear, no hace falta ninguno mas.
+
   @Post()
-  create(@Body() createBigPacketDto: CreateBigPacketDto) {
-    return this.bigPacketService.create(createBigPacketDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.bigPacketService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.bigPacketService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBigPacketDto: UpdateBigPacketDto) {
-    return this.bigPacketService.update(+id, updateBigPacketDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.bigPacketService.remove(+id);
+  create(@Request() req, @Body() BigPacketDto: BigPacketDto) {
+    const routerID = req.device.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.bigPacketService.create(routerID,BigPacketDto);
   }
 }

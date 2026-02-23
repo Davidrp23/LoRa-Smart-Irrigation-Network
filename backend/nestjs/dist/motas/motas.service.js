@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const common_2 = require("@nestjs/common");
 const parcelas_service_1 = require("../parcelas/parcelas.service");
+const crypto_1 = require("crypto");
 let MotasService = class MotasService {
     prisma;
     parcelasService;
@@ -21,10 +22,30 @@ let MotasService = class MotasService {
         this.prisma = prisma;
         this.parcelasService = parcelasService;
     }
-    async create(createMotaDto) {
-        return this.prisma.mota.create({
-            data: createMotaDto
-        });
+    async create(CreateMotaDto) {
+        let intentos = 0;
+        while (intentos < 3) {
+            const rawCode = (0, crypto_1.randomBytes)(6).toString('hex').toUpperCase();
+            const codigoVinculacion = `${rawCode.slice(0, 4)}-${rawCode.slice(4, 8)}-${rawCode.slice(8, 12)}`;
+            try {
+                const nuevaMota = await this.prisma.mota.create({
+                    data: {
+                        ...CreateMotaDto,
+                        codigoVinculacion: codigoVinculacion,
+                    },
+                });
+                return nuevaMota;
+            }
+            catch (error) {
+                if (error.code === 'P2002') {
+                    intentos++;
+                }
+                else {
+                    throw error;
+                }
+            }
+        }
+        throw new common_1.InternalServerErrorException('No se pudo generar un código único para el router.');
     }
     async findAll(usuarioId) {
         return this.prisma.mota.findMany({ where: { usuarioId } });
@@ -58,20 +79,17 @@ let MotasService = class MotasService {
         });
     }
     async vincularMota(Userid, vincularMotaDto) {
-        const { id, codigoVinculacion } = vincularMotaDto;
-        const mota = await this.prisma.mota.findUnique({ where: { id } });
+        const { codigoVinculacion } = vincularMotaDto;
+        const mota = await this.prisma.mota.findUnique({ where: { codigoVinculacion } });
         if (!mota) {
-            throw new common_2.NotFoundException(`La mota con ID ${id} no fue encontrada.`);
+            throw new common_2.NotFoundException(`Mota no encontrada.`);
         }
         if (mota.usuarioId !== null) {
             throw new common_2.ConflictException('Esta mota ya pertenece a otro usuario.');
         }
-        if (mota.codigoVinculacion !== codigoVinculacion) {
-            throw new common_2.ForbiddenException('El código de vinculación es incorrecto.');
-        }
         try {
             const motaActualizada = await this.prisma.mota.update({
-                where: { id },
+                where: { codigoVinculacion },
                 data: {
                     usuario: {
                         connect: { id: Userid }
@@ -83,7 +101,7 @@ let MotasService = class MotasService {
         }
         catch (error) {
             if (error.code === 'P2025') {
-                throw new common_2.NotFoundException(`El usuario al que se pretende vincular no existe.`);
+                throw new common_2.NotFoundException(`El usuario no existe.`);
             }
             throw error;
         }

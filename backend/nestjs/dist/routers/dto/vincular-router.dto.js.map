@@ -1,1 +1,1 @@
-{"version":3,"file":"vincular-router.dto.js","sourceRoot":"","sources":["../../../src/routers/dto/vincular-router.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAoD;AAEpD,MAAa,iBAAiB;IAG1B,EAAE,CAAQ;IAGV,iBAAiB,CAAS;CAC7B;AAPD,8CAOC;AAJG;IADC,IAAA,0BAAQ,GAAE;;6CACD;AAGV;IADC,IAAA,0BAAQ,GAAE;;4DACe"}
+{"version":3,"file":"vincular-router.dto.js","sourceRoot":"","sources":["../../../src/routers/dto/vincular-router.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAoD;AAEpD,MAAa,iBAAiB;IAE1B,iBAAiB,CAAS;CAC7B;AAHD,8CAGC;AADG;IADC,IAAA,0BAAQ,GAAE;;4DACe"}

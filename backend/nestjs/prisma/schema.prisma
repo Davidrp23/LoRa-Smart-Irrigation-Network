@@ -34,10 +34,13 @@ model Usuario {
 // ========================================================
 
 model Router {
-  id              Int      @id // ID Físico programado en el hardware ( > 0 )
-  codigoVinculacion String //Usado para apropiarse del dispositivo
-  modelo          String  // Ej: "Gateway Casa Norte"
+  id              Int      @id @default(autoincrement())
+  codigoVinculacion String @unique //Usado para apropiarse del dispositivo
+  modelo          String   // Ej: "Gateway Casa Norte"
   ssid            String?  // Nombre de la red LoRa/WiFi
+
+  // Para que el hardware hable con tu API (Ej: "f8a9b2c3d4e5f6...")
+  apiToken          String   @unique
   
   // --- ROAMING Y COMUNIDAD ---
   esPublico       Boolean?  @default(false) // TRUE = Vecinos pueden usarlo para enviar datos
@@ -96,8 +99,8 @@ model Parcela {
 // ========================================================
 
 model Mota {
-  id              Int      @id // ID Físico programado ( > 0 )
-  codigoVinculacion String //Usado para apropiarse del dispositivo
+  id              Int      @id @default(autoincrement())
+  codigoVinculacion String @unique //Usado para apropiarse del dispositivo
   nombre          String?  // Ej: "Sensor Humedad #4"
   modelo          String?  // Ej: "Heltec V3"
 

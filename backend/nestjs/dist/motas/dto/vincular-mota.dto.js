@@ -12,15 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.vincularMotaDto = void 0;
 const class_validator_1 = require("class-validator");
 class vincularMotaDto {
-    id;
     codigoVinculacion;
 }
 exports.vincularMotaDto = vincularMotaDto;
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", Number)
-], vincularMotaDto.prototype, "id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),

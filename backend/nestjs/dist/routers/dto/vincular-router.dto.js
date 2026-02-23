@@ -12,14 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VincularRouterDto = void 0;
 const class_validator_1 = require("class-validator");
 class VincularRouterDto {
-    id;
     codigoVinculacion;
 }
 exports.VincularRouterDto = VincularRouterDto;
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], VincularRouterDto.prototype, "id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)

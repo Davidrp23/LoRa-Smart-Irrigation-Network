@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateRouterDto } from './dto/create-router.dto';
 import { UpdateRouterDto } from './dto/update-router.dto';
 import { Router } from '@prisma/client'; // 2. Importa el Tipo de Prisma (El Entity real)
@@ -6,17 +6,56 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { VincularRouterDto } from './dto/vincular-router.dto';
 
+import { randomBytes } from 'crypto';
+
 @Injectable()
 export class RoutersService {
 
-  // 3. Inyecta Prisma en el constructor
+  // Inyecta Prisma en el constructor
   constructor(private prisma: PrismaService) {}
 
 
   async create(createRouterDto: CreateRouterDto): Promise<Router> {
-    return this.prisma.router.create({
-      data: createRouterDto
-    });
+
+    let intentos: number = 0;
+
+    while (intentos < 3) {
+      // 1. Generar el Token de la API (Para la máquina)
+      // randomBytes(16) genera 16 bytes aleatorios, toString('hex') lo convierte a 32 caracteres (Ej: "8f4a2b9c...")
+      const apiToken = randomBytes(16).toString('hex');
+
+      // 2. Generar el Código de Vinculación (Para el humano)
+      // 2.1. Pedimos 6 bytes en lugar de 4 (6 bytes = 12 caracteres hexadecimales)
+      const rawCode = randomBytes(6).toString('hex').toUpperCase(); 
+      
+      // 2.2. Lo partimos en 3 bloques separados por guiones (Ej: "A1B2-C3D4-E5F6")
+      const codigoVinculacion = `${rawCode.slice(0, 4)}-${rawCode.slice(4, 8)}-${rawCode.slice(8, 12)}`;
+
+      try {
+        // 3. Intentamos insertar en la base de datos
+        const nuevoRouter = await this.prisma.router.create({
+          data: {
+            ...createRouterDto, // Aquí viene el 'modelo' desde el DTO
+            codigoVinculacion: codigoVinculacion,
+            apiToken: apiToken,
+          },
+        });
+
+        return nuevoRouter; // Si funciona, devuelve el router y sale de la función
+
+      } catch (error) {
+        // 4. Si falla porque el código o el token ya existen (Error P2002 de Prisma)
+        if (error.code === 'P2002') {
+          intentos++; // Sumamos un intento y el bucle while vuelve a empezar
+        } else {
+          // Si es otro error (ej. se ha caído la base de datos), que explote
+          throw error;
+        }
+      }
+    }
+
+    // Si después de 3 intentos ha habido colisiones (prácticamente imposible), lanzamos error 500
+    throw new InternalServerErrorException('No se pudo generar un código único para el router.');
   }
 
   async findAll(usuarioId: number): Promise<Router[]> {
@@ -58,14 +97,14 @@ export class RoutersService {
 
   async vincularRouter(Userid: number ,vincularRouterDto: VincularRouterDto): Promise<Router> {
 
-    const { id, codigoVinculacion} = vincularRouterDto;
+    const {codigoVinculacion} = vincularRouterDto;
 
     //Buscar el router
-    const router = await this.prisma.router.findUnique({ where: {id} });
+    const router = await this.prisma.router.findUnique({ where: {codigoVinculacion} });
 
     //Router no existe
     if (!router) {
-      throw new NotFoundException(`El router con ID ${id} no fue encontrado.`);
+      throw new NotFoundException(`Router no encontrado.`);
     }
 
     //Evitar que alguien robe un router ya vinculado
@@ -73,15 +112,10 @@ export class RoutersService {
       throw new ConflictException('Este router ya pertenece a otro usuario.');
     }
 
-    //Código incorrecto
-    if (router.codigoVinculacion !== codigoVinculacion) {
-      throw new ForbiddenException('El código de vinculación es incorrecto.');
-    }
-
     //Conectar y Actualizar
     try {
       const routerActualizado: Router = await this.prisma.router.update({
-        where: { id },
+        where: { codigoVinculacion },
         data: {
           usuario : {
             connect: {id: Userid}
@@ -96,7 +130,7 @@ export class RoutersService {
     } catch (error) {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
-        throw new NotFoundException(`El usuario al que se pretende vincular no existe.`);
+        throw new NotFoundException(`El usuario no existe.`);
       }
       // Si es otro error de base de datos, lo dejamos pasar
       throw error; 

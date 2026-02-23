@@ -8,7 +8,7 @@ export declare class MotasService {
     private prisma;
     private parcelasService;
     constructor(prisma: PrismaService, parcelasService: ParcelasService);
-    create(createMotaDto: CreateMotaDto): Promise<Mota>;
+    create(CreateMotaDto: CreateMotaDto): Promise<Mota>;
     findAll(usuarioId: number): Promise<Mota[]>;
     findOne(usuarioId: number, id: number): Promise<Mota | null>;
     update(usuarioId: number, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota>;

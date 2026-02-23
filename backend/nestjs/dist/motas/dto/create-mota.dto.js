@@ -12,21 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateMotaDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateMotaDto {
-    id;
-    codigoVinculacion;
     modelo;
 }
 exports.CreateMotaDto = CreateMotaDto;
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", Number)
-], CreateMotaDto.prototype, "id", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", String)
-], CreateMotaDto.prototype, "codigoVinculacion", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
