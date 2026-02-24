@@ -21,6 +21,7 @@ const vincular_router_dto_1 = require("./dto/vincular-router.dto");
 const common_2 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const hybrid_auth_guard_1 = require("../auth/guards/hybrid-auth.guard");
+const device_auth_guard_1 = require("../auth/guards/device-auth.guard");
 let RoutersController = class RoutersController {
     routersService;
     constructor(routersService) {
@@ -52,6 +53,10 @@ let RoutersController = class RoutersController {
             const routerSolicitanteId = req.device.apiToken;
             return this.routersService.isPublic(undefined, routerSolicitanteId, id);
         }
+    }
+    aceptarCliente(req, motaId) {
+        const apiToken = req.device.apiToken;
+        return this.routersService.aceptarCliente(apiToken, motaId);
     }
     async update(req, id, updateRouterDto) {
         const miPropioId = req.user.id;
@@ -111,6 +116,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", void 0)
 ], RoutersController.prototype, "isPublic", null);
+__decorate([
+    (0, common_2.UseGuards)(device_auth_guard_1.DeviceAuthGuard),
+    (0, common_1.Get)('permitirAcceso/:id'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", void 0)
+], RoutersController.prototype, "aceptarCliente", null);
 __decorate([
     (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Patch)(':id'),

@@ -8,6 +8,7 @@ import { VincularRouterDto } from './dto/vincular-router.dto';
 import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { HybridAuthGuard } from 'src/auth/guards/hybrid-auth.guard';
+import { DeviceAuthGuard } from 'src/auth/guards/device-auth.guard';
 
 @Controller('routers')
 export class RoutersController {
@@ -62,6 +63,14 @@ export class RoutersController {
       const routerSolicitanteId = req.device.apiToken;
       return this.routersService.isPublic(undefined, routerSolicitanteId, id);
     }
+  }
+
+  @UseGuards(DeviceAuthGuard) //Solo lo consultan los routers
+  @Get('permitirAcceso/:id')
+  aceptarCliente(@Request() req, @Param('id', ParseIntPipe) motaId: number) {
+
+    const apiToken = req.device.apiToken;
+    return this.routersService.aceptarCliente(apiToken, motaId);
   }
 
   @UseGuards(AuthGuard('jwt'))

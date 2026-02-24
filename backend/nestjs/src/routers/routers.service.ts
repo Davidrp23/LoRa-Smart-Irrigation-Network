@@ -106,6 +106,37 @@ export class RoutersService {
     return router.esPublico ?? false;
   }
 
+  async aceptarCliente(apiToken: string, motaId: number): Promise<boolean>{ 
+    //Un router aceptara a un cliente si esta configurado como publico, o si esta como privado, lo aceptara 
+    //si el usuario que posee la mota y el router es el mismo.
+
+    // Buscamos el router 
+    const router = await this.prisma.router.findUnique({
+      where: { apiToken },
+      select: { esPublico: true, usuarioId: true }
+    });
+
+    if (!router) {
+      throw new NotFoundException(`El router no fue encontrado.`);
+    }
+
+    // Buscamos la mota
+    const mota = await this.prisma.mota.findUnique({
+      where: { id: motaId },
+      select: { usuarioId: true }
+    });
+
+    if (!mota) {
+      throw new NotFoundException(`La mota no fue encontrada.`);
+    }
+
+    // ¿Tienen el mismo dueño (y no es null)? --> ya que si ambos son null devuelve true
+    const esMismoDueno = (router.usuarioId !== null) && (router.usuarioId === mota.usuarioId);
+    
+    // O es público, O tienen el mismo dueño.
+    return (router.esPublico === true) || esMismoDueno;
+  }
+
   async vincularRouter(Userid: number ,vincularRouterDto: VincularRouterDto): Promise<Router> {
 
     const {codigoVinculacion} = vincularRouterDto;

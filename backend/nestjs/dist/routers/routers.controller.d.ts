@@ -12,5 +12,6 @@ export declare class RoutersController {
     findAll(req: any): Promise<Router[]>;
     findOne(req: any, id: number): Promise<Router | null>;
     isPublic(req: any, id: number): Promise<boolean> | undefined;
+    aceptarCliente(req: any, motaId: number): Promise<boolean>;
     update(req: any, id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
 }

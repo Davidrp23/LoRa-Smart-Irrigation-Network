@@ -83,6 +83,24 @@ let RoutersService = class RoutersService {
         }
         return router.esPublico ?? false;
     }
+    async aceptarCliente(apiToken, motaId) {
+        const router = await this.prisma.router.findUnique({
+            where: { apiToken },
+            select: { esPublico: true, usuarioId: true }
+        });
+        if (!router) {
+            throw new common_2.NotFoundException(`El router no fue encontrado.`);
+        }
+        const mota = await this.prisma.mota.findUnique({
+            where: { id: motaId },
+            select: { usuarioId: true }
+        });
+        if (!mota) {
+            throw new common_2.NotFoundException(`La mota no fue encontrada.`);
+        }
+        const esMismoDueno = (router.usuarioId !== null) && (router.usuarioId === mota.usuarioId);
+        return (router.esPublico === true) || esMismoDueno;
+    }
     async vincularRouter(Userid, vincularRouterDto) {
         const { codigoVinculacion } = vincularRouterDto;
         const router = await this.prisma.router.findUnique({ where: { codigoVinculacion } });

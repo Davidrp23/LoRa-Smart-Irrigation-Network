@@ -12,6 +12,7 @@ export declare class RoutersService {
     update(usuarioId: number, id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
     remove(id: number): Promise<Router>;
     isPublic(usuarioId: number | undefined, apiToken: string | undefined, id: number): Promise<boolean>;
+    aceptarCliente(apiToken: string, motaId: number): Promise<boolean>;
     vincularRouter(Userid: number, vincularRouterDto: VincularRouterDto): Promise<Router>;
     desvincularRouter(Userid: number, routerId: number): Promise<Router>;
 }
