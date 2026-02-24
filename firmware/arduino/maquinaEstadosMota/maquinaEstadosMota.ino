@@ -29,7 +29,7 @@
 
 
 //----------------------------------ESTRUCTURAS---------------------------
-#define SSID_LENGTH 13 
+#define SSID_LENGTH 9 + 1 // +1 para el terminador nulo
 
 enum class messageType : uint8_t {
     BEACON_REQUEST = 0x00, BEACON_RESPONSE = 0x01,
@@ -40,13 +40,22 @@ enum class messageType : uint8_t {
 };
 
 typedef struct __attribute__((packed)) { size_t router; size_t id; } ControlData;
+
 typedef struct __attribute__((packed)) {
   size_t router; 
   char SSID[SSID_LENGTH]; 
-  int16_t rssi; // <--- NUEVO CAMPO (2 bytes), SOLO en la mota, ya que el router no sabe con que rssi escucha el beacon frame, se agrega al final para no ocasionar problemas.
-  uint8_t channel; // <--- NUEVO CAMPO (4 bytes), SOLO en la mota, ya la mota no tiene porque fiarse del canal que dice el router por el que esta trasmitiendo, mejor comprobarlo.
+  bool isPublic; 
 } NetworkData;
+
+// Wrapper de NetworkData, añade informacion que captura la mota al recibir el beacon frame (o probe response) del router
+struct ScannedNetwork {
+  NetworkData info;
+  int16_t rssi;
+  uint8_t channel;
+};
+
 typedef struct __attribute__((packed)) { size_t router; size_t id; size_t sendInterval; } ConfData;
+
 typedef struct __attribute__((packed)) { 
   size_t router; size_t id; uint8_t humidity; uint8_t battery; float latitude; float longitude; 
 } SensorsData;
@@ -65,7 +74,7 @@ typedef struct __attribute__((packed)) {
 const size_t MY_NODE_ID = 50; 
 size_t TARGET_ROUTER_ID = 0; 
 char currentNetwork[SSID_LENGTH];
-NetworkData selectedNW;
+ScannedNetwork selectedNW;
 
 // Estadísticas
 uint16_t receivedPackets = 0;
@@ -106,9 +115,11 @@ bool defaultMenu = 1; //Indica que vista del menu se tiene. 1 indica los datos v
 unsigned long startScan = 0; // Indica el momento exacto en el que se empieza a escanear las redes lora
 
 
-#define SCAN_TIME 20000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre
+#define SCAN_TIME 20000 //Durante este tiempo (en ms) la mota estara mandando beacon_request a todos los routers que encuentre, si no encuentra ninguno quedara buscando 
+//redes hasta que encuentre al menos 1
+
 unsigned long lastBeaconFrameSended = 0;
-std::vector<NetworkData> foundNetworks;
+std::vector<ScannedNetwork> foundNetworks;
 int selectedNetworkIndex = 0; // Índice de la red que estamos "mirando" ahora mismo
 
 // Lista de canales seguros (en Hz)
@@ -300,7 +311,7 @@ void OnTxTimeout(void) {
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   Serial.printf("<- RX Done (%d bytes)\n", size);
   
-  LoRaMessage incomingMsg;
+  LoRaMessage incomingMsg = {};
   const size_t MIN_SIZE = sizeof(messageType) + sizeof(uint8_t) + sizeof(uint16_t);
 
   if (size < MIN_SIZE) return;
@@ -320,8 +331,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       case messageType::BEACON_RESPONSE:
           // Si estamos en tiempo de escaneo, seguimos guardando redes
           if (currentState == STATE_RX_SCAN && millis() <= startScan + SCAN_TIME) {
-            incomingMsg.data.NetworkData.channel = scaningChanel;
-            saveNetwork(incomingMsg.data.NetworkData, rssi);
+            saveNetwork(incomingMsg.data.NetworkData, rssi, scaningChanel);
             scaningChanel++;
             currentState = STATE_TX_SCAN; 
           }
@@ -559,44 +569,48 @@ void checkButton() {
     else if (duration < LONG_PRESS_MS) {
       // Fue una pulsación válida y rápida
       globalButtonState = SHORT_PRESS;
+      needDisplayUpdate = true; //Necesitaremos actualizar la pantalla cuando se presione el boton 
     } 
     else {
       // Fue una pulsación larga
       globalButtonState = LONG_PRESS;
+      needDisplayUpdate = true;
     }
   }
 }
 
 // Función de comparación para el ordenamiento (Mayor RSSI primero)
-bool compareRSSI(const NetworkData &a, const NetworkData &b) {
-  return a.rssi > b.rssi; // Eje: -50 > -90 (Verdadero, -50 va antes)
+
+// --- FUNCIONES ACTUALIZADAS ---
+
+bool compareRSSI(const ScannedNetwork &a, const ScannedNetwork &b) {
+  return a.rssi > b.rssi;
 }
 
-void saveNetwork(NetworkData newNet, int16_t currentRssi) {
-  
-  // 1. Asignamos el RSSI que acabamos de medir
-  newNet.rssi = currentRssi;
-
+// Fíjate que ahora pasamos el channel como parámetro
+void saveNetwork(NetworkData newNet, int16_t currentRssi, uint8_t currentChannel) {
   bool found = false;
 
-  // 2. Buscamos si ya existe
   for (int i = 0; i < foundNetworks.size(); i++) {
-    if (foundNetworks[i].router == newNet.router) {
-      // YA EXISTE: Actualizamos su RSSI con el valor más reciente
-      foundNetworks[i].rssi = currentRssi;
+    if (foundNetworks[i].info.router == newNet.router) {
+      foundNetworks[i].rssi = currentRssi; // Actualizamos RSSI
       found = true;
-      break; // Dejamos de buscar
+      break; 
     }
   }
-  
-  // 3. Si NO existe, la añadimos
+
   if (!found) {
-    foundNetworks.push_back(newNet);
-    Serial.printf("Nueva red: %s (RSSI: %d) [CANAL: %d] \n", newNet.SSID, newNet.rssi, scaningChanel);
+    // Creamos el envoltorio
+    ScannedNetwork scanned;
+    scanned.info = newNet;
+    scanned.rssi = currentRssi;
+    scanned.channel = currentChannel;
+    
+    foundNetworks.push_back(scanned);
+    Serial.printf("Nueva red: %s (RSSI: %d) [CANAL: %d] [PUBLICO: %s] \n", 
+                  newNet.SSID, currentRssi, currentChannel, newNet.isPublic ? "Si" : "No");
   }
 
-  // 4. ORDENAR LA LISTA (La magia de C++)
-  // Esto reordena el vector para que los RSSI más altos (mejores) queden en la posición [0]
   std::sort(foundNetworks.begin(), foundNetworks.end(), compareRSSI);
 }
 
@@ -629,8 +643,8 @@ void handleNetworkSelectionMenu() {
   if (globalButtonState == LONG_PRESS) {
       // Guardar selección
       selectedNW = foundNetworks[selectedNetworkIndex];
-      TARGET_ROUTER_ID = selectedNW.router;
-      memcpy(currentNetwork, selectedNW.SSID, SSID_LENGTH);
+      TARGET_ROUTER_ID = selectedNW.info.router;
+      memcpy(currentNetwork, selectedNW.info.SSID, SSID_LENGTH);
       Radio.SetChannel(channelList[selectedNW.channel]); //Seteamos la radio a ese canal
 
       // Feedback visual
@@ -643,8 +657,6 @@ void handleNetworkSelectionMenu() {
       currentState = STATE_START_JOIN; // <--- INICIAR PROCESO DE UNION
       return;
   }
-
-
   // --- DIBUJADO DE LA LISTA (CON SCROLL) ---
   
   // Calculamos qué parte de la lista mostrar (Ventana de 4 elementos)
@@ -657,32 +669,49 @@ void handleNetworkSelectionMenu() {
   }
 
   for (int i = 0; i < ITEMS_PER_PAGE; i++) {
-      int currentIndex = startList + i;
-      
-      // Si nos salimos de la lista total, paramos
-      if (currentIndex >= foundNetworks.size()) break;
+    int currentIndex = startList + i;
+    
+    // Si nos salimos de la lista total, paramos
+    if (currentIndex >= foundNetworks.size()) break;
 
-      int yPos = 15 + (i * 12);
-      
-      // Construimos el texto: "Finca_A (-80)"
-      String linea = String(foundNetworks[currentIndex].SSID);
-      linea += " (" + String(foundNetworks[currentIndex].rssi) + ")";
-      linea += " [CH:" + String(foundNetworks[currentIndex].channel) + "]";
+    int yPos = 15 + (i * 12);
+    
+    // Construimos el texto base
+    String linea = String(foundNetworks[currentIndex].info.SSID);
+    linea += " (" + String(foundNetworks[currentIndex].rssi) + ")";
+    linea += " [CH:" + String(foundNetworks[currentIndex].channel) + "]";
 
-      // Si es el seleccionado, lo pintamos INVERTIDO (Fondo blanco, texto negro)
-      if (currentIndex == selectedNetworkIndex) {
-          // Dibujar caja blanca de fondo
-          display.setColor(WHITE);
-          display.fillRect(0, yPos, 128, 12);
-          // Dibujar texto en negro
-          display.setColor(BLACK);
-          display.drawString(1, yPos, linea); // +1px margen
-          // Volver a color normal para el resto
-          display.setColor(WHITE);
-      } else {
-          // Normal
-          display.drawString(1, yPos, linea);
-      }
+    // 1. Calculamos el ancho del texto en píxeles
+    int textWidth = display.getStringWidth(linea);
+    
+    // 2. Calculamos la posición X del icono (1px margen inicial + texto + 5px de separacion)
+    int iconX = 1 + textWidth + 5; 
+    
+    // 3. Centramos el icono verticalmente (+2 px hacia abajo porque la línea mide 12 y el icono 8)
+    int iconY = yPos + 2;
+
+    const unsigned char* icono_actual = foundNetworks[currentIndex].info.isPublic ? icon_unlock : icon_lock;
+
+    // --- DIBUJADO ---
+    // Si es el seleccionado, lo pintamos INVERTIDO (Fondo blanco, texto e icono negro)
+    if (currentIndex == selectedNetworkIndex) {
+        
+      display.setColor(WHITE);
+      display.fillRect(0, yPos, 128, 12); // Fondo blanco
+      
+      display.setColor(BLACK);
+      display.drawString(1, yPos, linea); // Texto negro
+      
+      // Dibujar el icono en NEGRO (Solo se dibujan los bits a '1' del array)
+      display.drawXbm(iconX, iconY, emoji_width, emoji_height, icono_actual);
+      
+      display.setColor(WHITE); // Restaurar color
+        
+    } else {
+      // Normal: Texto e icono en blanco sobre fondo negro
+      display.drawString(1, yPos, linea);
+      display.drawXbm(iconX, iconY, emoji_width, emoji_height, icono_actual);
+    }
   }
 
   display.display();

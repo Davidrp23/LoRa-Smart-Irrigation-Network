@@ -18,11 +18,13 @@
 
 //Operating Router Params
 #define MAX_CLIENTS 30
-#define SSID_LENGTH 12 + 1 // +1 para el terminador nulo
+#define SSID_LENGTH 9 + 1 // +1 para el terminador nulo
 
 const size_t routerId = 1; // Los id son siempre > 0
-const char SSID[SSID_LENGTH] = "Finca_Sur";
 
+//Pueden cambiar durante la ejecucion
+char SSID[SSID_LENGTH] = "TOM_SUR";
+bool isPublic = true;
 
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define NUM_CHANELS 4
@@ -113,6 +115,8 @@ typedef struct __attribute__((packed)) {
   size_t router; //Router que gestiona la red anunciada
 
   char SSID[SSID_LENGTH]; //Nombre descriptivo de la red anunciada, se muestra en la pantalla oled de las motas en el proceso de vinculacion.
+
+  bool isPublic; //Indica si el router es publico o privado
 
 
 }NetworkData;
@@ -257,6 +261,7 @@ void setup() {
 
   NETWORK_DATA.router = routerId;
   mempcpy(&NETWORK_DATA.SSID, SSID, SSID_LENGTH);
+  NETWORK_DATA.isPublic = isPublic;
 
   // --- FREERTOS SETUP ---
   
@@ -449,7 +454,6 @@ void process(LoRaMessage incomingPackage){
           sendControlPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
           break;
 
-        
         case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia NODE_LEAVING_ACK para aceptar la salida del nodo y terminar la comunicacion
           Serial.printf("El nodo %d esta intentando desconectarse de la red.\n", CLIENT_ID);
 
@@ -570,6 +574,8 @@ void sendBeaconResponse(){
   Serial.print(realPacketSize);
   Serial.println(" bytes...");
 
+  Serial.printf("En la informacion de red enviada el router es publico: %d\n", msg.data.NetworkData.isPublic);
+
   // --- Transmisión ---
   delay(10); //Esperamos un poco antes de enviar
   Radio.Send((uint8_t *)&msg, realPacketSize);
@@ -657,6 +663,13 @@ void TaskDisplay(void *pvParameters) {
     display.drawString(0, 25, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
     display.drawString(0, 35, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
     display.drawString(0, 45, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));
+
+    //Dibujar un candado cerrado si la red es privada y abierto si es publica
+    if(isPublic){
+      display.drawXbm(112, 17, emoji_width, emoji_height, icon_unlock);
+    }else{
+      display.drawXbm(112, 17, emoji_width, emoji_height, icon_lock);
+    }
 
     // Barra de vida o animación para saber que no está colgado
     display.drawString(120, 45, (millis() / 1000) % 2 == 0 ? "." : "..");

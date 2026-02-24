@@ -119,3 +119,16 @@ static unsigned char image_bits[] PROGMEM = {
     "..............................................................................\n"
     "..............................................................................\n"
     "..............................................................................\n";
+
+#define emoji_width  8
+#define emoji_height 8
+
+// Icono: Candado Cerrado (Red Privada) - 8x8 píxeles
+const unsigned char icon_lock[] PROGMEM = {
+  0x3C, 0x42, 0x42, 0xFF, 0xFF, 0xE7, 0xFF, 0xFF
+};
+
+// Icono: Candado Abierto (Red Pública) - 8x8 píxeles
+const unsigned char icon_unlock[] PROGMEM = {
+  0x3C, 0x02, 0x02, 0xFF, 0xFF, 0xE7, 0xFF, 0xFF
+};
