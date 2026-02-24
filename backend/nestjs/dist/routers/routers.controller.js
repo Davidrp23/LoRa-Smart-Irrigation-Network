@@ -20,6 +20,7 @@ const update_router_dto_1 = require("./dto/update-router.dto");
 const vincular_router_dto_1 = require("./dto/vincular-router.dto");
 const common_2 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
+const hybrid_auth_guard_1 = require("../auth/guards/hybrid-auth.guard");
 let RoutersController = class RoutersController {
     routersService;
     constructor(routersService) {
@@ -43,8 +44,14 @@ let RoutersController = class RoutersController {
         return this.routersService.findOne(miPropioId, id);
     }
     isPublic(req, id) {
-        const miPropioId = req.user.id;
-        return this.routersService.isPublic(miPropioId, id);
+        if (req.user) {
+            const miPropioId = req.user.id;
+            return this.routersService.isPublic(miPropioId, undefined, id);
+        }
+        if (req.device) {
+            const routerSolicitanteId = req.device.apiToken;
+            return this.routersService.isPublic(undefined, routerSolicitanteId, id);
+        }
     }
     async update(req, id, updateRouterDto) {
         const miPropioId = req.user.id;
@@ -53,6 +60,7 @@ let RoutersController = class RoutersController {
 };
 exports.RoutersController = RoutersController;
 __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -60,6 +68,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "create", null);
 __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('vincular/'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -68,6 +77,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "vincularRouter", null);
 __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('desvincular/:id'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
@@ -76,6 +86,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "desvincularRouter", null);
 __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Get)(),
     __param(0, (0, common_2.Request)()),
     __metadata("design:type", Function),
@@ -83,6 +94,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findAll", null);
 __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Get)(':id'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
@@ -91,6 +103,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "findOne", null);
 __decorate([
+    (0, common_2.UseGuards)(hybrid_auth_guard_1.HybridAuthGuard),
     (0, common_1.Get)('esPublico/:id'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
@@ -99,6 +112,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], RoutersController.prototype, "isPublic", null);
 __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_2.Request)()),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
@@ -108,7 +122,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "update", null);
 exports.RoutersController = RoutersController = __decorate([
-    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('routers'),
     __metadata("design:paramtypes", [routers_service_1.RoutersService])
 ], RoutersController);

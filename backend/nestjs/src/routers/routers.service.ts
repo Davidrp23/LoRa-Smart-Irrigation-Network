@@ -83,17 +83,28 @@ export class RoutersService {
     });
   }
 
-  async isPublic(usuarioId: number, id: number): Promise<Boolean | null>{
-    const router: Router | null = await this.findOne(usuarioId, id);
+  async isPublic(usuarioId: number = 0, apiToken: string = "", id: number): Promise<boolean> {
+    
+    let router: { esPublico: boolean | null } | null = null;
 
-    if(!router){
-      throw new NotFoundException(`El router con ID ${id} no existe o no te pertenece.`);
+    if (apiToken !== "") {
+      // Buscamos por token
+      router = await this.prisma.router.findUnique({
+        where: { id, apiToken },
+        select: { esPublico: true } // Optimizado, mejor seleccionar la propiedad que todo el objeto
+      });
+    } else if (usuarioId !== 0) {
+      //Probamos a buscar por usuario
+      router = await this.findOne(usuarioId, id);
     }
 
-    return router.esPublico;
-  }
+    if (!router) {
+      throw new NotFoundException(`El router con ID ${id} no existe o no tienes permisos para verlo.`);
+    }
 
-  
+    // Devolvemos el valor. Si en la base de datos está a null, devolvemos false por seguridad.
+    return router.esPublico ?? false;
+  }
 
   async vincularRouter(Userid: number ,vincularRouterDto: VincularRouterDto): Promise<Router> {
 

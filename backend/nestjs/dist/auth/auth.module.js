@@ -14,6 +14,8 @@ const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
 const usuarios_module_1 = require("../usuarios/usuarios.module");
 const jwt_strategy_1 = require("./jwt.strategy");
+const device_auth_guard_1 = require("./guards/device-auth.guard");
+const hybrid_auth_guard_1 = require("./guards/hybrid-auth.guard");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -27,8 +29,9 @@ exports.AuthModule = AuthModule = __decorate([
                 signOptions: { expiresIn: '1d' },
             }),
         ],
-        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],
+        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, device_auth_guard_1.DeviceAuthGuard, hybrid_auth_guard_1.HybridAuthGuard],
         controllers: [auth_controller_1.AuthController],
+        exports: [device_auth_guard_1.DeviceAuthGuard, hybrid_auth_guard_1.HybridAuthGuard],
     })
 ], AuthModule);
 //# sourceMappingURL=auth.module.js.map

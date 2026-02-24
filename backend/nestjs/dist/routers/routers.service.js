@@ -67,12 +67,21 @@ let RoutersService = class RoutersService {
             where: { id },
         });
     }
-    async isPublic(usuarioId, id) {
-        const router = await this.findOne(usuarioId, id);
-        if (!router) {
-            throw new common_2.NotFoundException(`El router con ID ${id} no existe o no te pertenece.`);
+    async isPublic(usuarioId = 0, apiToken = "", id) {
+        let router = null;
+        if (apiToken !== "") {
+            router = await this.prisma.router.findUnique({
+                where: { id, apiToken },
+                select: { esPublico: true }
+            });
         }
-        return router.esPublico;
+        else if (usuarioId !== 0) {
+            router = await this.findOne(usuarioId, id);
+        }
+        if (!router) {
+            throw new common_2.NotFoundException(`El router con ID ${id} no existe o no tienes permisos para verlo.`);
+        }
+        return router.esPublico ?? false;
     }
     async vincularRouter(Userid, vincularRouterDto) {
         const { codigoVinculacion } = vincularRouterDto;

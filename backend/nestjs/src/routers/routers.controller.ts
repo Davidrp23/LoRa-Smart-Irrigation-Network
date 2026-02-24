@@ -7,45 +7,64 @@ import { VincularRouterDto } from './dto/vincular-router.dto';
 
 import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { HybridAuthGuard } from 'src/auth/guards/hybrid-auth.guard';
 
-@UseGuards(AuthGuard('jwt'))
 @Controller('routers')
 export class RoutersController {
   constructor(private readonly routersService: RoutersService) {}
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   async create(@Body() createRouterDto: CreateRouterDto): Promise<Router> {
     return this.routersService.create(createRouterDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('vincular/')
   async vincularRouter(@Request() req, @Body() vincularRouterDto: VincularRouterDto): Promise<Router>{
     return this.routersService.vincularRouter(req.user.id, vincularRouterDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('desvincular/:id')
   async desvincularRouter(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Router>{
     return this.routersService.desvincularRouter(req.user.id, id);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   async findAll(@Request() req): Promise<Router[]>  { //Devuelve todos los routers de un usuario
     const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
     return this.routersService.findAll(miPropioId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async findOne(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Router | null>  {
     const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
     return this.routersService.findOne(miPropioId,id);
   }
 
+  @UseGuards(HybridAuthGuard) //Lo pueden consultar tanto routers como humanos, ambos deben ser verificadoss
   @Get('esPublico/:id')
   isPublic(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
-    return this.routersService.isPublic(miPropioId, id);
+    
+    // Como el guardia híbrido deja pasar a ambos, tenemos que ver quien consulta el endpoint
+    
+    if (req.user) {
+      // Entró un humano
+      const miPropioId = req.user.id; 
+      return this.routersService.isPublic(miPropioId, undefined, id);
+    } 
+    
+    if (req.device) {
+      // Entró un Router (Máquina)
+      const routerSolicitanteId = req.device.apiToken;
+      return this.routersService.isPublic(undefined, routerSolicitanteId, id);
+    }
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
   async update(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() updateRouterDto: UpdateRouterDto): Promise<Router>  {
     const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear

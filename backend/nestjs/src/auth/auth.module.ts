@@ -5,6 +5,8 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsuariosModule } from '../usuarios/usuarios.module'; // Necesitamos buscar usuarios
 import { JwtStrategy } from './jwt.strategy';
+import { DeviceAuthGuard } from './guards/device-auth.guard';
+import { HybridAuthGuard } from './guards/hybrid-auth.guard';
 
 @Module({
   imports: [
@@ -15,7 +17,8 @@ import { JwtStrategy } from './jwt.strategy';
       signOptions: { expiresIn: '1d' }, // Caduca en 1 día
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy,DeviceAuthGuard,HybridAuthGuard],
   controllers: [AuthController],
+  exports: [DeviceAuthGuard,HybridAuthGuard],
 })
 export class AuthModule {}

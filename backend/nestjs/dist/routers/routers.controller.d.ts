@@ -11,6 +11,6 @@ export declare class RoutersController {
     desvincularRouter(req: any, id: number): Promise<Router>;
     findAll(req: any): Promise<Router[]>;
     findOne(req: any, id: number): Promise<Router | null>;
-    isPublic(req: any, id: number): Promise<Boolean | null>;
+    isPublic(req: any, id: number): Promise<boolean> | undefined;
     update(req: any, id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
 }
