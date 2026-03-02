@@ -1,0 +1,163 @@
+// --------------------------------------------------------
+//  ARCHIVO DE CONFIGURACIÓN DE BASE DE DATOS (FLoRa)
+// --------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================================
+// 1. ACTORES Y PROPIETARIOS
+// ========================================================
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String   
+  nombre    String?
+  
+  // Relaciones de Propiedad (Mis cosas)
+  motas     Mota[]    // Mis sensores
+  routers   Router[]  // Mis antenas/gateways
+  parcelas  Parcela[] // Mis tierras
+  
+  createdAt DateTime  @default(now())
+}
+
+// ========================================================
+// 2. INFRAESTRUCTURA DE RED (LOS ROUTERS)
+// ========================================================
+
+model Router {
+  id              Int      @id @default(autoincrement())
+  codigoVinculacion String @unique //Usado para apropiarse del dispositivo
+  modelo          String   // Ej: "Gateway Casa Norte"
+  ssid            String?  // Nombre de la red LoRa/WiFi
+
+  // Para que el hardware hable con tu API (Ej: "f8a9b2c3d4e5f6...")
+  apiToken          String   @unique
+  
+  // --- ROAMING Y COMUNIDAD ---
+  esPublico       Boolean?  @default(false) // TRUE = Vecinos pueden usarlo para enviar datos
+  
+  // --- UBICACIÓN ---
+  latitud         Float?
+  longitud        Float?   // Vital para triangulación si la mota no tiene GPS
+
+  // --- ESTADO Y SALUD (Reportes periódicos) ---
+  bateria         Int?     // Si va con placa solar
+  fechaUltimaConexion DateTime?
+  
+  // --- CONTADORES DE TRÁFICO (Monitorización de Red) ---
+  paquetesEnviados   Int   @default(0) 
+  paquetesRecibidos  Int   @default(0) 
+  erroresTx          Int   @default(0) // Fallo al enviar a la nube
+  erroresRx          Int   @default(0) // Fallo al recibir de motas (CRC, ruido)
+  erroresCrc         Int   @default(0) // Paquetes corruptos específicos
+
+  // Relaciones
+  usuarioId       Int? //No tiene propietario al crearse (fabricarse) 
+  usuario         Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull) //Si el usuario se elimina 
+                                                                                            //se queda sin propietario
+  
+  // ¿Quién está conectado a mí ahora mismo?
+  motasConectadas Mota[] 
+
+  //Fechas: 
+  createdAt DateTime @default(now()) // Fecha de fabricación
+  claimedAt DateTime? //Cuando se lo apropio un cliente
+}
+
+// ========================================================
+// 3. ZONAS DE CULTIVO (LÓGICA DE NEGOCIO)
+// ========================================================
+
+model Parcela {
+  id             Int     @id @default(autoincrement())
+  nombre         String  // Ej: "Sector Olivos A"
+  cultivo        String? 
+  
+  // Centro aproximado de la parcela para el mapa
+  latitudCentro  Float
+  longitudCentro Float
+  
+  // Relaciones
+  usuarioId      Int
+  usuario        Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)//Si el usuario se elimina 
+                                                                                            //se elimina la parcela
+  
+  motas          Mota[]  // Qué sensores están trabajando aquí
+}
+
+// ========================================================
+// 4. DISPOSITIVOS DE CAMPO (LAS MOTAS)
+// ========================================================
+
+model Mota {
+  id              Int      @id @default(autoincrement())
+  codigoVinculacion String @unique //Usado para apropiarse del dispositivo
+  nombre          String?  // Ej: "Sensor Humedad #4"
+  modelo          String?  // Ej: "Heltec V3"
+
+  // --- PROPIEDAD ---
+  usuarioId       Int? //No tiene propietario al crearse (fabricarse)      
+  usuario         Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull) //Si el usuario se elimina 
+                                                                                            //se queda sin propietario
+
+  // --- UBICACIÓN LÓGICA (¿Qué estoy regando?) ---
+  parcelaId       Int?     
+  parcela         Parcela? @relation(fields: [parcelaId], references: [id], onDelete: SetNull) //Si se elimina la parcela
+                                                                                                // en la que esta, se queda sin parcela
+
+  // --- UBICACIÓN FÍSICA (GPS Real) ---
+  latitud         Float?   
+  longitud        Float?   
+
+  // --- CONECTIVIDAD (Topología Dinámica) ---
+  routerId        Int?     // A qué router estoy enganchado ahora
+  router          Router?  @relation(fields: [routerId], references: [id])
+  
+  // --- CACHÉ DE ESTADO (Foto actual) ---
+  bateriaUltima   Int?
+  fechaUltimaConexion DateTime?
+  
+  // Histórico de datos
+  mediciones      Medicion[]
+
+  //Fechas: 
+  createdAt DateTime @default(now()) // Fecha de fabricación
+  claimedAt DateTime? //Cuando se lo apropio un cliente
+}
+
+// ========================================================
+// 5. DATOS HISTÓRICOS (BIG DATA)
+// ========================================================
+
+model Medicion {
+  id        Int      @id @default(autoincrement())
+  fecha     DateTime @default(now())
+  
+  // --- DATOS AGRÍCOLAS ---
+  humedad   Float
+
+
+  // --- TELEMETRÍA DEL DISPOSITIVO ---
+  bateria   Int      // Historial de descarga
+  
+  // --- CALIDAD DEL ENLACE (UPLINK - Visto por el Router) ---
+  rssi      Int?     // Potencia de señal recibida
+  snr       Float?   // Relación Señal/Ruido
+  
+  // --- DIAGNÓSTICO (DOWNLINK - Reportado por la Mota) ---
+
+  erroresRxMota Int? // Paquetes corruptos que la mota detectó
+
+  // Relaciones
+  motaId    Int
+  mota      Mota     @relation(fields: [motaId], references: [id])
+}

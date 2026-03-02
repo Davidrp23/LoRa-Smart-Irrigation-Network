@@ -1,0 +1,281 @@
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { X, Map, Undo2, Check } from 'lucide-react';
+import { initParcelMap, type Parcela, type ParcelMapManager } from '../../utils/mapUtils';
+
+
+interface RegistrarParcelaModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  parcelasExistentes: Parcela[];
+}
+
+export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExistentes }: RegistrarParcelaModalProps) {
+  const [nombre, setNombre] = useState('');
+  const [cultivo, setCultivo] = useState('');
+  const [puntos, setPuntos] = useState<[number, number][]>([]);
+  
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const polygonLayerRef = useRef<L.Polygon | null>(null);
+  const pointsLayerRef = useRef<L.FeatureGroup | null>(null); 
+  const labelMarkerRef = useRef<L.Marker | null>(null); 
+  const unifiedMarkerRef = useRef<L.CircleMarker | null>(null); // Nuevo: punto central
+  const parcelMapManagerRef = useRef<ParcelMapManager | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !mapContainerRef.current) return;
+
+    const map = L.map(mapContainerRef.current, { zoomControl: false });
+    mapRef.current = map;
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+
+    // Inicializar parcelas existentes con la utilidad compartida
+    if (parcelasExistentes.length > 0) {
+      parcelMapManagerRef.current = initParcelMap(map, parcelasExistentes, {
+        onClick: (parcel) => {
+          const center = L.polygon(parcel.coordenadas).getBounds().getCenter();
+          map.flyTo(center, 16, { duration: 1.5 });
+        },
+        getPopupContent: () => null // No mostrar popup en este modo
+      });
+      map.invalidateSize();
+      map.fitBounds(parcelMapManagerRef.current.getBounds(), { padding: [50, 50] });
+    } else {
+      map.setView([37.3891, -5.9845], 15);
+    }
+
+    pointsLayerRef.current = L.featureGroup().addTo(map);
+    polygonLayerRef.current = L.polygon([], {
+      color: '#22c55e', fillColor: '#4ade80', fillOpacity: 0.3, weight: 4
+    }).addTo(map);
+
+    map.on('click', (e) => {
+      const nuevaCoordenada: [number, number] = [e.latlng.lat, e.latlng.lng];
+      setPuntos(prev => {
+        const nuevosPuntos = [...prev, nuevaCoordenada];
+        actualizarMapa(nuevosPuntos);
+        return nuevosPuntos;
+      });
+    });
+
+    // Lógica para detectar el cambio de zoom y mostrar/ocultar elementos
+    map.on('zoomend', () => {
+      actualizarVisibilidadPorZoom();
+    });
+    
+    // Ejecutar una vez al inicio (con un pequeño delay para asegurar que el mapa está listo/redimensionado)
+    setTimeout(() => actualizarVisibilidadPorZoom(), 100);
+    map.on('moveend', actualizarVisibilidadPorZoom);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      polygonLayerRef.current = null;
+      pointsLayerRef.current = null;
+      labelMarkerRef.current = null;
+      unifiedMarkerRef.current = null;
+      if (parcelMapManagerRef.current) parcelMapManagerRef.current.cleanup();
+      setPuntos([]);
+      setNombre('');
+      setCultivo('');
+    };
+  }, [isOpen, parcelasExistentes]);
+
+  // Sincronizar etiqueta cuando el nombre cambie
+  useEffect(() => {
+    actualizarMapa(puntos);
+  }, [nombre, puntos]);
+
+  const actualizarVisibilidadPorZoom = () => {
+    if (!mapRef.current) return;
+    const zoom = mapRef.current.getZoom();
+    const isZoomedIn = zoom >= 14;
+
+    // 1. Gestionar visibilidad de parcelas existentes (usando la utilidad compartida)
+    if (parcelMapManagerRef.current) {
+      parcelMapManagerRef.current.updateVisibility();
+    }
+
+    // 2. Gestionar visibilidad de la nueva parcela (si existe)
+    let showLabelNew = false;
+    if (polygonLayerRef.current) {
+      const bounds = polygonLayerRef.current.getBounds();
+      if (bounds.isValid()) {
+        const northEast = mapRef.current.latLngToContainerPoint(bounds.getNorthEast());
+        const southWest = mapRef.current.latLngToContainerPoint(bounds.getSouthWest());
+        const width = Math.abs(northEast.x - southWest.x);
+        const height = Math.abs(northEast.y - southWest.y);
+        
+        // Mostrar etiqueta solo si el polígono es lo suficientemente grande (ej. 80x30 px)
+        showLabelNew = width > 80 && height > 30;
+      }
+    }
+
+    // Controlar Etiqueta
+    if (labelMarkerRef.current) {
+      if (showLabelNew && !mapRef.current.hasLayer(labelMarkerRef.current)) {
+        labelMarkerRef.current.addTo(mapRef.current);
+      } else if (!showLabelNew && mapRef.current.hasLayer(labelMarkerRef.current)) {
+        mapRef.current.removeLayer(labelMarkerRef.current);
+      }
+    }
+
+    // Controlar Vértices vs Punto Unificado
+    if (pointsLayerRef.current && unifiedMarkerRef.current) {
+      if (isZoomedIn) {
+        if (!mapRef.current.hasLayer(pointsLayerRef.current)) pointsLayerRef.current.addTo(mapRef.current);
+        if (mapRef.current.hasLayer(unifiedMarkerRef.current)) mapRef.current.removeLayer(unifiedMarkerRef.current);
+      } else {
+        if (mapRef.current.hasLayer(pointsLayerRef.current)) mapRef.current.removeLayer(pointsLayerRef.current);
+        if (!mapRef.current.hasLayer(unifiedMarkerRef.current)) unifiedMarkerRef.current.addTo(mapRef.current);
+      }
+    }
+  };
+
+  const actualizarMapa = (coords: [number, number][]) => {
+    if (!polygonLayerRef.current || !pointsLayerRef.current || !mapRef.current) return;
+
+    polygonLayerRef.current.setLatLngs(coords);
+    pointsLayerRef.current.clearLayers();
+
+    coords.forEach(coord => {
+      L.circleMarker(coord, {
+        radius: 6, color: '#ffffff', weight: 2, fillColor: '#16a34a', fillOpacity: 1
+      }).addTo(pointsLayerRef.current!);
+    });
+
+    if (labelMarkerRef.current) mapRef.current.removeLayer(labelMarkerRef.current);
+    if (unifiedMarkerRef.current) mapRef.current.removeLayer(unifiedMarkerRef.current);
+
+    if (coords.length >= 3) {
+      const center = polygonLayerRef.current.getBounds().getCenter();
+
+      if (nombre.trim() !== '') {
+        // CAMBIO: Nuevo formato moderno y centrado
+        const textIcon = L.divIcon({
+          className: 'bg-transparent border-none shadow-none',
+          html: `
+            <div style="transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center;">
+              <div class="px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-sm border border-white/20 shadow-lg">
+                <span class="text-white text-xs font-semibold whitespace-nowrap">${nombre}</span>
+              </div>
+            </div>
+          `,
+          iconSize: [0, 0], // Usamos transform translate para centrar, así no depende de un tamaño fijo
+          iconAnchor: [0, 0]
+        });
+        labelMarkerRef.current = L.marker(center, { icon: textIcon, interactive: false });
+      }
+
+      unifiedMarkerRef.current = L.circleMarker(center, {
+        radius: 8, color: '#ffffff', weight: 2, fillColor: '#16a34a', fillOpacity: 1
+      });
+
+      actualizarVisibilidadPorZoom();
+    }
+  };
+
+  const deshacerUltimoPunto = () => {
+    setPuntos(prev => prev.slice(0, -1));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (puntos.length < 3) {
+      alert("Debes dibujar al menos 3 puntos en el mapa para cerrar un polígono.");
+      return;
+    }
+    console.log("Enviando al backend (POST):", { nombre, cultivo, coordenadas: puntos });
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="flex w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900 flex-col md:flex-row h-[85vh] md:h-[600px]"
+          >
+            {/* ... Todo el HTML/JSX del formulario se mantiene igual ... */}
+            <div className="flex w-full flex-col justify-between border-r border-slate-200 p-8 dark:border-white/10 md:w-1/3 overflow-y-auto">
+              <div>
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Nueva Parcela</h2>
+                  <button onClick={onClose} className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 md:hidden">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <form id="parcela-form" onSubmit={handleSubmit} className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre de la Parcela</label>
+                    <input 
+                      type="text" required placeholder="Ej. Parcela Olivos A"
+                      value={nombre} onChange={e => setNombre(e.target.value)}
+                      className="mt-2 block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:border-white/10 dark:bg-slate-800 dark:text-white" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Tipo de Cultivo</label>
+                    <input 
+                      type="text" required placeholder="Ej. Olivar Picual"
+                      value={cultivo} onChange={e => setCultivo(e.target.value)}
+                      className="mt-2 block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:border-white/10 dark:bg-slate-800 dark:text-white" 
+                    />
+                  </div>
+                  
+                  <div className="rounded-xl bg-blue-50 p-4 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-1">
+                      <Map size={16} /> Instrucciones
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      Haz clic en el mapa para marcar las esquinas.
+                    </p>
+                  </div>
+                </form>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800">
+                  Cancelar
+                </button>
+                <button type="submit" form="parcela-form" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-700 shadow-lg shadow-green-500/30">
+                  <Check size={18}/> Guardar
+                </button>
+              </div>
+            </div>
+
+            <div className="relative w-full md:w-2/3 h-64 md:h-full bg-slate-200 dark:bg-slate-800">
+              <div className="absolute bottom-6 left-0 right-0 z-[400] flex justify-center pointer-events-none">
+                 <button 
+                  onClick={deshacerUltimoPunto}
+                  disabled={puntos.length === 0}
+                  className={`pointer-events-auto flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold shadow-lg transition-all ${
+                    puntos.length === 0 
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800/50 dark:text-slate-500' 
+                    : 'bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Undo2 size={18} /> Deshacer
+                </button>
+              </div>
+              <div ref={mapContainerRef} className="h-full w-full z-0" />
+            </div>
+            
+            <button onClick={onClose} className="absolute right-4 top-4 z-[400] hidden rounded-full bg-white/80 p-2 text-slate-600 shadow-md backdrop-blur-md hover:bg-white dark:bg-slate-900/80 dark:text-slate-300 dark:hover:bg-slate-900 md:block">
+              <X size={20} />
+            </button>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

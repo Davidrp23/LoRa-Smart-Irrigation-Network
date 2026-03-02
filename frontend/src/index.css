@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 1. Cargamos tu fuente local */
+@font-face {
+  font-family: 'NothingTech';
+  src: url('/fonts/nothing-font-5x7.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* 2. Se la asignamos a nuestra clase */
+.font-tech {
+  font-family: 'NothingTech', monospace;
+  letter-spacing: 0.05em; 
+}
