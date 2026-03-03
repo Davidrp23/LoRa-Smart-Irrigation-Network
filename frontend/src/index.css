@@ -6,63 +6,62 @@
 
 @layer base {
   :root {
-    /* Fondo notablemente más gris (luminosidad bajada al 86%). Contraste drástico. */
-    --background: 220 16% 86%; 
+    --background: 220 20% 78%; 
     --foreground: 222.2 84% 4.9%;
-
-    /* Tarjetas en blanco puro. El salto visual ahora será innegable. */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-    
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-
-    /* Color primario de FLoRa intacto */
     --primary: 142.1 76.2% 36.3%;
     --primary-foreground: 355.7 100% 97.3%;
-
-    /* Elementos secundarios más oscuros que el fondo (luminosidad al 80%) */
-    --secondary: 220 16% 80%;
+    --secondary: 220 20% 70%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    
-    /* Textos secundarios más oscuros para máxima legibilidad (luminosidad al 30%) */
-    --muted: 220 16% 80%;
-    --muted-foreground: 215.4 16.3% 30%;
-
-    --accent: 220 16% 80%;
+    --muted: 220 20% 70%;
+    --muted-foreground: 215.4 16.3% 25%;
+    --accent: 220 20% 70%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
-    /* Bordes e inputs definidos y contundentes (luminosidad al 70%) */
-    --border: 220 18% 70%;
-    --input: 220 18% 70%;
-    
+    --border: 220 20% 60%;
+    --input: 220 20% 65%;
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.5rem;
   }
   
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* 1. Fondo: Un "Off-Black". Casi negro (4% luminosidad) con un toque muy sutil de azul (10% saturación). */
+    --background: 220 10% 4%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 6.5%;
+    
+    /* 2. Tarjetas: Ligeramente más claras que el fondo (8% luminosidad) para que "floten", manteniendo el tono elegante. */
+    --card: 220 15% 8%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 6.5%;
+    
+    --popover: 220 15% 8%;
     --popover-foreground: 210 40% 98%;
+    
+    /* Color primario FLoRa intacto */
     --primary: 142.1 76.2% 36.3%;
     --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 217.2 32.6% 17.5%;
+    
+    /* 3. Fondos secundarios (botones inactivos, áreas internas): Un paso más claros para dar profundidad. */
+    --secondary: 220 15% 14%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    
+    /* 4. Muted: Ideal para las cajas grises dentro de las tarjetas. */
+    --muted: 220 15% 12%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    
+    --accent: 220 15% 14%;
     --accent-foreground: 210 40% 98%;
+    
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 13.5%;
-    --ring: 212.7 26.8% 83.9%;
+    
+    /* 5. Bordes e Inputs: Suficientemente visibles (16% luminosidad) para demarcar las tarjetas y formularios de configuración. */
+    --border: 220 15% 16%;
+    --input: 220 15% 16%;
+    --ring: 142.1 76.2% 36.3%;
   }
 }
 
