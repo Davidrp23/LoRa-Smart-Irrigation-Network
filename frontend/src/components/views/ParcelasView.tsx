@@ -305,7 +305,7 @@ export default function ParcelasView() {
                   </div>
 
                   {/* Main Metric: Humidity */}
-                  <div className="mb-4 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 cursor-pointer hover:bg-blue-500/10 transition-colors" onClick={() => openHistory({ type: 'parcela', data: p })}>
+                  <div className="mb-4 p-4 rounded-xl bg-blue-500/10 dark:bg-blue-500/5 border border-blue-500/20 dark:border-blue-500/10 cursor-pointer hover:bg-blue-500/20 dark:hover:bg-blue-500/10 transition-colors" onClick={() => openHistory({ type: 'parcela', data: p })}>
                     <div className="flex justify-between items-end">
                       <div>
                         <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Humedad Media</p>
@@ -322,7 +322,7 @@ export default function ParcelasView() {
                       <span className="font-semibold text-card-foreground truncate">{p.proximoRiego}</span>
                     </div>
                     <div 
-                      className="flex flex-col gap-1 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-purple-500/10 transition-colors group/dev"
+                      className="flex flex-col gap-1 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-purple-500/20 dark:hover:bg-purple-500/10 transition-colors group/dev"
                       onClick={() => setViewingDevicesParcel(p)}
                     >
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Wifi size={12}/> Dispositivos</span>

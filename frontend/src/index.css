@@ -6,27 +6,43 @@
 
 @layer base {
   :root {
-    --background: 220 25% 97%;
+    /* Fondo notablemente más gris (luminosidad bajada al 86%). Contraste drástico. */
+    --background: 220 16% 86%; 
     --foreground: 222.2 84% 4.9%;
+
+    /* Tarjetas en blanco puro. El salto visual ahora será innegable. */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
+    
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+
+    /* Color primario de FLoRa intacto */
     --primary: 142.1 76.2% 36.3%;
     --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 210 40% 96.1%;
+
+    /* Elementos secundarios más oscuros que el fondo (luminosidad al 80%) */
+    --secondary: 220 16% 80%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    
+    /* Textos secundarios más oscuros para máxima legibilidad (luminosidad al 30%) */
+    --muted: 220 16% 80%;
+    --muted-foreground: 215.4 16.3% 30%;
+
+    --accent: 220 16% 80%;
     --accent-foreground: 222.2 47.4% 11.2%;
+    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 88%;
-    --input: 214.3 31.8% 93%;
+
+    /* Bordes e inputs definidos y contundentes (luminosidad al 70%) */
+    --border: 220 18% 70%;
+    --input: 220 18% 70%;
+    
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.5rem;
   }
+  
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -59,11 +75,10 @@
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
-    padding-right: 2.5rem; /* Ensure space for the arrow */
+    padding-right: 2.5rem;
   }
 }
 
-/* 1. Cargamos tu fuente local */
 @font-face {
   font-family: 'NothingTech';
   src: url('/fonts/nothing-font-5x7.otf') format('opentype');
@@ -71,7 +86,6 @@
   font-style: normal;
 }
 
-/* 2. Se la asignamos a nuestra clase */
 .font-tech {
   font-family: 'NothingTech', monospace;
   letter-spacing: 0.05em; 
