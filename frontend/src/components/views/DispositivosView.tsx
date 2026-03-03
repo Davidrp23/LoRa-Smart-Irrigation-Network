@@ -210,13 +210,31 @@ export default function DispositivosView() {
   const [selectedHistoryDevice, setSelectedHistoryDevice] = useState<Dispositivo | null>(null);
   const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
 
+  // State para filtros
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'mota' | 'router'>('todos');
+  const [filtroParcela, setFiltroParcela] = useState<string>('todas');
+
+  // Derivar listas únicas para los filtros
+  const parcelasUnicas = [...new Set(dispositivos.map(d => d.parcela).filter(Boolean))].sort();
+
   // Filtrado
   const dispositivosFiltrados = dispositivos.filter(d => {
+    // Filtro por búsqueda de texto
     const termino = busqueda.toLowerCase();
-    const nombre = d.tipo === 'mota' ? d.nombre : d.modelo;
-    return nombre.toLowerCase().includes(termino) || 
-           d.codigoVinculacion.toLowerCase().includes(termino) ||
-           d.parcela?.toLowerCase().includes(termino);
+    const busquedaMatch = busqueda === '' ||
+      (d.tipo === 'mota' ? d.nombre.toLowerCase().includes(termino) : d.modelo.toLowerCase().includes(termino)) ||
+      d.codigoVinculacion.toLowerCase().includes(termino) ||
+      d.parcela?.toLowerCase().includes(termino);
+
+    // Filtro por tipo
+    const tipoMatch = filtroTipo === 'todos' || d.tipo === filtroTipo;
+
+    // Filtro por parcela
+    const parcelaMatch = filtroParcela === 'todas' || 
+                         (filtroParcela === 'sin_asignar' && d.parcela === null) ||
+                         d.parcela === filtroParcela;
+
+    return busquedaMatch && tipoMatch && parcelaMatch;
   });
 
   const handleSave = (e: React.FormEvent) => {
@@ -311,23 +329,45 @@ export default function DispositivosView() {
         </div>
         
         <div className="flex w-full sm:w-auto gap-3">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar dispositivo..." 
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
-            />
-          </div>
           <button 
             onClick={() => setIsLinkModalOpen(true)}
             className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
           >
-            <Plus size={18} /> <span className="hidden sm:inline">Nuevo Dispositivo</span>
+            <Plus size={18} /> <span className="hidden sm:inline">Vincular Dispositivo</span>
           </button>
         </div>
+      </div>
+
+      {/* Barra de Filtros */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nombre, código o parcela..." 
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
+          />
+        </div>
+        <select
+          value={filtroTipo}
+          onChange={e => setFiltroTipo(e.target.value as any)}
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
+        >
+          <option value="todos">Todos los Tipos</option>
+          <option value="mota">Mota / Sensor</option>
+          <option value="router">Router / Gateway</option>
+        </select>
+        <select
+          value={filtroParcela}
+          onChange={e => setFiltroParcela(e.target.value)}
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
+        >
+          <option value="todas">Todas las Parcelas</option>
+          <option value="sin_asignar">Sin Asignar</option>
+          {parcelasUnicas.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
       </div>
 
       {/* Grid de Dispositivos */}
@@ -661,7 +701,7 @@ export default function DispositivosView() {
                           -{d.value}%
                         </div>
                       </div>
-                      <span className="text-[10px] text-slate-400 text-center mt-2 truncate w-full block">
+                      <span className="text-[10px] text-slate-400 text-center mt-2 truncate w-full block opacity-0 group-hover:opacity-100 transition-opacity">
                         {d.label}
                       </span>
                     </div>

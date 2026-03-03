@@ -4,14 +4,14 @@ import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save } from 'lucide-rea
 
 // Componente para el interruptor (toggle switch)
 const ToggleSwitch = ({ label, description, defaultChecked = false }: { label: string, description: string, defaultChecked?: boolean }) => (
-  <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5">
+  <div className="flex items-center justify-between rounded-xl bg-background p-4 border border-border">
     <div>
-      <p className="font-semibold text-slate-700 dark:text-slate-200">{label}</p>
-      <p className="text-xs text-slate-500">{description}</p>
+      <p className="font-semibold text-card-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{description}</p>
     </div>
     <label className="relative inline-flex cursor-pointer items-center">
       <input type="checkbox" defaultChecked={defaultChecked} className="peer sr-only" />
-      <div className="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:border-gray-600 dark:bg-slate-700"></div>
+      <div className="peer h-6 w-11 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
     </label>
   </div>
 );
@@ -45,11 +45,11 @@ export default function AjustesView() {
       case 'perfil':
         return (
           <motion.div key="perfil" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Perfil Público</h2>
+            <h2 className="text-2xl font-bold text-card-foreground mb-6">Perfil Público</h2>
             <div className="space-y-6">
               <div className="flex items-center gap-6">
                 <div className="relative group">
-                  <img src={profileImage} alt="Foto de perfil" className="h-24 w-24 rounded-full object-cover border-4 border-white dark:border-slate-800 shadow-md"/>
+                  <img src={profileImage} alt="Foto de perfil" className="h-24 w-24 rounded-full object-cover border-4 border-background shadow-md"/>
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -59,14 +59,14 @@ export default function AjustesView() {
                   <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">David</h3>
-                  <p className="text-sm text-slate-500">david@flora.com</p>
+                  <h3 className="text-xl font-bold text-card-foreground">David</h3>
+                  <p className="text-sm text-muted-foreground">david@flora.com</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <label className="text-sm font-medium text-slate-500">Nombre Completo</label>
-                  <input type="text" defaultValue="David" className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:bg-slate-800 dark:border-white/10 dark:text-white" />
+                  <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
+                  <input type="text" defaultValue="David" className="mt-2 w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
                 </div>
               </div>
             </div>
@@ -75,29 +75,29 @@ export default function AjustesView() {
       case 'seguridad':
         return (
           <motion.div key="seguridad" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Contraseña y Seguridad</h2>
+            <h2 className="text-2xl font-bold text-card-foreground mb-6">Contraseña y Seguridad</h2>
             <div className="space-y-6">
               <div>
-                <label className="text-sm font-medium text-slate-500">Contraseña Actual</label>
+                <label className="text-sm font-medium text-muted-foreground">Contraseña Actual</label>
                 <div className="relative mt-2">
-                  <input type={showCurrentPassword ? 'text' : 'password'} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:bg-slate-800 dark:border-white/10 dark:text-white" />
-                  <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-4 text-slate-400">
+                  <input type={showCurrentPassword ? 'text' : 'password'} className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
+                  <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
                     {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-500">Nueva Contraseña</label>
+                <label className="text-sm font-medium text-muted-foreground">Nueva Contraseña</label>
                 <div className="relative mt-2">
-                  <input type={showNewPassword ? 'text' : 'password'} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:bg-slate-800 dark:border-white/10 dark:text-white" />
-                   <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-4 text-slate-400">
+                  <input type={showNewPassword ? 'text' : 'password'} className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
+                   <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
                     {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
                <div>
-                <label className="text-sm font-medium text-slate-500">Confirmar Nueva Contraseña</label>
-                <input type="password" className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:bg-slate-800 dark:border-white/10 dark:text-white" />
+                <label className="text-sm font-medium text-muted-foreground">Confirmar Nueva Contraseña</label>
+                <input type="password" className="mt-2 w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
               </div>
             </div>
           </motion.div>
@@ -105,7 +105,7 @@ export default function AjustesView() {
       case 'notificaciones':
         return (
           <motion.div key="notificaciones" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Preferencias de Notificaciones</h2>
+            <h2 className="text-2xl font-bold text-card-foreground mb-6">Preferencias de Notificaciones</h2>
             <div className="space-y-4">
               <ToggleSwitch label="Alertas de Humedad Crítica" description="Recibir un aviso cuando la humedad de una parcela sea inferior al 20%." defaultChecked />
               <ToggleSwitch label="Alertas de Batería Baja" description="Aviso cuando un dispositivo tenga menos del 15% de batería." defaultChecked />
@@ -117,12 +117,12 @@ export default function AjustesView() {
       case 'red':
         return (
           <motion.div key="red" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Red LoRaWAN</h2>
+            <h2 className="text-2xl font-bold text-card-foreground mb-6">Red LoRaWAN</h2>
             <div className="space-y-6">
               <div>
-                <label className="text-sm font-medium text-slate-500">Intervalo de Telemetría Global</label>
-                <p className="text-xs text-slate-400 mb-2">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
-                <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:bg-slate-800 dark:border-white/10 dark:text-white">
+                <label className="text-sm font-medium text-muted-foreground">Intervalo de Telemetría Global</label>
+                <p className="text-xs text-muted-foreground/80 mb-2">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
+                <select className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground">
                   <option>Cada 15 minutos (Estándar)</option>
                   <option>Cada 30 minutos (Ahorro)</option>
                   <option>Cada 1 hora (Eco)</option>
@@ -141,7 +141,7 @@ export default function AjustesView() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col md:flex-row gap-12 h-full">
       {/* Sidebar de Ajustes */}
       <aside className="w-full md:w-1/4">
-        <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-4 px-2">Ajustes</h3>
+        <h3 className="text-lg font-semibold text-muted-foreground mb-4 px-2">Ajustes</h3>
         <nav className="space-y-2">
           {tabs.map(tab => (
             <button
@@ -149,8 +149,8 @@ export default function AjustesView() {
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               <tab.icon size={20} />
@@ -162,13 +162,13 @@ export default function AjustesView() {
 
       {/* Contenido Principal */}
       <main className="flex-1">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 dark:border-white/5 dark:bg-slate-900 shadow-sm min-h-[400px]">
+        <div className="rounded-3xl border border-border bg-card p-8 shadow-sm min-h-[400px]">
           <AnimatePresence mode="wait">
             {renderContent()}
           </AnimatePresence>
         </div>
         <div className="flex justify-end mt-6">
-          <button className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-3 text-sm font-bold text-white hover:bg-green-700 shadow-lg shadow-green-500/30 transition-all">
+          <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30 transition-all">
             <Save size={18} /> Guardar Cambios
           </button>
         </div>

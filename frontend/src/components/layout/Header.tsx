@@ -19,21 +19,21 @@ export default function Header({ menuActivo, usuario }: HeaderProps) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur-md transition-colors duration-500 dark:border-white/5 dark:bg-slate-900/80">
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-8 py-5 backdrop-blur-md transition-colors duration-500">
       <div className="flex items-center gap-4">
-        <img src={usuario.foto} alt="Perfil" className="h-12 w-12 rounded-full border-2 border-green-500 object-cover shadow-md" />
+        <img src={usuario.foto} alt="Perfil" className="h-12 w-12 rounded-full border-2 border-primary object-cover shadow-md" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+          <h1 className="text-2xl font-bold text-card-foreground">
             {saludo}, {usuario.nombre}
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-muted-foreground">
             {menuActivo === 'parcelas' ? 'Resumen del estado de tus cultivos.' : menuActivo === 'dispositivos' ? 'Monitorización de hardware y señal.' : 'Ajustes de cuenta y preferencias de red.'}
           </p>
         </div>
       </div>
       
       <div className="flex items-center gap-4">
-        <button onClick={toggleTheme} className="rounded-full bg-slate-100 p-2.5 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+        <button onClick={toggleTheme} className="rounded-full bg-secondary p-2.5 text-secondary-foreground transition-colors hover:bg-muted">
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
         </button>
       </div>

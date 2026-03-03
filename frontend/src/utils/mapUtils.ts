@@ -12,6 +12,7 @@ export interface Dispositivo {
   fechaUltimaConexion?: string;
   routerId?: number;
   esPublico?: boolean;
+  humedad?: number;
   // Datos técnicos de conexión
   rssi?: number;
   snr?: number;
@@ -26,6 +27,7 @@ export interface Parcela {
   id: number;
   nombre: string;
   cultivo: string;
+  tipoSuelo?: string;
   humedad: number;
   proximoRiego: string;
   estado: string;
@@ -37,6 +39,7 @@ export interface Parcela {
 export interface ParcelMapOptions {
   onClick?: (parcel: Parcela) => void;
   getPopupContent?: (parcel: Parcela) => string | HTMLElement | null;
+  onDeviceHistoryClick?: (device: Dispositivo) => void;
 }
 
 export interface ParcelMapManager {
@@ -248,6 +251,7 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
               <div class="flex justify-between"><span>Modelo:</span> <span class="font-semibold text-slate-800">${d.modelo || 'N/A'}</span></div>
               ${d.ssid ? `<div class="flex justify-between"><span>SSID:</span> <span class="font-semibold text-slate-800">${d.ssid}</span></div>` : ''}
               ${isRouter ? `<div class="flex justify-between items-center"><span>Red:</span> <span class="font-bold text-xs px-2 py-0.5 rounded-full ${d.esPublico ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}">${d.esPublico ? 'Pública' : 'Privada'}</span></div>` : ''}
+              ${!isRouter && d.humedad !== undefined ? `<div class="flex justify-between items-center pt-1 border-t border-slate-50 mt-1"><span class="text-slate-500 font-bold">Humedad:</span> <span class="font-bold text-blue-600 text-base">${d.humedad}%</span></div>` : ''}
               <div class="flex justify-between"><span>Batería:</span> <span class="font-bold ${d.bateria && d.bateria < 20 ? 'text-red-600' : 'text-green-600'}">${d.bateria}%</span></div>
               <div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400 text-right">Últ. conexión: ${d.fechaUltimaConexion || 'N/A'}</div>
             </div>
@@ -259,9 +263,23 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
               </summary>
               ${technicalDetailsHtml}
             </details>
+            
+            ${!isRouter && options?.onDeviceHistoryClick ? `
+              <button id="btn-device-history-${d.id}" class="mt-3 w-full py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-blue-200">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+                Ver Historial
+              </button>
+            ` : ''}
           </div>
         `;
-        marker.bindPopup(popupContent);
+        const popupNode = L.DomUtil.create('div');
+        popupNode.innerHTML = popupContent;
+        
+        if (!isRouter && options?.onDeviceHistoryClick) {
+          popupNode.querySelector(`#btn-device-history-${d.id}`)?.addEventListener('click', () => options.onDeviceHistoryClick!(d));
+        }
+
+        marker.bindPopup(popupNode);
 
         // Dibujar línea de conexión si es una mota y tiene router asignado
         if (!isRouter && d.routerId) {

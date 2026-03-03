@@ -23,7 +23,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950">
+    <div className="flex h-screen w-full overflow-hidden bg-background transition-colors duration-500">
       
       {/* 1. Componente del Menú Lateral */}
       <Sidebar 
