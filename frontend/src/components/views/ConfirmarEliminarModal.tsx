@@ -65,11 +65,11 @@ export default function ConfirmarEliminarModal({ isOpen, onClose, onConfirm, par
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 bg-muted/50 px-8 py-5">
+            <div className="grid grid-cols-2 gap-4 px-6 py-4 bg-background/50">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl border border-border px-4 py-3 text-sm font-bold text-card-foreground hover:bg-muted"
+                className="rounded-xl bg-secondary px-4 py-3 text-sm font-bold text-secondary-foreground hover:bg-muted"
               >
                 Cancelar
               </button>

@@ -19,7 +19,8 @@ import {
   QrCode, 
   Link as LinkIcon,
   Plug,
-  BarChart2
+  BarChart2,
+  Unlink
 } from 'lucide-react';
 
 // Tipos basados en schema.prisma + campos de UI solicitados
@@ -245,6 +246,13 @@ export default function DispositivosView() {
     setEditingDevice(null);
   };
 
+  const handleUnlink = () => {
+    if (editingDevice && window.confirm(`¿Estás seguro de que quieres desvincular el dispositivo "${editingDevice.tipo === 'mota' ? editingDevice.nombre : editingDevice.modelo}" de su parcela?`)) {
+      setDispositivos(prev => prev.map(d => d.id === editingDevice.id ? { ...d, parcela: null } : d));
+      setEditingDevice(null);
+    }
+  };
+
   const handleBindingCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Eliminar caracteres no alfanuméricos y convertir a mayúsculas
     let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -353,7 +361,7 @@ export default function DispositivosView() {
         <select
           value={filtroTipo}
           onChange={e => setFiltroTipo(e.target.value as any)}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white custom-select"
         >
           <option value="todos">Todos los Tipos</option>
           <option value="mota">Mota / Sensor</option>
@@ -362,7 +370,7 @@ export default function DispositivosView() {
         <select
           value={filtroParcela}
           onChange={e => setFiltroParcela(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white custom-select"
         >
           <option value="todas">Todas las Parcelas</option>
           <option value="sin_asignar">Sin Asignar</option>
@@ -540,7 +548,7 @@ export default function DispositivosView() {
                   <select 
                     value={editingDevice.frecuencia}
                     onChange={(e) => setEditingDevice(prev => prev ? { ...prev, frecuencia: e.target.value } : null)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white appearance-none"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white custom-select"
                   >
                     <option>5 min (Alto Consumo)</option>
                     <option>15 min (Estándar)</option>
@@ -550,10 +558,19 @@ export default function DispositivosView() {
                   </select>
                 </div>
 
-                <div className="pt-4">
+                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/10 space-y-3">
                   <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-700 shadow-lg shadow-green-500/30 transition-all">
                     <Save size={18} /> Guardar Cambios
                   </button>
+                  {editingDevice.parcela && (
+                    <button 
+                        type="button" 
+                        onClick={handleUnlink}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600/10 px-4 py-3 text-sm font-bold text-amber-700 hover:bg-amber-600/20 transition-all"
+                    >
+                        <Unlink size={18} /> Desvincular de la parcela
+                    </button>
+                  )}
                 </div>
               </form>
             </motion.div>

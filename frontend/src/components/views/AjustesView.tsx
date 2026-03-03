@@ -11,7 +11,7 @@ const ToggleSwitch = ({ label, description, defaultChecked = false }: { label: s
     </div>
     <label className="relative inline-flex cursor-pointer items-center">
       <input type="checkbox" defaultChecked={defaultChecked} className="peer sr-only" />
-      <div className="peer h-6 w-11 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+      <div className="peer h-6 w-11 rounded-full bg-muted/70 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-600 peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
     </label>
   </div>
 );
@@ -122,7 +122,7 @@ export default function AjustesView() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Intervalo de Telemetría Global</label>
                 <p className="text-xs text-muted-foreground/80 mb-2">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
-                <select className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground">
+                <select className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground custom-select">
                   <option>Cada 15 minutos (Estándar)</option>
                   <option>Cada 30 minutos (Ahorro)</option>
                   <option>Cada 1 hora (Eco)</option>
@@ -168,7 +168,10 @@ export default function AjustesView() {
           </AnimatePresence>
         </div>
         <div className="flex justify-end mt-6">
-          <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30 transition-all">
+          <button 
+            onClick={() => alert('Guardado!')}
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30 transition-all"
+          >
             <Save size={18} /> Guardar Cambios
           </button>
         </div>

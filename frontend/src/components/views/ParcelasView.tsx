@@ -76,7 +76,7 @@ const DeviceSummaryModal = ({ parcel, onClose }: { parcel: Parcela, onClose: () 
       ) : (
         <div className="grid gap-3">
           {devices.map((d: Dispositivo) => (
-            <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-background border border-border">
+            <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border transition-colors hover:bg-muted">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${d.estado === 'online' ? 'bg-green-500' : d.estado === 'low-battery' ? 'bg-yellow-500' : 'bg-red-500'}`} />
                 <div>
@@ -103,7 +103,7 @@ const DeviceSummaryModal = ({ parcel, onClose }: { parcel: Parcela, onClose: () 
 
   return (
     <div className="p-6">
-      <DeviceList title="Routers / Gateways" devices={routers} icon={RouterIcon} colorClass="text-purple-600" />
+      <DeviceList title="Routers / Gateways" devices={routers} icon={RouterIcon} colorClass="text-primary" />
       <div className="h-px bg-border my-6" />
       <DeviceList title="Motas / Sensores" devices={motas} icon={Cpu} colorClass="text-blue-600" />
     </div>
@@ -263,8 +263,8 @@ export default function ParcelasView() {
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
           <div className="flex rounded-lg border border-border bg-card p-1">
-            <button onClick={() => setVista('galeria')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${vista === 'galeria' ? 'bg-muted text-card-foreground shadow-sm' : 'text-muted-foreground'}`}><LayoutGrid size={16} /> Galería</button>
-            <button onClick={() => setVista('mapa')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${vista === 'mapa' ? 'bg-muted text-card-foreground shadow-sm' : 'text-muted-foreground'}`}><Globe size={16} /> Satélite</button>
+            <button onClick={() => setVista('galeria')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'galeria' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><LayoutGrid size={16} /> Galería</button>
+            <button onClick={() => setVista('mapa')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'mapa' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><Globe size={16} /> Satélite</button>
           </div>
         </div>
 
@@ -471,10 +471,9 @@ export default function ParcelasView() {
                                 {hoveredChartIndex === i && (
                                   <line 
                                     x1={p.x} y1={p.y} x2={p.x} y2={170} 
-                                    stroke="currentColor" 
                                     strokeDasharray="4 4" 
-                                    className="text-border" 
-                                    strokeWidth="1" 
+                                    className="stroke-border" 
+                                    strokeWidth="1.5" 
                                   />
                                 )}
 
@@ -483,9 +482,9 @@ export default function ParcelasView() {
                                 
                                 {hoveredChartIndex === i && (
                                   <foreignObject x={p.x - 40} y={p.y - 50} width={80} height={40} className="overflow-visible pointer-events-none">
-                                    <div className="flex flex-col items-center justify-center bg-slate-900 text-white text-xs rounded-lg py-1 px-2 shadow-xl">
+                                    <div className="flex flex-col items-center justify-center bg-background text-foreground text-xs rounded-lg py-1 px-2 shadow-xl border border-border">
                                       <span className="font-bold">{p.value}%</span>
-                                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 border-4 border-transparent border-t-slate-900"></div>
+                                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 border-4 border-transparent border-t-background"></div>
                                     </div>
                                   </foreignObject>
                                 )}

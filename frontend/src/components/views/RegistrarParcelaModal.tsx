@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Map, Undo2, Check, ChevronDown, Search } from 'lucide-react';
+import { X, Map, Undo2, Check, ChevronDown, Search, CheckCircle } from 'lucide-react';
 import { initParcelMap, type Parcela, type ParcelMapManager } from '../../utils/mapUtils';
 
 
@@ -413,7 +413,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                                     className="w-full px-4 py-2.5 text-left text-sm text-popover-foreground hover:bg-primary/10 hover:text-primary flex items-center justify-between group"
                                   >
                                     <span>{c}</span>
-                                    {cultivo === c && <Check size={16} className="text-primary" />}
+                                    {cultivo === c && <CheckCircle size={16} className="text-primary" />}
                                   </button>
                                 </li>
                               ))}
@@ -472,7 +472,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                                     className="w-full px-4 py-2.5 text-left text-sm text-popover-foreground hover:bg-primary/10 hover:text-primary flex items-center justify-between group"
                                   >
                                     <span>{s}</span>
-                                    {tipoSuelo === s && <Check size={16} className="text-primary" />}
+                                    {tipoSuelo === s && <CheckCircle size={16} className="text-primary" />}
                                   </button>
                                 </li>
                               ))}
