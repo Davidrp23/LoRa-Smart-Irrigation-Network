@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Battery, Signal, Router as RouterIcon, Cpu } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Battery, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
 import ConfirmarEliminarModal from './ConfirmarEliminarModal';
@@ -110,6 +110,107 @@ const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }
   );
 };
 
+// Componente de Gráfico de Humedad Detallado con Navegación
+const DetailedHumidityChart = ({ data }: { data: { label: string, value: number }[] }) => {
+  const ITEMS_PER_PAGE = 24;
+  const [startIndex, setStartIndex] = useState(Math.max(0, data.length - ITEMS_PER_PAGE));
+  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setStartIndex(Math.max(0, data.length - ITEMS_PER_PAGE));
+  }, [data]);
+
+  const displayData = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  
+  const handlePrev = () => setStartIndex(prev => Math.max(0, prev - ITEMS_PER_PAGE));
+  const handleNext = () => setStartIndex(prev => Math.min(data.length - ITEMS_PER_PAGE, prev + ITEMS_PER_PAGE));
+
+  const canPrev = startIndex > 0;
+  const canNext = startIndex + ITEMS_PER_PAGE < data.length;
+
+  return (
+    <div className="w-full">
+       <div className="flex justify-end mb-2">
+          {(canPrev || canNext) && (
+             <div className="flex items-center bg-secondary rounded-md border border-border shadow-sm">
+               <button onClick={handlePrev} disabled={!canPrev} className="p-1.5 hover:bg-background text-foreground disabled:opacity-30 rounded-l-md transition-colors"><ChevronLeft size={16} /></button>
+               <div className="w-[1px] h-4 bg-border"></div>
+               <button onClick={handleNext} disabled={!canNext} className="p-1.5 hover:bg-background text-foreground disabled:opacity-30 rounded-r-md transition-colors"><ChevronRight size={16} /></button>
+             </div>
+           )}
+       </div>
+       <div className="h-96 w-full">
+          {/* Gráfica SVG Interactiva */}
+          <div className="relative h-full w-full select-none">
+            <svg width="100%" height="100%" viewBox="0 0 600 300" className="overflow-visible font-sans" preserveAspectRatio="none">
+              {/* Líneas de guía */}
+              {[0, 25, 50, 75, 100].map(v => {
+                const y = 300 - 30 - ((v / 100) * 240);
+                return (
+                  <g key={v}>
+                    <line x1="30" y1={y} x2="570" y2={y} stroke="currentColor" className="text-border" strokeWidth="1" />
+                    <text x="20" y={y + 4} textAnchor="end" className="text-[10px] fill-muted-foreground font-medium">{v}%</text>
+                  </g>
+                )
+              })}
+
+              {/* Generar Path */}
+              {(() => {
+                if (displayData.length === 0) return null;
+
+                const points = displayData.map((d, i) => {
+                  const x = 30 + (i * (540 / Math.max(displayData.length - 1, 1)));
+                  const y = 300 - 30 - ((d.value / 100) * 240);
+                  return { x, y, ...d };
+                });
+                const pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
+                const areaD = `${pathD} L ${points[points.length-1].x},270 L ${points[0].x},270 Z`;
+
+                return (
+                  <>
+                    <defs>
+                      <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5"/><stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/></linearGradient>
+                    </defs>
+                    <path d={areaD} fill="url(#gradient)" />
+                    <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    
+                    {points.map((p, i) => (
+                      <g key={i} onMouseEnter={() => setHoveredChartIndex(i)} onMouseLeave={() => setHoveredChartIndex(null)} className="cursor-pointer">
+                        <rect x={p.x - 20} y={0} width={40} height={300} fill="transparent" />
+                        
+                        {/* Línea guía vertical */}
+                        {hoveredChartIndex === i && (
+                          <line 
+                            x1={p.x} y1={p.y} x2={p.x} y2={270} 
+                            strokeDasharray="4 4" 
+                            className="stroke-border" 
+                            strokeWidth="1.5" 
+                          />
+                        )}
+
+                        <circle cx={p.x} cy={p.y} r={hoveredChartIndex === i ? 5 : 3} className={`transition-all duration-200 ${hoveredChartIndex === i ? 'fill-blue-600 stroke-card stroke-[2px]' : 'fill-card stroke-blue-500 stroke-[1.5px]'}`} />
+                        <text x={p.x} y={290} textAnchor="middle" className={`text-xs font-medium transition-all ${hoveredChartIndex === i ? 'fill-blue-600 opacity-100' : 'fill-muted-foreground opacity-0'}`}>{p.label}</text>
+                        
+                        {hoveredChartIndex === i && (
+                          <foreignObject x={p.x - 40} y={p.y - 50} width={80} height={40} className="overflow-visible pointer-events-none">
+                            <div className="flex flex-col items-center justify-center bg-background text-foreground text-xs rounded-lg py-1 px-2 shadow-xl border border-border">
+                              <span className="font-bold">{p.value}%</span>
+                              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 border-4 border-transparent border-t-background"></div>
+                            </div>
+                          </foreignObject>
+                        )}
+                      </g>
+                    ))}
+                  </>
+                );
+              })()}
+            </svg>
+          </div>
+       </div>
+    </div>
+  );
+};
+
 export default function ParcelasView() {
   const { theme } = useTheme();
   const [parcelas, setParcelas] = useState<Parcela[]>(parcelasFalsas);
@@ -123,7 +224,6 @@ export default function ParcelasView() {
   // Estado unificado para el historial (Parcela o Mota)
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [chartData, setChartData] = useState<{label: string, value: number}[]>([]);
-  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
   const [targetParcelId, setTargetParcelId] = useState<number | null>(null);
   const [editingParcel, setEditingParcel] = useState<Parcela | null>(null);
@@ -276,7 +376,7 @@ export default function ParcelasView() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <button 
               onClick={() => { setEditingParcel(null); setIsModalOpen(true); }} 
-              className="group flex h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/10 transition-all"
+              className="group flex h-40 hover:h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-green-200 dark:hover:bg-primary/10 transition-all duration-500 overflow-hidden"
             >
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-green-200 group-hover:text-green-600"><Plus size={28} /></div>
               <span className="font-semibold text-card-foreground">Registrar Parcela</span>
@@ -388,7 +488,7 @@ export default function ParcelasView() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-2xl overflow-hidden rounded-3xl bg-card shadow-2xl"
+              className="w-full max-w-5xl overflow-hidden rounded-3xl bg-card shadow-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6">
                 <div>
@@ -428,74 +528,7 @@ export default function ParcelasView() {
                   </div>
                 </div>
 
-                <div className="h-64 w-full">
-                  {/* Gráfica SVG Interactiva */}
-                  <div className="relative h-full w-full select-none">
-                    <svg width="100%" height="100%" viewBox="0 0 600 200" className="overflow-visible">
-                      {/* Líneas de guía */}
-                      {[0, 25, 50, 75, 100].map(v => {
-                        const y = 200 - 30 - ((v / 100) * 140);
-                        return (
-                          <g key={v}>
-                            <line x1="30" y1={y} x2="570" y2={y} stroke="currentColor" className="text-border" strokeWidth="1" />
-                            <text x="20" y={y + 4} textAnchor="end" className="text-[10px] fill-muted-foreground font-medium">{v}%</text>
-                          </g>
-                        )
-                      })}
-
-                      {/* Generar Path */}
-                      {(() => {
-                        if (chartData.length === 0) return null;
-
-                        const points = chartData.map((d, i) => {
-                          const x = 30 + (i * (540 / Math.max(chartData.length - 1, 1)));
-                          const y = 200 - 30 - ((d.value / 100) * 140);
-                          return { x, y, ...d };
-                        });
-                        const pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
-                        const areaD = `${pathD} L ${points[points.length-1].x},170 L ${points[0].x},170 Z`;
-
-                        return (
-                          <>
-                            <defs>
-                              <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2"/><stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/></linearGradient>
-                            </defs>
-                            <path d={areaD} fill="url(#gradient)" />
-                            <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            
-                            {points.map((p, i) => (
-                              <g key={i} onMouseEnter={() => setHoveredChartIndex(i)} onMouseLeave={() => setHoveredChartIndex(null)} className="cursor-pointer">
-                                <rect x={p.x - 20} y={0} width={40} height={200} fill="transparent" />
-                                
-                                {/* Línea guía vertical */}
-                                {hoveredChartIndex === i && (
-                                  <line 
-                                    x1={p.x} y1={p.y} x2={p.x} y2={170} 
-                                    strokeDasharray="4 4" 
-                                    className="stroke-border" 
-                                    strokeWidth="1.5" 
-                                  />
-                                )}
-
-                                <circle cx={p.x} cy={p.y} r={hoveredChartIndex === i ? 6 : 4} className={`transition-all duration-200 ${hoveredChartIndex === i ? 'fill-blue-600 stroke-card stroke-2' : 'fill-card stroke-blue-500 stroke-2'}`} />
-                                <text x={p.x} y={190} textAnchor="middle" className={`text-xs font-medium transition-all ${hoveredChartIndex === i ? 'fill-blue-600 opacity-100' : 'fill-muted-foreground opacity-0'}`}>{p.label}</text>
-                                
-                                {hoveredChartIndex === i && (
-                                  <foreignObject x={p.x - 40} y={p.y - 50} width={80} height={40} className="overflow-visible pointer-events-none">
-                                    <div className="flex flex-col items-center justify-center bg-background text-foreground text-xs rounded-lg py-1 px-2 shadow-xl border border-border">
-                                      <span className="font-bold">{p.value}%</span>
-                                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 border-4 border-transparent border-t-background"></div>
-                                    </div>
-                                  </foreignObject>
-                                )}
-                              </g>
-                            ))}
-                          </>
-                        );
-                      })()}
-                    </svg>
-                  </div>
-                </div>
+                <DetailedHumidityChart data={chartData} />
               </div>
             </motion.div>
           </div>

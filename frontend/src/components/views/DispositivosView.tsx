@@ -258,7 +258,7 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
 
 // Componente de Gráfico Detallado para el Modal (con paginación)
 const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, date: string }[] }) => {
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 24;
   const [startIndex, setStartIndex] = useState(Math.max(0, data.length - ITEMS_PER_PAGE));
 
   useEffect(() => {
@@ -284,7 +284,7 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
              </div>
            )}
        </div>
-       <div className="h-64 w-full flex items-end gap-2 px-4">
+       <div className="h-96 w-full flex items-end gap-2 px-4">
           {displayData.map((d, i) => (
             <div key={startIndex + i} className="flex-1 flex flex-col justify-end group relative h-full">
               <div className="w-full bg-blue-500/70 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-600 dark:group-hover:bg-blue-500/40" style={{ height: `${Math.max(d.value * 5, 5)}%` }}>
@@ -780,7 +780,7 @@ export default function DispositivosView() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-3xl overflow-hidden rounded-3xl bg-card shadow-2xl"
+              className="w-full max-w-5xl overflow-hidden rounded-3xl bg-card shadow-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6">
                 <div>
