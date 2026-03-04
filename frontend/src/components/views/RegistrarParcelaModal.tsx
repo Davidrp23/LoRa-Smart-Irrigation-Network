@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -340,15 +341,15 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
     onClose();
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="flex w-full max-w-5xl overflow-hidden rounded-3xl bg-card shadow-2xl flex-col md:flex-row h-[85vh] md:h-[600px]"
+            className="flex w-full max-w-[95vw] overflow-hidden rounded-3xl bg-card shadow-2xl flex-col md:flex-row h-[90vh]"
           >
             {/* ... Todo el HTML/JSX del formulario se mantiene igual ... */}
             <div className="flex w-full flex-col justify-between border-r border-border p-8 md:w-1/3 overflow-y-auto">
@@ -531,6 +532,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

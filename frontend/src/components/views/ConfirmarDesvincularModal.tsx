@@ -60,7 +60,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
               </button>
               <button
                 onClick={onConfirm}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-500 dark:bg-yellow-700 px-4 py-3 text-sm font-bold text-white hover:bg-yellow-600 dark:hover:bg-yellow-600 shadow-md shadow-yellow-500/10 dark:shadow-none transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 border border-amber-400 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-300 dark:hover:bg-amber-900/20 transition-all"
               >
                 <Link2Off size={18} />
                 Sí, Desvincular

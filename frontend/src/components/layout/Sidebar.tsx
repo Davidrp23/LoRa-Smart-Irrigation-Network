@@ -16,14 +16,14 @@ export default function Sidebar({ menuActivo, setMenuActivo, handleLogout }: Sid
       {/* Botón de colapsar (Solo visible en escritorio) */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-10 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:text-foreground md:flex"
+        className="absolute -right-3 top-20 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:text-foreground md:flex"
       >
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
       <div className={`mb-10 flex w-full items-center ${isCollapsed ? 'justify-center' : 'justify-center md:justify-start'}`}>
         <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 shadow-sm backdrop-blur-md transition-all hover:shadow-md dark:border-primary/30 dark:from-primary/10 dark:to-primary/5">
-          <img src="/media/FLoRa_logo.png" alt="FLoRa" className="h-10 w-10 object-contain drop-shadow-sm" />
+          <img src="/media/FLoRa_logo.png" alt="FLoRa" className={`object-contain drop-shadow-sm transition-all ${isCollapsed ? 'h-8 w-8' : 'h-10 w-10'}`} />
           {!isCollapsed && <span className="hidden text-2xl font-extrabold tracking-tight text-primary md:block">FLoRa</span>}
         </div>
       </div>
