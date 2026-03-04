@@ -40,8 +40,8 @@ export default function ConfirmarEliminarModal({ isOpen, onClose, onConfirm, par
           >
             <div className="p-8">
               <div className="flex justify-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
-                  <AlertTriangle size={32} className="text-destructive" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-destructive/20 text-red-600 dark:text-destructive">
+                  <AlertTriangle size={32} />
                 </div>
               </div>
 
@@ -60,16 +60,16 @@ export default function ConfirmarEliminarModal({ isOpen, onClose, onConfirm, par
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder={parcelaNombre}
-                  className="mt-4 block w-full rounded-xl border-input bg-background px-4 py-3 text-center text-card-foreground focus:border-destructive focus:outline-none"
+                  className="flora-input mt-4 text-center"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 px-6 py-4 bg-background/50">
+            <div className="grid grid-cols-2 gap-4 p-6 bg-muted border-t border-border">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl bg-secondary px-4 py-3 text-sm font-bold text-secondary-foreground hover:bg-muted"
+                className="rounded-xl bg-card px-4 py-3 text-sm font-bold text-card-foreground shadow-sm ring-1 ring-border hover:bg-muted"
               >
                 Cancelar
               </button>
@@ -77,7 +77,7 @@ export default function ConfirmarEliminarModal({ isOpen, onClose, onConfirm, par
                 type="button"
                 onClick={handleConfirm}
                 disabled={!isMatch}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-destructive-foreground transition-colors disabled:cursor-not-allowed disabled:bg-destructive/40 bg-destructive hover:bg-destructive/90 shadow-lg shadow-destructive/30"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-sm font-bold text-destructive-foreground transition-colors disabled:cursor-not-allowed disabled:bg-destructive/40 hover:bg-destructive/90 shadow-lg shadow-destructive/30"
               >
                 Eliminar Parcela
               </button>

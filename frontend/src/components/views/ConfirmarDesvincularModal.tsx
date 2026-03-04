@@ -32,7 +32,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
             className="w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl"
           >
             <div className="p-8 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-900/20 text-amber-700 dark:text-amber-500">
                 <AlertTriangle size={32} />
               </div>
               <h3 className="mt-5 text-xl font-bold text-card-foreground">
@@ -60,7 +60,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
               </button>
               <button
                 onClick={onConfirm}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20 transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white hover:bg-amber-600 shadow-lg shadow-amber-500/30 transition-all"
               >
                 <Link2Off size={18} />
                 Sí, Desvincular

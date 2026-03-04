@@ -162,9 +162,19 @@ const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: n
 
 // Componente de Gráfico de Barras Simple (Historial de Consumo)
 const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () => void }) => {
-  const maxVal = Math.max(...data, 1); // Evitar división por cero
+  const hasData = data.length > 0 && data.some(v => v > 0);
+  const maxVal = Math.max(...data, 1);
   const [hovered, setHovered] = useState<{ val: number, i: number } | null>(null);
   
+  if (!hasData) {
+    return (
+      <div className="mt-4 pt-6 pb-2 border-t border-border flex flex-col items-center justify-center text-muted-foreground select-none">
+         <BarChart2 size={24} className="mb-1 opacity-100" />
+         <span className="text-[10px] font-bold uppercase tracking-wider">Sin datos disponibles</span>
+      </div>
+    );
+  }
+
   return (
     <div 
       className="mt-4 pt-3 border-t border-border cursor-pointer group/chart"
@@ -191,7 +201,7 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
             onMouseEnter={() => setHovered({ val: value, i })}
           >
             <div 
-              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-300 dark:bg-slate-600'}`}
+              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-400 dark:bg-slate-500'}`}
               style={{ height: `${(value / maxVal) * 100}%`, minHeight: value > 0 ? '2px' : '0' }}
             ></div>
           </div>
@@ -714,14 +724,14 @@ export default function DispositivosView() {
                   {getDetailedHistoryData(historyRange).map((d, i) => (
                     <div key={i} className="flex-1 flex flex-col justify-end group relative h-full">
                       <div 
-                        className="w-full bg-blue-500/30 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-500/50"
+                        className="w-full bg-blue-500/70 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-600 dark:group-hover:bg-blue-500/40"
                         style={{ height: `${Math.max(d.value * 5, 5)}%` }}
                       >
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">
                           -{d.value}%
                         </div>
                       </div>
-                      <span className="text-[10px] text-muted-foreground text-center mt-2 truncate w-full block opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] text-foreground text-center mt-2 truncate w-full block">
                         {d.label}
                       </span>
                     </div>
