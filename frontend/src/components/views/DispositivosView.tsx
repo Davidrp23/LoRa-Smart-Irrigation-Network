@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Router as RouterIcon, 
@@ -21,6 +21,8 @@ import {
   Plug,
   BarChart2,
   Unlink,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
 
@@ -163,8 +165,27 @@ const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: n
 // Componente de Gráfico de Barras Simple (Historial de Consumo)
 const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () => void }) => {
   const hasData = data.length > 0 && data.some(v => v > 0);
-  const maxVal = Math.max(...data, 1);
+  
+  // Configuración de paginación para evitar barras cortadas
+  const ITEMS_PER_PAGE = 12;
+  const [startIndex, setStartIndex] = useState(Math.max(0, data.length - ITEMS_PER_PAGE));
+
+  const displayData = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const maxVal = Math.max(...displayData, 1);
   const [hovered, setHovered] = useState<{ val: number, i: number } | null>(null);
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStartIndex(prev => Math.max(0, prev - ITEMS_PER_PAGE));
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStartIndex(prev => Math.min(data.length - ITEMS_PER_PAGE, prev + ITEMS_PER_PAGE));
+  };
+
+  const canPrev = startIndex > 0;
+  const canNext = startIndex + ITEMS_PER_PAGE < data.length;
   
   if (!hasData) {
     return (
@@ -181,32 +202,98 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
       onClick={onClick}
       onMouseLeave={() => setHovered(null)}
     >
-      <div className="flex justify-between items-end mb-2 h-4">
+      <div className="flex justify-between items-center mb-2 h-5">
         {hovered !== null ? (
            <span className="text-xs font-bold text-foreground">
              -{hovered.val}% <span className="text-[10px] font-normal text-muted-foreground ml-1">({hovered.i}:00)</span>
            </span>
         ) : (
-           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Consumo (24h)</span>
+           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Consumo</span>
         )}
-        <span className={`text-[10px] text-blue-500 font-medium flex items-center gap-1 transition-opacity ${hovered !== null ? 'opacity-0' : 'opacity-0 group-hover/chart:opacity-100'}`}>
-          <BarChart2 size={10} /> Ver detalle
-        </span>
+        
+        <div className="flex items-center gap-2">
+           {/* Controles de Paginación */}
+           {(canPrev || canNext) && (
+             <div className="flex items-center bg-muted/50 rounded-md" onClick={(e) => e.stopPropagation()}>
+               <button 
+                 onClick={handlePrev} 
+                 disabled={!canPrev}
+                 className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-l-md transition-colors"
+               >
+                 <ChevronLeft size={12} />
+               </button>
+               <div className="w-[1px] h-3 bg-border"></div>
+               <button 
+                 onClick={handleNext} 
+                 disabled={!canNext}
+                 className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-r-md transition-colors"
+               >
+                 <ChevronRight size={12} />
+               </button>
+             </div>
+           )}
+
+           <span className={`text-[10px] text-blue-500 font-medium flex items-center gap-1 transition-opacity ${hovered !== null ? 'opacity-0' : 'opacity-0 group-hover/chart:opacity-100'}`}>
+             <BarChart2 size={10} />
+           </span>
+        </div>
       </div>
-      <div className="flex items-end gap-[2px] h-10 w-full">
-        {data.map((value, i) => (
+      <div className="flex items-end gap-[2px] h-10 w-full overflow-hidden">
+        {displayData.map((value, i) => (
           <div 
-            key={i} 
+            key={startIndex + i} 
             className="relative flex-1 h-full flex items-end"
-            onMouseEnter={() => setHovered({ val: value, i })}
+            onMouseEnter={() => setHovered({ val: value, i: startIndex + i })}
           >
             <div 
-              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-400 dark:bg-slate-500'}`}
+              className={`w-full rounded-sm transition-colors ${hovered?.i === startIndex + i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-400 dark:bg-slate-500'}`}
               style={{ height: `${(value / maxVal) * 100}%`, minHeight: value > 0 ? '2px' : '0' }}
             ></div>
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+// Componente de Gráfico Detallado para el Modal (con paginación)
+const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, date: string }[] }) => {
+  const ITEMS_PER_PAGE = 12;
+  const [startIndex, setStartIndex] = useState(Math.max(0, data.length - ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    setStartIndex(Math.max(0, data.length - ITEMS_PER_PAGE));
+  }, [data]);
+
+  const displayData = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  
+  const handlePrev = () => setStartIndex(prev => Math.max(0, prev - ITEMS_PER_PAGE));
+  const handleNext = () => setStartIndex(prev => Math.min(data.length - ITEMS_PER_PAGE, prev + ITEMS_PER_PAGE));
+
+  const canPrev = startIndex > 0;
+  const canNext = startIndex + ITEMS_PER_PAGE < data.length;
+
+  return (
+    <div className="w-full">
+       <div className="flex justify-end mb-2">
+          {(canPrev || canNext) && (
+             <div className="flex items-center bg-muted/50 rounded-md border border-border">
+               <button onClick={handlePrev} disabled={!canPrev} className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-l-md transition-colors"><ChevronLeft size={16} /></button>
+               <div className="w-[1px] h-4 bg-border"></div>
+               <button onClick={handleNext} disabled={!canNext} className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-r-md transition-colors"><ChevronRight size={16} /></button>
+             </div>
+           )}
+       </div>
+       <div className="h-64 w-full flex items-end gap-2 px-4">
+          {displayData.map((d, i) => (
+            <div key={startIndex + i} className="flex-1 flex flex-col justify-end group relative h-full">
+              <div className="w-full bg-blue-500/70 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-600 dark:group-hover:bg-blue-500/40" style={{ height: `${Math.max(d.value * 5, 5)}%` }}>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">-{d.value}%</div>
+              </div>
+              <span className="text-[10px] text-foreground text-center mt-2 truncate w-full block">{d.label}</span>
+            </div>
+          ))}
+       </div>
     </div>
   );
 };
@@ -333,6 +420,8 @@ export default function DispositivosView() {
       date: new Date().toLocaleDateString()
     }));
   };
+
+  const historyData = useMemo(() => getDetailedHistoryData(historyRange), [historyRange]);
 
   const getBateriaColor = (nivel: number) => {
     if (nivel > 50) return 'text-green-500';
@@ -720,23 +809,7 @@ export default function DispositivosView() {
                 </div>
 
                 {/* Gráfica Grande */}
-                <div className="h-64 w-full flex items-end gap-2 px-4">
-                  {getDetailedHistoryData(historyRange).map((d, i) => (
-                    <div key={i} className="flex-1 flex flex-col justify-end group relative h-full">
-                      <div 
-                        className="w-full bg-blue-500/70 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-600 dark:group-hover:bg-blue-500/40"
-                        style={{ height: `${Math.max(d.value * 5, 5)}%` }}
-                      >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">
-                          -{d.value}%
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-foreground text-center mt-2 truncate w-full block">
-                        {d.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <DetailedHistoryChart data={historyData} />
               </div>
             </motion.div>
           </div>
