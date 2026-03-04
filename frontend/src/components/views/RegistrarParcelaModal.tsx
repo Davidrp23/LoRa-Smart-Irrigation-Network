@@ -502,7 +502,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                 <button type="button" onClick={onClose} className="flex-1 rounded-xl border-border px-4 py-3 text-sm font-bold text-card-foreground hover:bg-muted">
                   Cancelar
                 </button>
-                <button type="submit" form="parcela-form" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30">
+                <button type="submit" form="parcela-form" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10">
                   <Check size={18}/> Guardar
                 </button>
               </div>

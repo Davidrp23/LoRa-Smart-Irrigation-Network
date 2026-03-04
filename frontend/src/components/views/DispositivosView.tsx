@@ -441,7 +441,7 @@ export default function DispositivosView() {
         <div className="flex w-full sm:w-auto gap-3">
           <button 
             onClick={() => setIsLinkModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-green-600/20 hover:bg-primary/90 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-md shadow-green-600/10 hover:bg-primary/90 transition-all"
           >
             <Plus size={18} /> <span className="hidden sm:inline">Vincular Dispositivo</span>
           </button>
@@ -675,7 +675,7 @@ export default function DispositivosView() {
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-border space-y-3">
-                  <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-green-500/30 transition-all">
+                  <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-green-500/10 transition-all">
                     <Save size={18} /> Guardar Cambios
                   </button>
                   <button 
@@ -765,7 +765,7 @@ export default function DispositivosView() {
                   <button 
                     type="submit" 
                     disabled={bindingCode.length < 14}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 dark:bg-blue-700 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 dark:hover:bg-blue-600 shadow-md shadow-blue-500/10 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <LinkIcon size={18} /> Vincular Dispositivo
                   </button>

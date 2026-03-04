@@ -170,7 +170,7 @@ export default function AjustesView() {
         <div className="flex justify-end mt-6">
           <button 
             onClick={() => alert('Guardado!')}
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30 transition-all"
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all"
           >
             <Save size={18} /> Guardar Cambios
           </button>

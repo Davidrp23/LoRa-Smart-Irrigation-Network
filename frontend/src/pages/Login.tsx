@@ -47,7 +47,7 @@ export default function Login() {
         <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1, ease: "easeOut" }} className="mb-12 flex flex-col items-center text-center md:mb-0 md:items-start md:text-left">
           <div className="flex items-center gap-3">
             {/* Contenedor del logo con colores adaptativos para Light/Dark mode */}
-            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-primary/50 bg-primary/10 shadow-xl shadow-primary/20 backdrop-blur-xl">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-primary/50 bg-primary/10 shadow-md shadow-primary/5 backdrop-blur-xl">
             
                 <motion.img 
                     src="media/FLoRa_logo.png" 
@@ -107,7 +107,7 @@ export default function Login() {
                 className="w-full rounded-2xl border-input bg-background/80 px-12 py-4 text-card-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/40" />
             </motion.div>
 
-            <motion.button layout="position" type="submit" className="mt-2 flex w-full items-center justify-center gap-3 rounded-2xl bg-primary px-6 py-4 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <motion.button layout="position" type="submit" className="mt-2 flex w-full items-center justify-center gap-3 rounded-2xl bg-primary px-6 py-4 text-sm font-bold text-primary-foreground shadow-md shadow-primary/10 transition-all hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
               {isLoginMode ? 'Iniciar Sesión' : 'Registrarse'} <ArrowRight size={18} />
             </motion.button>
           </form>

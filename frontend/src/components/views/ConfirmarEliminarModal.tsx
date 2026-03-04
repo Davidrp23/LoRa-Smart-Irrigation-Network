@@ -77,7 +77,7 @@ export default function ConfirmarEliminarModal({ isOpen, onClose, onConfirm, par
                 type="button"
                 onClick={handleConfirm}
                 disabled={!isMatch}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-sm font-bold text-destructive-foreground transition-colors disabled:cursor-not-allowed disabled:bg-destructive/40 hover:bg-destructive/90 shadow-lg shadow-destructive/30"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-3 text-sm font-bold text-destructive-foreground transition-colors disabled:cursor-not-allowed disabled:bg-destructive/40 hover:bg-destructive/90 shadow-md shadow-destructive/10"
               >
                 Eliminar Parcela
               </button>
