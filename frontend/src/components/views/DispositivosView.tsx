@@ -426,7 +426,7 @@ export default function DispositivosView() {
   const getBateriaColor = (nivel: number) => {
     if (nivel > 50) return 'text-green-500';
     if (nivel > 20) return 'text-amber-500';
-    return 'text-red-500';
+    return 'text-destructive';
   };
 
   return (

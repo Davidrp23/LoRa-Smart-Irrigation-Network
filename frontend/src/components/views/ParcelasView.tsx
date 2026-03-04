@@ -299,7 +299,7 @@ export default function ParcelasView() {
                         )}
                       </div>
                     </div>
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${p.estado === 'ok' ? 'bg-green-100 dark:bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${p.estado === 'ok' ? 'bg-green-100 dark:bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-destructive/20 text-red-600 dark:text-destructive'}`}>
                       {p.estado === 'ok' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
                     </div>
                   </div>
