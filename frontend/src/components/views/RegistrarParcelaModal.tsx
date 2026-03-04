@@ -366,7 +366,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                     <input 
                       type="text" required placeholder="Ej. Parcela Olivos A"
                       value={nombre} onChange={e => setNombre(e.target.value)}
-                      className="mt-2 block w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground focus:border-primary focus:outline-none" 
+                      className="flora-input mt-2" 
                     />
                   </div>
                   
@@ -384,7 +384,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                           setIsCultivoOpen(true);
                         }}
                         onFocus={() => setIsCultivoOpen(true)}
-                        className="block w-full rounded-xl border-input bg-background pl-10 pr-10 py-3 text-card-foreground focus:border-primary focus:outline-none" 
+                        className="flora-input pl-10 pr-10" 
                       />
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
                         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isCultivoOpen ? 'rotate-180' : ''}`} />
@@ -443,7 +443,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                           setIsSueloOpen(true);
                         }}
                         onFocus={() => setIsSueloOpen(true)}
-                        className="block w-full rounded-xl border-input bg-background pl-10 pr-10 py-3 text-card-foreground focus:border-primary focus:outline-none" 
+                        className="flora-input pl-10 pr-10" 
                       />
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
                         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isSueloOpen ? 'rotate-180' : ''}`} />
@@ -487,11 +487,11 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                     </AnimatePresence>
                   </div>
 
-                  <div className="rounded-xl bg-blue-500/10 p-4 border border-blue-500/20">
-                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2 mb-1">
+                  <div className="instruction-box">
+                    <p className="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-1">
                       <Map size={16} /> Instrucciones
                     </p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                    <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
                       Haz clic en el mapa para marcar las esquinas.
                     </p>
                   </div>

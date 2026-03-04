@@ -66,7 +66,7 @@ export default function AjustesView() {
               <div className="grid grid-cols-1 gap-6">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
-                  <input type="text" defaultValue="David" className="mt-2 w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
+                  <input type="text" defaultValue="David" className="flora-input mt-2" />
                 </div>
               </div>
             </div>
@@ -80,7 +80,7 @@ export default function AjustesView() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Contraseña Actual</label>
                 <div className="relative mt-2">
-                  <input type={showCurrentPassword ? 'text' : 'password'} className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
+                  <input type={showCurrentPassword ? 'text' : 'password'} className="flora-input" />
                   <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
                     {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -89,7 +89,7 @@ export default function AjustesView() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Nueva Contraseña</label>
                 <div className="relative mt-2">
-                  <input type={showNewPassword ? 'text' : 'password'} className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
+                  <input type={showNewPassword ? 'text' : 'password'} className="flora-input" />
                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
                     {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -97,7 +97,7 @@ export default function AjustesView() {
               </div>
                <div>
                 <label className="text-sm font-medium text-muted-foreground">Confirmar Nueva Contraseña</label>
-                <input type="password" className="mt-2 w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground" />
+                <input type="password" className="flora-input mt-2" />
               </div>
             </div>
           </motion.div>
@@ -122,7 +122,7 @@ export default function AjustesView() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Intervalo de Telemetría Global</label>
                 <p className="text-xs text-muted-foreground/80 mb-2">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
-                <select className="w-full rounded-xl border-input bg-background px-4 py-3 text-card-foreground custom-select">
+                <select className="flora-input custom-select">
                   <option>Cada 15 minutos (Estándar)</option>
                   <option>Cada 30 minutos (Ahorro)</option>
                   <option>Cada 1 hora (Eco)</option>
@@ -140,7 +140,7 @@ export default function AjustesView() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col md:flex-row gap-12 h-full">
       {/* Sidebar de Ajustes */}
-      <aside className="w-full md:w-1/4">
+      <aside className="h-fit w-full rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl md:w-1/4">
         <h3 className="text-lg font-semibold text-muted-foreground mb-4 px-2">Ajustes</h3>
         <nav className="space-y-2">
           {tabs.map(tab => (
@@ -167,7 +167,7 @@ export default function AjustesView() {
             {renderContent()}
           </AnimatePresence>
         </div>
-        <div className="flex justify-end mt-6">
+        <div className="mt-6 flex justify-end rounded-3xl border border-border/50 bg-card/60 p-4 shadow-sm backdrop-blur-xl">
           <button 
             onClick={() => alert('Guardado!')}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all"

@@ -432,7 +432,7 @@ export default function DispositivosView() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full">
       {/* Header y Barra de Herramientas */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Hardware de Red</h2>
           <p className="text-muted-foreground text-sm">Gestiona tus routers LoRaWAN y motas.</p>

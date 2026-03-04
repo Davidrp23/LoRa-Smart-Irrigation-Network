@@ -23,8 +23,18 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background transition-colors duration-500">
+    <div className="relative flex h-screen w-full overflow-hidden bg-background transition-colors duration-500">
       
+      {/* Fondo Decorativo Moderno */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Patrón de puntos sutil */}
+        <div className="absolute inset-0 h-full w-full bg-[radial-gradient(#64748b_1.5px,transparent_1.5px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:20px_20px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_60%,transparent_100%)] opacity-40"></div>
+        
+        {/* Manchas de color ambientales (Glows) */}
+        <div className="absolute top-[-10%] right-[-5%] h-[500px] w-[500px] rounded-full bg-primary/30 blur-[100px] dark:bg-primary/10"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] h-[500px] w-[500px] rounded-full bg-blue-500/30 blur-[100px] dark:bg-blue-500/10"></div>
+      </div>
+
       {/* 1. Componente del Menú Lateral */}
       <Sidebar 
         menuActivo={menuActivo} 

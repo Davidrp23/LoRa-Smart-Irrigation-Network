@@ -37,8 +37,8 @@
 
     /* 4. LA CLAVE: Bordes e inputs con un contraste agresivo (60% luminosidad). 
        Esto va a dibujar perfectamente la caja punteada y a enmarcar todos los formularios. */
-    --border: 220 20% 60%;
-    --input: 220 20% 60%;
+    --border: 220 20% 45%;
+    --input: 220 20% 45%;
     
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.5rem;
@@ -98,7 +98,7 @@
   }
 
   .flora-input {
-    @apply w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20;
+    @apply w-full rounded-xl border border-input bg-slate-50 dark:bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20 transition-colors;
   }
 
   /* --- Nuevas clases para elementos coloreados intensificados --- */
@@ -136,6 +136,11 @@
   .info-card-dispositivos {
     @apply flex flex-col gap-1 p-2 rounded-lg transition-colors cursor-pointer;
     @apply bg-purple-200 hover:bg-purple-300 dark:bg-purple-900/10 dark:hover:bg-purple-900/20;
+  }
+
+  .instruction-box {
+    @apply rounded-xl p-4 border transition-colors;
+    @apply bg-blue-200 border-blue-300 dark:bg-blue-500/10 dark:border-blue-500/20;
   }
 
   .device-icon-router {

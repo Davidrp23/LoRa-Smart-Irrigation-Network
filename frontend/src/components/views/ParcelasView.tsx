@@ -260,7 +260,7 @@ export default function ParcelasView() {
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-full flex-col">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl">
           <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
           <div className="flex rounded-lg border border-border bg-card p-1">
             <button onClick={() => setVista('galeria')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'galeria' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><LayoutGrid size={16} /> Galería</button>
