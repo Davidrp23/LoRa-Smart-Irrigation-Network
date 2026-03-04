@@ -317,12 +317,12 @@ export default function ParcelasView() {
 
                   {/* Secondary Metrics Grid */}
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="info-box">
+                    <div className="info-card-riego">
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Clock size={12}/> Riego</span>
                       <span className="font-semibold text-card-foreground truncate">{p.proximoRiego}</span>
                     </div>
                     <div 
-                      className="info-box hover:bg-purple-200 dark:hover:bg-purple-500/10 cursor-pointer group/dev"
+                      className="info-card-dispositivos group/dev"
                       onClick={() => setViewingDevicesParcel(p)}
                     >
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Wifi size={12}/> Dispositivos</span>

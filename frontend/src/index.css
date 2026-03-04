@@ -128,9 +128,14 @@
     @apply bg-blue-200 border-blue-300 hover:bg-blue-300 dark:bg-blue-500/5 dark:border-blue-500/10 dark:hover:bg-blue-500/10;
   }
 
-  .info-box {
+  .info-card-riego {
     @apply flex flex-col gap-1 p-2 rounded-lg transition-colors;
-    @apply bg-slate-200 dark:bg-muted/50;
+    @apply bg-sky-200 hover:bg-sky-300 dark:bg-sky-900/10 dark:hover:bg-sky-900/20;
+  }
+
+  .info-card-dispositivos {
+    @apply flex flex-col gap-1 p-2 rounded-lg transition-colors cursor-pointer;
+    @apply bg-purple-200 hover:bg-purple-300 dark:bg-purple-900/10 dark:hover:bg-purple-900/20;
   }
 
   .device-icon-router {
