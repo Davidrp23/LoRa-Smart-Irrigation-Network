@@ -36,12 +36,12 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
                 <AlertTriangle size={32} />
               </div>
               <h3 className="mt-5 text-xl font-bold text-card-foreground">
-                ¿Desvincular Dispositivo?
+                ¿Desvincular de la Cuenta?
               </h3>
               <p className="mt-3 text-sm text-muted-foreground max-w-sm mx-auto">
                 Estás a punto de desvincular el dispositivo{' '}
                 <strong className="text-card-foreground">{deviceName}</strong>. 
-                Ya no estará asociado a ninguna parcela.
+                Se eliminará permanentemente de tu cuenta.
               </p>
               <div className="mt-4 bg-muted border border-border p-3 rounded-xl text-xs text-muted-foreground">
                 <p>

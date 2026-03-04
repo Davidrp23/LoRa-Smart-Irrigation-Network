@@ -121,7 +121,7 @@ const dispositivosIniciales: Dispositivo[] = [
     id: 301, 
     tipo: 'mota', 
     codigoVinculacion: 'SN-X-999',
-    nombre: 'Mota Nueva (Sin Vincular)', 
+    nombre: 'Mota Sin Asignar', 
     modelo: 'Heltec V2', 
     bateriaUltima: 50, 
     fechaUltimaConexion: '2023-10-24T18:00:00Z',
@@ -214,11 +214,11 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
         <div className="flex items-center gap-2">
            {/* Controles de Paginación */}
            {(canPrev || canNext) && (
-             <div className="flex items-center bg-muted/50 rounded-md" onClick={(e) => e.stopPropagation()}>
+             <div className="flex items-center bg-secondary border border-border/50 rounded-md shadow-sm" onClick={(e) => e.stopPropagation()}>
                <button 
                  onClick={handlePrev} 
                  disabled={!canPrev}
-                 className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-l-md transition-colors"
+                 className="p-1 hover:bg-background text-foreground disabled:opacity-30 rounded-l-md transition-colors"
                >
                  <ChevronLeft size={12} />
                </button>
@@ -226,14 +226,14 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
                <button 
                  onClick={handleNext} 
                  disabled={!canNext}
-                 className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-r-md transition-colors"
+                 className="p-1 hover:bg-background text-foreground disabled:opacity-30 rounded-r-md transition-colors"
                >
                  <ChevronRight size={12} />
                </button>
              </div>
            )}
 
-           <span className={`text-[10px] text-blue-500 font-medium flex items-center gap-1 transition-opacity ${hovered !== null ? 'opacity-0' : 'opacity-0 group-hover/chart:opacity-100'}`}>
+           <span className={`text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 transition-opacity ${hovered !== null ? 'opacity-0' : 'opacity-0 group-hover/chart:opacity-100'}`}>
              <BarChart2 size={10} />
            </span>
         </div>
@@ -277,10 +277,10 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
     <div className="w-full">
        <div className="flex justify-end mb-2">
           {(canPrev || canNext) && (
-             <div className="flex items-center bg-muted/50 rounded-md border border-border">
-               <button onClick={handlePrev} disabled={!canPrev} className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-l-md transition-colors"><ChevronLeft size={16} /></button>
+             <div className="flex items-center bg-secondary rounded-md border border-border shadow-sm">
+               <button onClick={handlePrev} disabled={!canPrev} className="p-1.5 hover:bg-background text-foreground disabled:opacity-30 rounded-l-md transition-colors"><ChevronLeft size={16} /></button>
                <div className="w-[1px] h-4 bg-border"></div>
-               <button onClick={handleNext} disabled={!canNext} className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-r-md transition-colors"><ChevronRight size={16} /></button>
+               <button onClick={handleNext} disabled={!canNext} className="p-1.5 hover:bg-background text-foreground disabled:opacity-30 rounded-r-md transition-colors"><ChevronRight size={16} /></button>
              </div>
            )}
        </div>
@@ -646,6 +646,20 @@ export default function DispositivosView() {
                 )}
 
                 <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Asignar a Parcela</label>
+                  <select 
+                    value={editingDevice.parcela || ''}
+                    onChange={(e) => setEditingDevice(prev => prev ? { ...prev, parcela: e.target.value || null } : null)}
+                    className="flora-input py-3 custom-select"
+                  >
+                    <option value="">Sin Asignar (En almacén)</option>
+                    {parcelasUnicas.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Frecuencia de Actualización</label>
                   <select 
                     value={editingDevice.frecuencia}
@@ -664,15 +678,13 @@ export default function DispositivosView() {
                   <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-green-500/30 transition-all">
                     <Save size={18} /> Guardar Cambios
                   </button>
-                  {editingDevice.parcela && (
-                    <button 
-                        type="button"
-                        onClick={() => setIsUnlinkModalOpen(true)} // Abrir el modal de confirmación
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 border border-amber-400 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-300 dark:hover:bg-amber-900/20 transition-all"
-                    >
-                        <Unlink size={18} /> Desvincular de la parcela
-                    </button>
-                  )}
+                  <button 
+                      type="button"
+                      onClick={() => setIsUnlinkModalOpen(true)} // Abrir el modal de confirmación
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 border border-amber-400 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-300 dark:hover:bg-amber-900/20 transition-all"
+                  >
+                      <Unlink size={18} /> Desvincular de la cuenta
+                  </button>
                 </div>
               </form>
             </motion.div>
