@@ -491,11 +491,7 @@ export default function DispositivosView() {
             {/* Cabecera de la Tarjeta */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-xl shadow-inner ${
-                  disp.tipo === 'router' 
-                    ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' 
-                    : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                }`}>
+                <div className={disp.tipo === 'router' ? 'device-icon-router' : 'device-icon-mota'}>
                   {disp.tipo === 'router' ? <RouterIcon size={24} /> : <Cpu size={24} />}
                 </div>
                 <div>

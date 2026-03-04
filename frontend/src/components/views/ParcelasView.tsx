@@ -289,23 +289,23 @@ export default function ParcelasView() {
                     <div>
                       <h3 className="text-lg font-bold text-card-foreground leading-tight">{p.nombre}</h3>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                        <span className="badge-emerald">
                           <Sprout size={12} /> {p.cultivo}
                         </span>
                         {p.tipoSuelo && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                          <span className="badge-amber">
                             <Layers size={12} /> {p.tipoSuelo}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${p.estado === 'ok' ? 'bg-green-100 dark:bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-destructive/20 text-red-600 dark:text-destructive'}`}>
+                    <div className={p.estado === 'ok' ? 'status-indicator-ok' : 'status-indicator-alert'}>
                       {p.estado === 'ok' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
                     </div>
                   </div>
 
                   {/* Main Metric: Humidity */}
-                  <div className="mb-4 p-4 rounded-xl bg-blue-100 dark:bg-blue-500/5 border border-blue-200 dark:border-blue-500/10 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-500/10 transition-colors" onClick={() => openHistory({ type: 'parcela', data: p })}>
+                  <div className="metric-card-blue" onClick={() => openHistory({ type: 'parcela', data: p })}>
                     <div className="flex justify-between items-end">
                       <div>
                         <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Humedad Media</p>
@@ -317,12 +317,12 @@ export default function ParcelasView() {
 
                   {/* Secondary Metrics Grid */}
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="flex flex-col gap-1 p-2 rounded-lg bg-muted/50">
+                    <div className="info-box">
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Clock size={12}/> Riego</span>
                       <span className="font-semibold text-card-foreground truncate">{p.proximoRiego}</span>
                     </div>
                     <div 
-                      className="flex flex-col gap-1 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/10 transition-colors group/dev"
+                      className="info-box hover:bg-purple-200 dark:hover:bg-purple-500/10 cursor-pointer group/dev"
                       onClick={() => setViewingDevicesParcel(p)}
                     >
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Wifi size={12}/> Dispositivos</span>
