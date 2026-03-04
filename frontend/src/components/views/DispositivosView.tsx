@@ -20,8 +20,9 @@ import {
   Link as LinkIcon,
   Plug,
   BarChart2,
-  Unlink
+  Unlink,
 } from 'lucide-react';
+import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
 
 // Tipos basados en schema.prisma + campos de UI solicitados
 interface DispositivoBase {
@@ -203,7 +204,7 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
 export default function DispositivosView() {
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>(dispositivosIniciales);
   const [busqueda, setBusqueda] = useState('');
-  const [editingDevice, setEditingDevice] = useState<Dispositivo | null>(null);
+  const [editingDevice, setEditingDevice] = useState<Dispositivo | null>(null); // Dispositivo que se está editando
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [newDeviceType, setNewDeviceType] = useState<'router' | 'mota'>('mota');
   const [bindingCode, setBindingCode] = useState('');
@@ -211,6 +212,7 @@ export default function DispositivosView() {
   const [selectedHistoryDevice, setSelectedHistoryDevice] = useState<Dispositivo | null>(null);
   const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
 
+  const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false); // Estado para el modal de desvinculación
   // State para filtros
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'mota' | 'router'>('todos');
   const [filtroParcela, setFiltroParcela] = useState<string>('todas');
@@ -246,10 +248,11 @@ export default function DispositivosView() {
     setEditingDevice(null);
   };
 
-  const handleUnlink = () => {
-    if (editingDevice && window.confirm(`¿Estás seguro de que quieres desvincular el dispositivo "${editingDevice.tipo === 'mota' ? editingDevice.nombre : editingDevice.modelo}" de su parcela?`)) {
-      setDispositivos(prev => prev.map(d => d.id === editingDevice.id ? { ...d, parcela: null } : d));
+  const handleConfirmUnlink = () => { // Función que se llama al confirmar la desvinculación
+    if (editingDevice) {
+      setDispositivos(prev => prev.filter(d => d.id !== editingDevice.id));
       setEditingDevice(null);
+      setIsUnlinkModalOpen(false); // Cerrar el modal después de desvincular
     }
   };
 
@@ -564,8 +567,8 @@ export default function DispositivosView() {
                   </button>
                   {editingDevice.parcela && (
                     <button 
-                        type="button" 
-                        onClick={handleUnlink}
+                        type="button"
+                        onClick={() => setIsUnlinkModalOpen(true)} // Abrir el modal de confirmación
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 border border-amber-400 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-300 dark:hover:bg-amber-900/20 transition-all"
                     >
                         <Unlink size={18} /> Desvincular de la parcela
@@ -729,6 +732,13 @@ export default function DispositivosView() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmarDesvincularModal
+        isOpen={isUnlinkModalOpen}
+        onClose={() => setIsUnlinkModalOpen(false)}
+        onConfirm={handleConfirmUnlink}
+        dispositivo={editingDevice}
+      />
     </motion.div>
   );
 }

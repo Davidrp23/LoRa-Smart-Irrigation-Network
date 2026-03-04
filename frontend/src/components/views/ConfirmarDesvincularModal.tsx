@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link2Off, X, AlertTriangle } from 'lucide-react';
+import { Link2Off, AlertTriangle } from 'lucide-react';
 
 interface Dispositivo {
   id: number;
@@ -32,7 +32,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
             className="w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl"
           >
             <div className="p-8 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500">
                 <AlertTriangle size={32} />
               </div>
               <h3 className="mt-5 text-xl font-bold text-card-foreground">
@@ -43,7 +43,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
                 <strong className="text-card-foreground">{deviceName}</strong>. 
                 Ya no estará asociado a ninguna parcela.
               </p>
-              <div className="mt-4 bg-muted/50 p-3 rounded-xl text-xs text-muted-foreground">
+              <div className="mt-4 bg-muted border border-border p-3 rounded-xl text-xs text-muted-foreground">
                 <p>
                   Podrás volver a vincularlo en cualquier momento usando su código de vinculación: {' '}
                   <strong className="font-mono text-card-foreground">{dispositivo.codigoVinculacion}</strong>.
@@ -51,7 +51,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 p-6 bg-muted/50">
+            <div className="grid grid-cols-2 gap-4 p-6 bg-muted border-t border-border">
               <button 
                 onClick={onClose} 
                 className="rounded-xl bg-card px-4 py-3 text-sm font-bold text-card-foreground shadow-sm ring-1 ring-border hover:bg-muted"
@@ -60,7 +60,7 @@ export default function ConfirmarDesvincularModal({ isOpen, onClose, onConfirm, 
               </button>
               <button
                 onClick={onConfirm}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white hover:bg-amber-600 shadow-lg shadow-amber-500/30 transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20 transition-all"
               >
                 <Link2Off size={18} />
                 Sí, Desvincular
