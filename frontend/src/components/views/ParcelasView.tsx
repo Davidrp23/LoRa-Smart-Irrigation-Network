@@ -271,7 +271,8 @@ export default function ParcelasView() {
   };
 
   useEffect(() => {
-    if (vista !== 'mapa' || !mapRef.current) return;
+    // Usamos 'as string' para evitar el error de TS que infiere erróneamente que los tipos no se solapan
+    if ((vista as string) !== 'mapa' || !mapRef.current) return;
     
     const map = L.map(mapRef.current);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
@@ -360,16 +361,26 @@ export default function ParcelasView() {
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-full flex-col">
-        <div className="mb-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl">
-          <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
-          <div className="flex rounded-lg border border-border bg-card p-1">
-            <button onClick={() => setVista('galeria')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'galeria' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><LayoutGrid size={16} /> Galería</button>
-            <button onClick={() => setVista('mapa')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'mapa' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><Globe size={16} /> Satélite</button>
+        {/* Encabezado solo visible en modo Galería para maximizar espacio en Mapa */}
+        {vista === 'galeria' && (
+          <div className="mb-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl">
+            <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
+            <div className="flex rounded-lg border border-border bg-card p-1">
+              <button onClick={() => setVista('galeria')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'galeria' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><LayoutGrid size={16} /> Galería</button>
+              <button onClick={() => setVista('mapa')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'mapa' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><Globe size={16} /> Satélite</button>
+            </div>
           </div>
-        </div>
+        )}
 
         {vista === 'mapa' ? (
           <div className="relative flex-1 overflow-hidden rounded-3xl border border-border shadow-inner">
+            {/* Controles flotantes compactos para el mapa */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] flex gap-2">
+               <div className="flex items-center gap-1 rounded-full border border-border/50 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
+                  <button onClick={() => setVista('galeria')} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all"><LayoutGrid size={16} /> Galería</button>
+                  <button onClick={() => setVista('mapa')} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-primary text-primary-foreground shadow-sm transition-all"><Globe size={16} /> Satélite</button>
+               </div>
+            </div>
             <div ref={mapRef} className="h-full w-full z-0" />
           </div>
         ) : (
