@@ -166,17 +166,17 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
   
   return (
     <div 
-      className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 cursor-pointer group/chart"
+      className="mt-4 pt-3 border-t border-border cursor-pointer group/chart"
       onClick={onClick}
       onMouseLeave={() => setHovered(null)}
     >
       <div className="flex justify-between items-end mb-2 h-4">
         {hovered !== null ? (
-           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-             -{hovered.val}% <span className="text-[10px] font-normal text-slate-400 ml-1">({hovered.i}:00)</span>
+           <span className="text-xs font-bold text-foreground">
+             -{hovered.val}% <span className="text-[10px] font-normal text-muted-foreground ml-1">({hovered.i}:00)</span>
            </span>
         ) : (
-           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Consumo (24h)</span>
+           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Consumo (24h)</span>
         )}
         <span className={`text-[10px] text-blue-500 font-medium flex items-center gap-1 transition-opacity ${hovered !== null ? 'opacity-0' : 'opacity-0 group-hover/chart:opacity-100'}`}>
           <BarChart2 size={10} /> Ver detalle
@@ -190,7 +190,7 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
             onMouseEnter={() => setHovered({ val: value, i })}
           >
             <div 
-              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-200 dark:bg-slate-700'}`}
+              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-secondary'}`}
               style={{ height: `${(value / maxVal) * 100}%`, minHeight: value > 0 ? '2px' : '0' }}
             ></div>
           </div>
@@ -216,7 +216,7 @@ export default function DispositivosView() {
   const [filtroParcela, setFiltroParcela] = useState<string>('todas');
 
   // Derivar listas únicas para los filtros
-  const parcelasUnicas = [...new Set(dispositivos.map(d => d.parcela).filter(Boolean))].sort();
+  const parcelasUnicas = [...new Set(dispositivos.map(d => d.parcela).filter((p): p is string => !!p))].sort();
 
   // Filtrado
   const dispositivosFiltrados = dispositivos.filter(d => {
@@ -332,14 +332,14 @@ export default function DispositivosView() {
       {/* Header y Barra de Herramientas */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Hardware de Red</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Gestiona tus routers LoRaWAN y motas.</p>
+          <h2 className="text-2xl font-bold text-foreground">Hardware de Red</h2>
+          <p className="text-muted-foreground text-sm">Gestiona tus routers LoRaWAN y motas.</p>
         </div>
         
         <div className="flex w-full sm:w-auto gap-3">
           <button 
             onClick={() => setIsLinkModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-green-600/20 hover:bg-primary/90 transition-all"
           >
             <Plus size={18} /> <span className="hidden sm:inline">Vincular Dispositivo</span>
           </button>
@@ -349,19 +349,19 @@ export default function DispositivosView() {
       {/* Barra de Filtros */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
             type="text" 
             placeholder="Buscar por nombre, código o parcela..." 
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white"
+            className="flora-input pl-10"
           />
         </div>
         <select
           value={filtroTipo}
           onChange={e => setFiltroTipo(e.target.value as any)}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white custom-select"
+          className="flora-input w-auto custom-select"
         >
           <option value="todos">Todos los Tipos</option>
           <option value="mota">Mota / Sensor</option>
@@ -370,7 +370,7 @@ export default function DispositivosView() {
         <select
           value={filtroParcela}
           onChange={e => setFiltroParcela(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:bg-slate-800 dark:border-white/10 dark:text-white custom-select"
+          className="flora-input w-auto custom-select"
         >
           <option value="todas">Todas las Parcelas</option>
           <option value="sin_asignar">Sin Asignar</option>
@@ -384,7 +384,7 @@ export default function DispositivosView() {
           <motion.div 
             layout
             key={disp.id} 
-            className="group relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/5 dark:bg-slate-900 shadow-sm hover:shadow-md transition-all"
+            className="flora-card group p-5"
           >
             {/* Cabecera de la Tarjeta */}
             <div className="flex items-start justify-between mb-4">
@@ -397,20 +397,20 @@ export default function DispositivosView() {
                   {disp.tipo === 'router' ? <RouterIcon size={24} /> : <Cpu size={24} />}
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-800 dark:text-white leading-tight">
+                  <h4 className="font-bold text-foreground leading-tight">
                     {disp.tipo === 'mota' ? disp.nombre : disp.modelo}
                   </h4>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`flex h-2 w-2 rounded-full ${
-                      disp.estado === 'online' ? 'bg-green-500' : disp.estado === 'alerta' ? 'bg-red-500' : 'bg-slate-300'
+                      disp.estado === 'online' ? 'bg-green-500' : disp.estado === 'alerta' ? 'bg-destructive' : 'bg-muted'
                     }`} />
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{disp.estado}</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{disp.estado}</span>
                   </div>
                 </div>
               </div>
               <button 
                 onClick={() => setEditingDevice(disp)}
-                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
                 <Settings size={18} />
               </button>
@@ -419,16 +419,16 @@ export default function DispositivosView() {
             {/* Detalles Técnicos */}
             <div className="space-y-3 mb-5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 flex items-center gap-1.5"><MapPin size={14}/> Ubicación</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300 text-right truncate max-w-[140px]">
+                <span className="text-muted-foreground flex items-center gap-1.5"><MapPin size={14}/> Ubicación</span>
+                <span className="font-medium text-foreground text-right truncate max-w-[140px]">
                   {disp.parcela || 'Sin asignar'}
                 </span>
               </div>
               
               {disp.tipo === 'router' && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 flex items-center gap-1.5"><Wifi size={14}/> Red (SSID)</span>
-                  <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Wifi size={14}/> Red (SSID)</span>
+                  <span className="font-medium text-foreground flex items-center gap-1">
                     {disp.esPublico ? <Globe size={12} className="text-blue-500"/> : <Lock size={12} className="text-amber-500"/>}
                     {disp.ssid}
                   </span>
@@ -436,15 +436,15 @@ export default function DispositivosView() {
               )}
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400 flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{disp.frecuencia}</span>
+                <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
+                <span className="font-medium text-foreground">{disp.frecuencia}</span>
               </div>
             </div>
 
             {/* Footer / Métricas */}
-            <div className="mt-auto pt-4 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 gap-2">
+            <div className="mt-auto pt-4 border-t border-border grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Batería</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">Batería</span>
                 <div className={`flex items-center gap-1.5 text-sm font-bold ${
                   disp.tipo === 'router' && !disp.bateria 
                     ? 'text-blue-500' 
@@ -459,10 +459,10 @@ export default function DispositivosView() {
               </div>
               
               <div className="flex flex-col gap-1 items-end">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">
                   {disp.tipo === 'router' ? 'Tráfico' : 'Señal'}
                 </span>
-                <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-300">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
                   {disp.tipo === 'router' ? (
                     <><Activity size={16} className="text-blue-500"/> {disp.paquetesEnviados}</>
                   ) : (
@@ -484,23 +484,23 @@ export default function DispositivosView() {
       {/* Modal de Edición */}
       <AnimatePresence>
         {editingDevice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
+              className="w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-white/10">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Configurar Dispositivo</h3>
-                <button onClick={() => setEditingDevice(null)} className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400">
+              <div className="flex items-center justify-between border-b border-border p-6">
+                <h3 className="text-xl font-bold text-foreground">Configurar Dispositivo</h3>
+                <button onClick={() => setEditingDevice(null)} className="rounded-full bg-muted p-2 text-muted-foreground hover:bg-accent">
                   <X size={20} />
                 </button>
               </div>
               
               <form onSubmit={handleSave} className="p-6 space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     {editingDevice.tipo === 'mota' ? 'Nombre del Sensor' : 'Modelo / Identificador'}
                   </label>
                   <input 
@@ -512,43 +512,43 @@ export default function DispositivosView() {
                         ? { ...prev, nombre: e.target.value } 
                         : { ...prev, modelo: e.target.value };
                     })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white"
+                    className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-ring focus:outline-none"
                   />
                 </div>
 
                 {editingDevice.tipo === 'router' && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">SSID de Red</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">SSID de Red</label>
                       <input 
                         type="text" 
                         value={editingDevice.ssid}
                         onChange={(e) => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, ssid: e.target.value } : prev)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white"
+                        className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-ring focus:outline-none"
                       />
                     </div>
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 dark:bg-slate-800 dark:border-white/5">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-700 dark:text-white text-sm">Red Pública</span>
-                        <span className="text-xs text-slate-500">Permitir conexión de vecinos</span>
+                        <span className="font-bold text-foreground text-sm">Red Pública</span>
+                        <span className="text-xs text-muted-foreground">Permitir conexión de vecinos</span>
                       </div>
                       <button 
                         type="button"
                         onClick={() => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, esPublico: !prev.esPublico } : prev)}
-                        className={`relative h-6 w-11 rounded-full transition-colors ${editingDevice.esPublico ? 'bg-green-500' : 'bg-slate-300'}`}
+                        className={`relative h-6 w-11 rounded-full transition-colors ${editingDevice.esPublico ? 'bg-primary' : 'bg-secondary'}`}
                       >
-                        <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform ${editingDevice.esPublico ? 'translate-x-5' : ''}`} />
+                        <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-primary-foreground transition-transform ${editingDevice.esPublico ? 'translate-x-5' : ''}`} />
                       </button>
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Frecuencia de Actualización</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Frecuencia de Actualización</label>
                   <select 
                     value={editingDevice.frecuencia}
                     onChange={(e) => setEditingDevice(prev => prev ? { ...prev, frecuencia: e.target.value } : null)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-green-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white custom-select"
+                    className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-ring focus:outline-none custom-select"
                   >
                     <option>5 min (Alto Consumo)</option>
                     <option>15 min (Estándar)</option>
@@ -558,8 +558,8 @@ export default function DispositivosView() {
                   </select>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/10 space-y-3">
-                  <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-700 shadow-lg shadow-green-500/30 transition-all">
+                <div className="pt-4 mt-4 border-t border-border space-y-3">
+                  <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-lg shadow-green-500/30 transition-all">
                     <Save size={18} /> Guardar Cambios
                   </button>
                   {editingDevice.parcela && (
@@ -581,18 +581,18 @@ export default function DispositivosView() {
       {/* Modal de Vinculación (Nuevo Dispositivo) */}
       <AnimatePresence>
         {isLinkModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
+              className="w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-white/10">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <QrCode className="text-slate-400"/> Vincular Dispositivo
+              <div className="flex items-center justify-between border-b border-border p-6">
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <QrCode className="text-muted-foreground"/> Vincular Dispositivo
                 </h3>
-                <button onClick={() => setIsLinkModalOpen(false)} className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400">
+                <button onClick={() => setIsLinkModalOpen(false)} className="rounded-full bg-muted p-2 text-muted-foreground hover:bg-accent">
                   <X size={20} />
                 </button>
               </div>
@@ -603,7 +603,7 @@ export default function DispositivosView() {
                   <button
                     type="button"
                     onClick={() => setNewDeviceType('mota')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${newDeviceType === 'mota' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20 text-slate-500'}`}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${newDeviceType === 'mota' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'border-border hover:border-muted-foreground text-muted-foreground'}`}
                   >
                     <Cpu size={32} className="mb-2" />
                     <span className="font-bold text-sm">Mota / Sensor</span>
@@ -611,7 +611,7 @@ export default function DispositivosView() {
                   <button
                     type="button"
                     onClick={() => setNewDeviceType('router')}
-                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${newDeviceType === 'router' ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400' : 'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20 text-slate-500'}`}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${newDeviceType === 'router' ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400' : 'border-border hover:border-muted-foreground text-muted-foreground'}`}
                   >
                     <RouterIcon size={32} className="mb-2" />
                     <span className="font-bold text-sm">Router / Gateway</span>
@@ -619,31 +619,31 @@ export default function DispositivosView() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Código de Vinculación</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Código de Vinculación</label>
                   <div className="relative">
                     <input 
                       type="text" 
                       value={bindingCode}
                       onChange={handleBindingCodeChange}
                       placeholder="AAAA-BBBB-CCCC"
-                      className="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-center font-mono text-lg font-bold tracking-widest text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white uppercase placeholder:text-slate-300"
+                      className="w-full rounded-xl border-2 bg-input px-4 py-3 text-center font-mono text-lg font-bold tracking-widest text-foreground focus:border-blue-500 focus:outline-none uppercase placeholder:text-muted-foreground"
                       maxLength={14}
                     />
-                    <div className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${bindingCode.length === 14 ? 'text-green-500' : 'text-slate-300'}`}>
+                    <div className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${bindingCode.length === 14 ? 'text-green-500' : 'text-muted-foreground'}`}>
                       <CheckCircle2 size={20} />
                     </div>
                   </div>
-                  <p className="mt-2 text-xs text-slate-400 text-center">Introduce el ID de 12 caracteres impreso en el dispositivo.</p>
+                  <p className="mt-2 text-xs text-muted-foreground text-center">Introduce el ID de 12 caracteres impreso en el dispositivo.</p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre Identificativo (Opcional)</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Nombre Identificativo (Opcional)</label>
                   <input 
                     type="text" 
                     value={newDeviceName}
                     onChange={(e) => setNewDeviceName(e.target.value)}
                     placeholder={newDeviceType === 'mota' ? "Ej: Sensor Tomates" : "Ej: Gateway Principal"}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-800 dark:border-white/10 dark:text-white"
+                    className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-blue-500 focus:outline-none"
                   />
                 </div>
 
@@ -665,23 +665,23 @@ export default function DispositivosView() {
       {/* Modal de Historial Detallado */}
       <AnimatePresence>
         {selectedHistoryDevice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900"
+              className="w-full max-w-3xl overflow-hidden rounded-3xl bg-card shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 p-6 dark:border-white/10">
+              <div className="flex items-center justify-between border-b border-border p-6">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                     <Activity className="text-blue-500"/> Historial de Consumo
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-muted-foreground">
                     {selectedHistoryDevice.tipo === 'mota' ? selectedHistoryDevice.nombre : selectedHistoryDevice.modelo}
                   </p>
                 </div>
-                <button onClick={() => setSelectedHistoryDevice(null)} className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400">
+                <button onClick={() => setSelectedHistoryDevice(null)} className="rounded-full bg-muted p-2 text-muted-foreground hover:bg-accent">
                   <X size={20} />
                 </button>
               </div>
@@ -689,15 +689,15 @@ export default function DispositivosView() {
               <div className="p-6">
                 {/* Selector de Rango */}
                 <div className="flex justify-center mb-8">
-                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <div className="flex bg-muted p-1 rounded-xl">
                     {(['24h', '7d', '30d'] as const).map((r) => (
                       <button
                         key={r}
                         onClick={() => setHistoryRange(r)}
                         className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
                           historyRange === r 
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                            ? 'bg-background text-blue-600 shadow-sm' 
+                            : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
                         {r === '24h' ? 'Últimas 24h' : r === '7d' ? '7 Días' : '30 Días'}
@@ -718,7 +718,7 @@ export default function DispositivosView() {
                           -{d.value}%
                         </div>
                       </div>
-                      <span className="text-[10px] text-slate-400 text-center mt-2 truncate w-full block opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] text-muted-foreground text-center mt-2 truncate w-full block opacity-0 group-hover:opacity-100 transition-opacity">
                         {d.label}
                       </span>
                     </div>

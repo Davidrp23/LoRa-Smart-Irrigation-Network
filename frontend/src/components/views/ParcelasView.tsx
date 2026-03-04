@@ -62,7 +62,7 @@ const generateRandomData = (range: '24h' | '7d' | '30d') => {
 type HistoryItem = { type: 'parcela', data: Parcela } | { type: 'mota', data: Dispositivo };
 
 // Componente Modal para Resumen de Dispositivos
-const DeviceSummaryModal = ({ parcel, onClose }: { parcel: Parcela, onClose: () => void }) => {
+const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }) => {
   const routers = parcel.dispositivos?.filter(d => d.tipo === 'router') || [];
   const motas = parcel.dispositivos?.filter(d => d.tipo === 'mota') || [];
 
@@ -282,7 +282,7 @@ export default function ParcelasView() {
               <span className="font-semibold text-card-foreground">Registrar Parcela</span>
             </button>
             {parcelas.map(p => (
-              <div key={p.id} className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md">
+              <div key={p.id} className="flora-card group">
                 {/* Header */}
                 <div className="p-5">
                   <div className="flex justify-between items-start mb-4">
