@@ -190,7 +190,7 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
             onMouseEnter={() => setHovered({ val: value, i })}
           >
             <div 
-              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-200 dark:bg-secondary'}`}
+              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-300 dark:bg-slate-600'}`}
               style={{ height: `${(value / maxVal) * 100}%`, minHeight: value > 0 ? '2px' : '0' }}
             ></div>
           </div>
@@ -566,7 +566,7 @@ export default function DispositivosView() {
                     <button 
                         type="button" 
                         onClick={handleUnlink}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 border border-amber-400 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-300 dark:hover:bg-amber-900/20 transition-all"
                     >
                         <Unlink size={18} /> Desvincular de la parcela
                     </button>
@@ -711,10 +711,10 @@ export default function DispositivosView() {
                   {getDetailedHistoryData(historyRange).map((d, i) => (
                     <div key={i} className="flex-1 flex flex-col justify-end group relative h-full">
                       <div 
-                        className="w-full bg-blue-500/20 dark:bg-blue-500/10 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-500/40"
+                        className="w-full bg-blue-500/30 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-500/50"
                         style={{ height: `${Math.max(d.value * 5, 5)}%` }}
                       >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">
                           -{d.value}%
                         </div>
                       </div>
