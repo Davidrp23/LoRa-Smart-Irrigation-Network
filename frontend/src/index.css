@@ -6,24 +6,40 @@
 
 @layer base {
   :root {
-    --background: 220 20% 78%; 
+    /* 1. Fondo: Un gris azulado muy claro y limpio (95%) */
+    --background: 220 20% 95%; 
     --foreground: 222.2 84% 4.9%;
+
+    /* 2. Tarjetas: Blanco puro (100%). */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
+    
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+
     --primary: 142.1 76.2% 36.3%;
     --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 220 20% 70%;
+
+    /* 3. Cajas internas (Riego, Dispositivos): Bajamos la luminosidad al 88%. 
+       Ahora serán rectángulos grises claramente visibles dentro de la tarjeta blanca. */
+    --secondary: 220 15% 88%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 220 20% 70%;
-    --muted-foreground: 215.4 16.3% 25%;
-    --accent: 220 20% 70%;
+    
+    --muted: 220 15% 88%;
+    /* Texto interior más oscuro (35%) para máxima legibilidad */
+    --muted-foreground: 215.4 16.3% 35%;
+
+    --accent: 220 15% 88%;
     --accent-foreground: 222.2 47.4% 11.2%;
+    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+
+    /* 4. LA CLAVE: Bordes e inputs con un contraste agresivo (60% luminosidad). 
+       Esto va a dibujar perfectamente la caja punteada y a enmarcar todos los formularios. */
     --border: 220 20% 60%;
-    --input: 220 20% 65%;
+    --input: 220 20% 60%;
+    
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.5rem;
   }

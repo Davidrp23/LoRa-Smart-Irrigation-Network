@@ -190,7 +190,7 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
             onMouseEnter={() => setHovered({ val: value, i })}
           >
             <div 
-              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-secondary'}`}
+              className={`w-full rounded-sm transition-colors ${hovered?.i === i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-200 dark:bg-secondary'}`}
               style={{ height: `${(value / maxVal) * 100}%`, minHeight: value > 0 ? '2px' : '0' }}
             ></div>
           </div>
@@ -484,7 +484,7 @@ export default function DispositivosView() {
       {/* Modal de Edición */}
       <AnimatePresence>
         {editingDevice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -512,7 +512,7 @@ export default function DispositivosView() {
                         ? { ...prev, nombre: e.target.value } 
                         : { ...prev, modelo: e.target.value };
                     })}
-                    className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-ring focus:outline-none"
+                    className="flora-input py-3"
                   />
                 </div>
 
@@ -524,7 +524,7 @@ export default function DispositivosView() {
                         type="text" 
                         value={editingDevice.ssid}
                         onChange={(e) => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, ssid: e.target.value } : prev)}
-                        className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-ring focus:outline-none"
+                        className="flora-input py-3"
                       />
                     </div>
                     <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border">
@@ -548,7 +548,7 @@ export default function DispositivosView() {
                   <select 
                     value={editingDevice.frecuencia}
                     onChange={(e) => setEditingDevice(prev => prev ? { ...prev, frecuencia: e.target.value } : null)}
-                    className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-ring focus:outline-none custom-select"
+                    className="flora-input py-3 custom-select"
                   >
                     <option>5 min (Alto Consumo)</option>
                     <option>15 min (Estándar)</option>
@@ -566,7 +566,7 @@ export default function DispositivosView() {
                     <button 
                         type="button" 
                         onClick={handleUnlink}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600/10 px-4 py-3 text-sm font-bold text-amber-700 hover:bg-amber-600/20 transition-all"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all"
                     >
                         <Unlink size={18} /> Desvincular de la parcela
                     </button>
@@ -581,7 +581,7 @@ export default function DispositivosView() {
       {/* Modal de Vinculación (Nuevo Dispositivo) */}
       <AnimatePresence>
         {isLinkModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -626,7 +626,7 @@ export default function DispositivosView() {
                       value={bindingCode}
                       onChange={handleBindingCodeChange}
                       placeholder="AAAA-BBBB-CCCC"
-                      className="w-full rounded-xl border-2 bg-input px-4 py-3 text-center font-mono text-lg font-bold tracking-widest text-foreground focus:border-blue-500 focus:outline-none uppercase placeholder:text-muted-foreground"
+                      className="flora-input border-2 py-3 text-center font-mono text-lg font-bold tracking-widest uppercase placeholder:text-muted-foreground/50"
                       maxLength={14}
                     />
                     <div className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${bindingCode.length === 14 ? 'text-green-500' : 'text-muted-foreground'}`}>
@@ -643,7 +643,7 @@ export default function DispositivosView() {
                     value={newDeviceName}
                     onChange={(e) => setNewDeviceName(e.target.value)}
                     placeholder={newDeviceType === 'mota' ? "Ej: Sensor Tomates" : "Ej: Gateway Principal"}
-                    className="w-full rounded-xl border bg-input px-4 py-3 text-foreground focus:border-blue-500 focus:outline-none"
+                    className="flora-input py-3"
                   />
                 </div>
 
@@ -665,7 +665,7 @@ export default function DispositivosView() {
       {/* Modal de Historial Detallado */}
       <AnimatePresence>
         {selectedHistoryDevice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
