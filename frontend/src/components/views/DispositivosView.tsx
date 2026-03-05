@@ -25,6 +25,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
+import Select from '../ui/Select';
 
 // Tipos basados en schema.prisma + campos de UI solicitados
 interface DispositivoBase {
@@ -460,24 +461,28 @@ export default function DispositivosView() {
             className="flora-input pl-10"
           />
         </div>
-        <select
+        <div className="w-full sm:w-48">
+        <Select
           value={filtroTipo}
-          onChange={e => setFiltroTipo(e.target.value as any)}
-          className="flora-input w-auto custom-select"
-        >
-          <option value="todos">Todos los Tipos</option>
-          <option value="mota">Mota / Sensor</option>
-          <option value="router">Router / Gateway</option>
-        </select>
-        <select
+          onChange={(val) => setFiltroTipo(val as any)}
+          options={[
+            { value: 'todos', label: 'Todos los Tipos' },
+            { value: 'mota', label: 'Mota / Sensor' },
+            { value: 'router', label: 'Router / Gateway' }
+          ]}
+        />
+        </div>
+        <div className="w-full sm:w-48">
+        <Select
           value={filtroParcela}
-          onChange={e => setFiltroParcela(e.target.value)}
-          className="flora-input w-auto custom-select"
-        >
-          <option value="todas">Todas las Parcelas</option>
-          <option value="sin_asignar">Sin Asignar</option>
-          {parcelasUnicas.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+          onChange={(val) => setFiltroParcela(val)}
+          options={[
+            { value: 'todas', label: 'Todas las Parcelas' },
+            { value: 'sin_asignar', label: 'Sin Asignar' },
+            ...parcelasUnicas.map(p => ({ value: p, label: p }))
+          ]}
+        />
+        </div>
       </div>
 
       {/* Grid de Dispositivos */}
@@ -642,32 +647,30 @@ export default function DispositivosView() {
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Asignar a Parcela</label>
-                  <select 
+                  <Select 
+                    label="Asignar a Parcela"
                     value={editingDevice.parcela || ''}
-                    onChange={(e) => setEditingDevice(prev => prev ? { ...prev, parcela: e.target.value || null } : null)}
-                    className="flora-input py-3 custom-select"
-                  >
-                    <option value="">Sin Asignar (En almacén)</option>
-                    {parcelasUnicas.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setEditingDevice(prev => prev ? { ...prev, parcela: val || null } : null)}
+                    options={[
+                      { value: '', label: 'Sin Asignar (En almacén)' },
+                      ...parcelasUnicas.map(p => ({ value: p, label: p }))
+                    ]}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Frecuencia de Actualización</label>
-                  <select 
+                  <Select 
+                    label="Frecuencia de Actualización"
                     value={editingDevice.frecuencia}
-                    onChange={(e) => setEditingDevice(prev => prev ? { ...prev, frecuencia: e.target.value } : null)}
-                    className="flora-input py-3 custom-select"
-                  >
-                    <option>5 min (Alto Consumo)</option>
-                    <option>15 min (Estándar)</option>
-                    <option>30 min (Ahorro)</option>
-                    <option>1 hora (Eco)</option>
-                    <option>6 horas (Extremo)</option>
-                  </select>
+                    onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: val } : null)}
+                    options={[
+                      { value: '5 min', label: '5 min (Alto Consumo)' },
+                      { value: '15 min', label: '15 min (Estándar)' },
+                      { value: '30 min', label: '30 min (Ahorro)' },
+                      { value: '1 hora', label: '1 hora (Eco)' },
+                      { value: '6 horas', label: '6 horas (Extremo)' }
+                    ]}
+                  />
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-border space-y-3">

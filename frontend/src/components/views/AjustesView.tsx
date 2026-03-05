@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save } from 'lucide-react';
+import Select from '../ui/Select';
 
 // Componente para el interruptor (toggle switch)
 const ToggleSwitch = ({ label, description, defaultChecked = false }: { label: string, description: string, defaultChecked?: boolean }) => (
@@ -22,6 +23,7 @@ export default function AjustesView() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80');
+  const [telemetria, setTelemetria] = useState('15');
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -122,11 +124,15 @@ export default function AjustesView() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Intervalo de Telemetría Global</label>
                 <p className="text-xs text-muted-foreground/80 mb-2">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
-                <select className="flora-input custom-select">
-                  <option>Cada 15 minutos (Estándar)</option>
-                  <option>Cada 30 minutos (Ahorro)</option>
-                  <option>Cada 1 hora (Eco)</option>
-                </select>
+                <Select
+                  value={telemetria}
+                  onChange={setTelemetria}
+                  options={[
+                    { value: '15', label: 'Cada 15 minutos (Estándar)' },
+                    { value: '30', label: 'Cada 30 minutos (Ahorro)' },
+                    { value: '60', label: 'Cada 1 hora (Eco)' },
+                  ]}
+                />
               </div>
               <ToggleSwitch label="Roaming de Red" description="Permitir que tus motas usen gateways públicos si pierden la señal con los tuyos." defaultChecked />
             </div>
