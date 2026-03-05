@@ -22,7 +22,8 @@ import {
   BarChart2,
   Unlink,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Radio
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
 import Select from '../ui/Select';
@@ -34,6 +35,7 @@ interface DispositivoBase {
   modelo: string;
   fechaUltimaConexion: string;
   parcela: string | null;
+  canal: number; // 0-3
   frecuencia: string; // Campo solicitado extra
   estado: 'online' | 'offline' | 'alerta';
   historialConsumo: number[]; // % consumido por hora (últimas 24h)
@@ -45,6 +47,10 @@ interface Router extends DispositivoBase {
   esPublico: boolean;
   bateria: number | null; // Puede ir con placa solar
   paquetesEnviados: number;
+  paquetesRecibidos: number;
+  erroresTx: number;
+  erroresRx: number;
+  erroresCrc: number;
 }
 
 interface Mota extends DispositivoBase {
@@ -53,6 +59,8 @@ interface Mota extends DispositivoBase {
   bateriaUltima: number;
   routerId: number;
   rssi: number; // Señal
+  snr: number;
+  erroresRx: number; // Pérdidas
 }
 
 type Dispositivo = Router | Mota;
@@ -68,9 +76,14 @@ const dispositivosIniciales: Dispositivo[] = [
     bateria: 100, 
     fechaUltimaConexion: '2023-10-25T10:00:00Z',
     parcela: 'Sector Norte - Olivos',
+    canal: 1,
     frecuencia: '15 min',
     estado: 'online',
     paquetesEnviados: 15420,
+    paquetesRecibidos: 15380,
+    erroresTx: 5,
+    erroresRx: 12,
+    erroresCrc: 3,
     historialConsumo: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] // AC Power
   },
   { 
@@ -84,6 +97,9 @@ const dispositivosIniciales: Dispositivo[] = [
     parcela: 'Sector Norte - Olivos',
     routerId: 101,
     rssi: -85,
+    snr: 9.5,
+    erroresRx: 0,
+    canal: 1,
     frecuencia: '30 min',
     estado: 'online',
     historialConsumo: [1, 2, 1, 0, 1, 1, 2, 3, 1, 0, 1, 1, 2, 1, 1, 0, 1, 2, 1, 1, 0, 1, 2, 1]
@@ -98,9 +114,14 @@ const dispositivosIniciales: Dispositivo[] = [
     bateria: 5, 
     fechaUltimaConexion: '2023-10-25T09:55:00Z',
     parcela: 'Sector Sur - Vides',
+    canal: 2,
     frecuencia: '15 min',
     estado: 'online',
     paquetesEnviados: 8900,
+    paquetesRecibidos: 8850,
+    erroresTx: 2,
+    erroresRx: 5,
+    erroresCrc: 0,
     historialConsumo: [5, 4, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5]
   },
   { 
@@ -114,6 +135,9 @@ const dispositivosIniciales: Dispositivo[] = [
     parcela: 'Sector Sur - Vides',
     routerId: 201,
     rssi: -95,
+    snr: 6.5,
+    erroresRx: 2,
+    canal: 2,
     frecuencia: '1 hora',
     estado: 'alerta',
     historialConsumo: [8, 7, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8]
@@ -129,6 +153,9 @@ const dispositivosIniciales: Dispositivo[] = [
     parcela: null,
     routerId: 0,
     rssi: 0,
+    snr: 0,
+    erroresRx: 0,
+    canal: 0,
     frecuencia: '1 hora',
     estado: 'offline',
     historialConsumo: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -299,6 +326,75 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
   );
 };
 
+// Modal de Detalles de Conexión (Estilo Map Popup)
+const ConnectionDetailsModal = ({ device, onClose }: { device: Dispositivo, onClose: () => void }) => {
+  const isRouter = device.tipo === 'router';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="w-full max-w-sm overflow-hidden rounded-3xl bg-card shadow-2xl border border-border"
+      >
+        <div className="flex items-center justify-between border-b border-border p-5 bg-muted/30">
+          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            {isRouter ? <Activity className="text-blue-500" size={20}/> : <Signal className="text-blue-500" size={20}/>}
+            Detalles de Conexión
+          </h3>
+          <button onClick={onClose} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:bg-accent transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl border border-border/50">
+             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Radio size={16}/> Canal LoRaWAN</span>
+             <span className="text-lg font-bold text-foreground">CH {device.canal}</span>
+          </div>
+
+          {isRouter ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-border/50">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Enviados</div>
+                <div className="text-xl font-mono font-bold text-foreground">{device.paquetesEnviados}</div>
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-border/50">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Recibidos</div>
+                <div className="text-xl font-mono font-bold text-foreground">{device.paquetesRecibidos}</div>
+              </div>
+              <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-200 dark:border-red-900/30">
+                <div className="text-[10px] font-bold text-red-600/70 dark:text-red-400/70 uppercase tracking-wider mb-1">Err. TX/RX</div>
+                <div className="text-lg font-mono font-bold text-red-700 dark:text-red-400">{device.erroresTx} / {device.erroresRx}</div>
+              </div>
+              <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-xl border border-amber-200 dark:border-amber-900/30">
+                <div className="text-[10px] font-bold text-amber-600/70 dark:text-amber-400/70 uppercase tracking-wider mb-1">Err. CRC</div>
+                <div className="text-lg font-mono font-bold text-amber-700 dark:text-amber-400">{device.erroresCrc}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+               <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                  <span className="text-sm text-muted-foreground">Intensidad (RSSI)</span>
+                  <span className={`font-mono font-bold ${device.rssi > -100 ? 'text-green-600' : 'text-amber-600'}`}>{device.rssi} dBm</span>
+               </div>
+               <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                  <span className="text-sm text-muted-foreground">Calidad (SNR)</span>
+                  <span className="font-mono font-bold text-foreground">{device.snr} dB</span>
+               </div>
+               <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Paquetes Perdidos</span>
+                  <span className="font-mono font-bold text-red-500">{device.erroresRx}</span>
+               </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function DispositivosView() {
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>(dispositivosIniciales);
   const [busqueda, setBusqueda] = useState('');
@@ -308,6 +404,7 @@ export default function DispositivosView() {
   const [bindingCode, setBindingCode] = useState('');
   const [newDeviceName, setNewDeviceName] = useState('');
   const [selectedHistoryDevice, setSelectedHistoryDevice] = useState<Dispositivo | null>(null);
+  const [viewingConnectionDevice, setViewingConnectionDevice] = useState<Dispositivo | null>(null); // Nuevo estado para modal de conexión
   const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
 
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false); // Estado para el modal de desvinculación
@@ -386,9 +483,14 @@ export default function DispositivosView() {
       bateria: 100,
       fechaUltimaConexion: new Date().toISOString(),
       parcela: null,
+      canal: 0,
       frecuencia: '15 min',
       estado: 'online',
       paquetesEnviados: 0,
+      paquetesRecibidos: 0,
+      erroresTx: 0,
+      erroresRx: 0,
+      erroresCrc: 0,
       historialConsumo: Array(24).fill(0) // Añadido para corregir el error de tipo
     } : {
       id: newId,
@@ -399,8 +501,11 @@ export default function DispositivosView() {
       bateriaUltima: 100,
       fechaUltimaConexion: new Date().toISOString(),
       parcela: null,
+      canal: 0,
       routerId: 101, // Default mock
       rssi: -70,
+      snr: 10,
+      erroresRx: 0,
       frecuencia: '15 min',
       estado: 'online',
       historialConsumo: Array(24).fill(0)
@@ -500,9 +605,12 @@ export default function DispositivosView() {
                   {disp.tipo === 'router' ? <RouterIcon size={24} /> : <Cpu size={24} />}
                 </div>
                 <div>
-                  <h4 className="font-bold text-foreground leading-tight">
-                    {disp.tipo === 'mota' ? disp.nombre : disp.modelo}
-                  </h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-foreground leading-tight">
+                      {disp.tipo === 'mota' ? disp.nombre : disp.modelo}
+                    </h4>
+                    <span className="text-[10px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50">#{disp.id}</span>
+                  </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`flex h-2 w-2 rounded-full ${
                       disp.estado === 'online' ? 'bg-green-500' : disp.estado === 'alerta' ? 'bg-destructive' : 'bg-muted'
@@ -542,6 +650,11 @@ export default function DispositivosView() {
                 <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
                 <span className="font-medium text-foreground">{disp.frecuencia}</span>
               </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1.5"><Radio size={14}/> Canal</span>
+                <span className="font-medium text-foreground">CH {disp.canal}</span>
+              </div>
             </div>
 
             {/* Footer / Métricas */}
@@ -561,7 +674,10 @@ export default function DispositivosView() {
                 </div>
               </div>
               
-              <div className="flex flex-col gap-1 items-end">
+              <div 
+                className="flex flex-col gap-1 items-end cursor-pointer hover:bg-muted/50 p-1 -mr-1 rounded-lg transition-colors"
+                onClick={() => setViewingConnectionDevice(disp)}
+              >
                 <span className="text-[10px] font-bold text-muted-foreground uppercase">
                   {disp.tipo === 'router' ? 'Tráfico' : 'Señal'}
                 </span>
@@ -824,6 +940,16 @@ export default function DispositivosView() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Detalles de Conexión */}
+      <AnimatePresence>
+        {viewingConnectionDevice && (
+          <ConnectionDetailsModal 
+            device={viewingConnectionDevice} 
+            onClose={() => setViewingConnectionDevice(null)} 
+          />
         )}
       </AnimatePresence>
 

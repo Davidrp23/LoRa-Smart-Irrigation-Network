@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Battery, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
 import ConfirmarEliminarModal from './ConfirmarEliminarModal';
@@ -15,10 +15,10 @@ const parcelasFalsas: Parcela[] = [
       [36.94887185099825, -6.100605594574611], [36.9501864933793, -6.105923013725575], [36.946008167461436, -6.107466521031202], [36.94468833903622, -6.102233715367487]
     ] as [number, number][],
     dispositivos: [
-      { id: 101, tipo: 'router', esPublico: true, coordenadas: [36.9475, -6.1040], estado: 'online', modelo: 'Gateway Pro V2', ssid: 'LoRa-Norte', bateria: 100, fechaUltimaConexion: 'Hace 2 min', paquetesEnviados: 15420, paquetesRecibidos: 15380, erroresTx: 5, erroresRx: 12, erroresCrc: 3 },
-      { id: 102, tipo: 'mota', coordenadas: [36.9485, -6.1020], estado: 'online', nombre: 'Sensor Humedad 1', modelo: 'Heltec V3', bateria: 85, fechaUltimaConexion: 'Hace 10 min', routerId: 101, rssi: -85, snr: 9.5, erroresRx: 0, humedad: 42 },
-      { id: 103, tipo: 'mota', coordenadas: [36.9465, -6.1060], estado: 'online', nombre: 'Sensor Humedad 2', modelo: 'Heltec V3', bateria: 72, fechaUltimaConexion: 'Hace 15 min', routerId: 101, rssi: -92, snr: 7.2, erroresRx: 1, humedad: 48 },
-      { id: 104, tipo: 'mota', coordenadas: [36.9490, -6.1050], estado: 'low-battery', nombre: 'Sensor Suelo A', modelo: 'Heltec V3', bateria: 12, fechaUltimaConexion: 'Hace 1 hora', routerId: 101, rssi: -105, snr: 2.1, erroresRx: 5, humedad: 45 }
+      { id: 101, tipo: 'router', esPublico: true, coordenadas: [36.9475, -6.1040], estado: 'online', modelo: 'Gateway Pro V2', ssid: 'LoRa-Norte', bateria: 100, fechaUltimaConexion: 'Hace 2 min', paquetesEnviados: 15420, paquetesRecibidos: 15380, erroresTx: 5, erroresRx: 12, erroresCrc: 3, canal: 1 },
+      { id: 102, tipo: 'mota', coordenadas: [36.9485, -6.1020], estado: 'online', nombre: 'Sensor Humedad 1', modelo: 'Heltec V3', bateria: 85, fechaUltimaConexion: 'Hace 10 min', routerId: 101, rssi: -85, snr: 9.5, erroresRx: 0, humedad: 42, canal: 1 },
+      { id: 103, tipo: 'mota', coordenadas: [36.9465, -6.1060], estado: 'online', nombre: 'Sensor Humedad 2', modelo: 'Heltec V3', bateria: 72, fechaUltimaConexion: 'Hace 15 min', routerId: 101, rssi: -92, snr: 7.2, erroresRx: 1, humedad: 48, canal: 1 },
+      { id: 104, tipo: 'mota', coordenadas: [36.9490, -6.1050], estado: 'low-battery', nombre: 'Sensor Suelo A', modelo: 'Heltec V3', bateria: 12, fechaUltimaConexion: 'Hace 1 hora', routerId: 101, rssi: -105, snr: 2.1, erroresRx: 5, humedad: 45, canal: 1 }
     ]
   },
   { 
@@ -29,11 +29,11 @@ const parcelasFalsas: Parcela[] = [
       [36.950309323918084, -6.105913161047598]
     ] as [number, number][],
     dispositivos: [
-      { id: 201, tipo: 'router', esPublico: false, coordenadas: [36.9510, -6.1000], estado: 'online', modelo: 'Gateway Lite', ssid: 'LoRa-Sur', bateria: 95, fechaUltimaConexion: 'Hace 1 min', paquetesEnviados: 8900, paquetesRecibidos: 8850, erroresTx: 2, erroresRx: 5, erroresCrc: 0 },
-      { id: 202, tipo: 'mota', coordenadas: [36.9525, -6.0970], estado: 'online', nombre: 'Mota Central', modelo: 'Heltec V3', bateria: 60, fechaUltimaConexion: 'Hace 5 min', routerId: 201, rssi: -78, snr: 11.0, erroresRx: 0, humedad: 88 },
-      { id: 203, tipo: 'mota', coordenadas: [36.9500, -6.1030], estado: 'online', nombre: 'Mota Borde', modelo: 'Heltec V3', bateria: 55, fechaUltimaConexion: 'Hace 8 min', routerId: 201, rssi: -95, snr: 6.5, erroresRx: 2, humedad: 92 },
-      { id: 204, tipo: 'mota', coordenadas: [36.9490, -6.0960], estado: 'offline', nombre: 'Mota Vieja', modelo: 'Heltec V2', bateria: 0, fechaUltimaConexion: 'Hace 2 días', routerId: 201, rssi: -125, snr: -5.0, erroresRx: 20, humedad: 0 },
-      { id: 205, tipo: 'mota', coordenadas: [36.9530, -6.1020], estado: 'online', nombre: 'Sensor Nuevo', modelo: 'Heltec V3', bateria: 98, fechaUltimaConexion: 'Hace 1 min', routerId: 201, rssi: -65, snr: 12.5, erroresRx: 0, humedad: 90 }
+      { id: 201, tipo: 'router', esPublico: false, coordenadas: [36.9510, -6.1000], estado: 'online', modelo: 'Gateway Lite', ssid: 'LoRa-Sur', bateria: 95, fechaUltimaConexion: 'Hace 1 min', paquetesEnviados: 8900, paquetesRecibidos: 8850, erroresTx: 2, erroresRx: 5, erroresCrc: 0, canal: 2 },
+      { id: 202, tipo: 'mota', coordenadas: [36.9525, -6.0970], estado: 'online', nombre: 'Mota Central', modelo: 'Heltec V3', bateria: 60, fechaUltimaConexion: 'Hace 5 min', routerId: 201, rssi: -78, snr: 11.0, erroresRx: 0, humedad: 88, canal: 2 },
+      { id: 203, tipo: 'mota', coordenadas: [36.9500, -6.1030], estado: 'online', nombre: 'Mota Borde', modelo: 'Heltec V3', bateria: 55, fechaUltimaConexion: 'Hace 8 min', routerId: 201, rssi: -95, snr: 6.5, erroresRx: 2, humedad: 92, canal: 2 },
+      { id: 204, tipo: 'mota', coordenadas: [36.9490, -6.0960], estado: 'offline', nombre: 'Mota Vieja', modelo: 'Heltec V2', bateria: 0, fechaUltimaConexion: 'Hace 2 días', routerId: 201, rssi: -125, snr: -5.0, erroresRx: 20, humedad: 0, canal: 2 },
+      { id: 205, tipo: 'mota', coordenadas: [36.9530, -6.1020], estado: 'online', nombre: 'Sensor Nuevo', modelo: 'Heltec V3', bateria: 98, fechaUltimaConexion: 'Hace 1 min', routerId: 201, rssi: -65, snr: 12.5, erroresRx: 0, humedad: 90, canal: 2 }
     ]
   },
   { 
@@ -44,9 +44,9 @@ const parcelasFalsas: Parcela[] = [
       [36.95718131680132, -6.133309343564988]
     ] as [number, number][],
     dispositivos: [
-      { id: 301, tipo: 'router', esPublico: false, coordenadas: [36.9570, -6.1240], estado: 'online', modelo: 'Gateway Pro', ssid: 'LoRa-Este', bateria: 88, fechaUltimaConexion: 'Hace 3 min', paquetesEnviados: 22000, paquetesRecibidos: 21950, erroresTx: 10, erroresRx: 25, erroresCrc: 8 },
-      { id: 302, tipo: 'mota', coordenadas: [36.9550, -6.1200], estado: 'online', nombre: 'Vides 1', modelo: 'Heltec V3', bateria: 40, fechaUltimaConexion: 'Hace 20 min', routerId: 301, rssi: -88, snr: 8.0, erroresRx: 1, humedad: 35 },
-      { id: 303, tipo: 'mota', coordenadas: [36.9590, -6.1280], estado: 'low-battery', nombre: 'Vides 2', modelo: 'Heltec V3', bateria: 15, fechaUltimaConexion: 'Hace 45 min', routerId: 301, rssi: -110, snr: 1.5, erroresRx: 8, humedad: 39 }
+      { id: 301, tipo: 'router', esPublico: false, coordenadas: [36.9570, -6.1240], estado: 'online', modelo: 'Gateway Pro', ssid: 'LoRa-Este', bateria: 88, fechaUltimaConexion: 'Hace 3 min', paquetesEnviados: 22000, paquetesRecibidos: 21950, erroresTx: 10, erroresRx: 25, erroresCrc: 8, canal: 0 },
+      { id: 302, tipo: 'mota', coordenadas: [36.9550, -6.1200], estado: 'online', nombre: 'Vides 1', modelo: 'Heltec V3', bateria: 40, fechaUltimaConexion: 'Hace 20 min', routerId: 301, rssi: -88, snr: 8.0, erroresRx: 1, humedad: 35, canal: 0 },
+      { id: 303, tipo: 'mota', coordenadas: [36.9590, -6.1280], estado: 'low-battery', nombre: 'Vides 2', modelo: 'Heltec V3', bateria: 15, fechaUltimaConexion: 'Hace 45 min', routerId: 301, rssi: -110, snr: 1.5, erroresRx: 8, humedad: 39, canal: 0 }
     ]
   },
 ];
@@ -60,6 +60,34 @@ const generateRandomData = (range: '24h' | '7d' | '30d') => {
 };
 
 type HistoryItem = { type: 'parcela', data: Parcela } | { type: 'mota', data: Dispositivo };
+
+// Componente de Batería con Relleno Proporcional
+const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: number; className?: string }) => {
+  const safeLevel = Math.max(0, Math.min(100, level));
+  // El ancho máximo interno es aprox 14px (dentro de un icono de 24px con stroke 2)
+  const fillWidth = (safeLevel / 100) * 14;
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect width="16" height="10" x="2" y="7" rx="2" ry="2" />
+      <line x1="22" x2="22" y1="11" y2="13" />
+      {safeLevel > 0 && (
+        <rect x="3" y="8" width={fillWidth} height="8" rx="1" fill="currentColor" stroke="none" />
+      )}
+    </svg>
+  );
+};
 
 // Componente Modal para Resumen de Dispositivos
 const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }) => {
@@ -91,7 +119,7 @@ const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }
                   </div>
                 )}
                 <div className={`flex items-center gap-1 ${d.bateria && d.bateria < 20 ? 'text-red-500' : 'text-green-600'}`}>
-                  <Battery size={14} /> {d.bateria}%
+                  <BatteryLevel level={d.bateria || 0} size={14} /> {d.bateria}%
                 </div>
               </div>
             </div>

@@ -13,6 +13,7 @@ export interface Dispositivo {
   routerId?: number;
   esPublico?: boolean;
   humedad?: number;
+  canal?: number; // 0-3
   // Datos técnicos de conexión
   rssi?: number;
   snr?: number;
@@ -218,41 +219,45 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
         // Popup con información detallada usando clases globales
         const popupContent = `
           <div class="map-popup-container">
-            <div class="map-popup-header">
-              <div class="w-2.5 h-2.5 rounded-full ${d.estado === 'online' ? 'bg-green-500' : d.estado === 'low-battery' ? 'bg-yellow-500' : 'bg-red-500'}"></div>
-              <span class="map-popup-title">${isRouter ? 'Router LoRaWAN' : 'Sensor Node'}</span>
+            <div class="map-popup-header mb-3 pb-2 border-b border-border flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full ${d.estado === 'online' ? 'bg-green-500' : d.estado === 'low-battery' ? 'bg-yellow-500' : 'bg-red-500'}"></div>
+                <span class="font-bold text-foreground">${isRouter ? 'Router LoRaWAN' : 'Sensor Node'}</span>
+              </div>
+              <span class="text-[10px] font-mono text-muted-foreground">#${d.id}</span>
             </div>
             
-            <div class="map-popup-body">
-              ${d.nombre ? `<div class="map-popup-row"><span class="map-popup-label">Nombre:</span> <span class="map-popup-value">${d.nombre}</span></div>` : ''}
-              <div class="map-popup-row"><span class="map-popup-label">ID:</span> <span class="map-popup-mono">#${d.id}</span></div>
-              <div class="map-popup-row"><span class="map-popup-label">Modelo:</span> <span class="map-popup-value">${d.modelo || 'N/A'}</span></div>
-              ${d.ssid ? `<div class="map-popup-row"><span class="map-popup-label">SSID:</span> <span class="map-popup-value">${d.ssid}</span></div>` : ''}
+            <div class="map-popup-body space-y-2">
+              ${d.nombre ? `<div class="font-medium text-sm text-foreground mb-2">${d.nombre}</div>` : ''}
               
-              ${isRouter ? `
-                <div class="map-popup-row">
-                  <span class="map-popup-label">Red:</span> 
-                  <span class="map-popup-badge ${d.esPublico ? 'ok' : 'neutral'}">
-                    ${d.esPublico ? 'Pública' : 'Privada'}
-                  </span>
-                </div>
-              ` : ''}
-              
-              ${!isRouter && d.humedad !== undefined ? `
-                <div class="map-popup-row pt-1 border-t border-border mt-1">
-                  <span class="map-popup-label">Humedad:</span> 
-                  <span class="map-popup-value text-blue-600 dark:text-blue-400 text-base">${d.humedad}%</span>
-                </div>
-              ` : ''}
-              
-              <div class="map-popup-row">
-                <span class="map-popup-label">Batería:</span> 
-                <span class="map-popup-value ${d.bateria && d.bateria < 20 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">
+              <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+                <span class="text-muted-foreground">Modelo:</span>
+                <span class="text-foreground text-right">${d.modelo || 'N/A'}</span>
+
+                ${d.ssid ? `<span class="text-muted-foreground">SSID:</span><span class="text-foreground text-right truncate max-w-[120px] justify-self-end">${d.ssid}</span>` : ''}
+                
+                <span class="text-muted-foreground">Canal:</span>
+                <span class="text-foreground text-right font-mono">CH ${d.canal ?? 0}</span>
+
+                <span class="text-muted-foreground">Batería:</span>
+                <span class="text-right font-bold ${d.bateria && d.bateria < 20 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">
                   ${d.bateria}%
                 </span>
+                
+                ${isRouter ? `
+                  <span class="text-muted-foreground">Tipo:</span>
+                  <span class="text-right"><span class="inline-flex items-center px-1.5 rounded-sm text-[10px] font-medium ${d.esPublico ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}">${d.esPublico ? 'Pública' : 'Privada'}</span></span>
+                ` : ''}
               </div>
               
-              <div class="mt-2 pt-2 border-t border-border text-xs text-muted-foreground text-right">
+              ${!isRouter && d.humedad !== undefined ? `
+                <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex justify-between items-center">
+                  <span class="text-xs text-blue-700 dark:text-blue-300 font-medium">Humedad</span>
+                  <span class="text-sm font-bold text-blue-700 dark:text-blue-400">${d.humedad}%</span>
+                </div>
+              ` : ''}
+              
+              <div class="mt-2 pt-2 border-t border-border text-[10px] text-muted-foreground text-center">
                 Últ. conexión: ${d.fechaUltimaConexion ? (() => {
                     const date = new Date(d.fechaUltimaConexion);
                     return isNaN(date.getTime()) ? d.fechaUltimaConexion : date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -260,8 +265,8 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
               </div>
             </div>
             
-            <details class="map-tech-details group">
-              <summary class="map-tech-summary">
+            <details class="map-tech-details group mt-2 pt-2 border-t border-border">
+              <summary class="map-tech-summary text-[10px] py-1">
                 <span class="group-open:hidden">Ver detalles de conexión</span>
                 <span class="hidden group-open:inline">Ocultar detalles</span>
               </summary>
@@ -269,8 +274,7 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
             </details>
             
             ${!isRouter && options?.onDeviceHistoryClick ? `
-              <button id="btn-device-history-${d.id}" class="map-action-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+              <button id="btn-device-history-${d.id}" class="map-action-button mt-2 py-1.5 text-xs">
                 Ver Historial
               </button>
             ` : ''}
