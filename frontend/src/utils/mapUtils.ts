@@ -37,7 +37,7 @@ export interface Parcela {
 }
 
 export interface ParcelMapOptions {
-  onClick?: (parcel: Parcela) => void;
+  onClick?: (parcel: Parcela, latlng: L.LatLng) => void;
   getPopupContent?: (parcel: Parcela) => string | HTMLElement | null;
   onDeviceHistoryClick?: (device: Dispositivo) => void;
 }
@@ -104,7 +104,7 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
     if (options?.onClick) {
       poly.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
-        options.onClick!(p);
+        options.onClick!(p, e.latlng);
       });
     }
 
@@ -132,7 +132,7 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
     if (options?.onClick) {
       unifiedPoint.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
-        options.onClick!(p);
+        options.onClick!(p, e.latlng);
       });
     }
 

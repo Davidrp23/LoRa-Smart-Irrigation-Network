@@ -279,12 +279,13 @@ export default function ParcelasView() {
     
     // Usar la utilidad compartida para inicializar el mapa
     const parcelManager = initParcelMap(map, parcelas, {
-      onClick: (parcel) => {
-        // Calcular centro para hacer zoom
-        const center = L.polygon(parcel.coordenadas).getBounds().getCenter();
-        // Usamos setView en lugar de flyTo para evitar el bug de desplazamiento de marcadores
-        // si el usuario interrumpe la transición moviendo el mapa manualmente.
-        map.setView(center, 16, { animate: true, duration: 1.5 });
+      onClick: (parcel, latlng) => {
+        const targetZoom = 16;
+        // Proyectamos a píxeles, restamos 150px en Y (subir el centro => bajar el punto de anclaje)
+        // para dejar espacio al popup que se abre hacia arriba.
+        const targetPoint = map.project(latlng, targetZoom).subtract([0, 150]);
+        const targetCenter = map.unproject(targetPoint, targetZoom);
+        map.setView(targetCenter, targetZoom, { animate: true, duration: 1.5 });
       },
       onDeviceHistoryClick: (device) => {
         openHistory({ type: 'mota', data: device });
