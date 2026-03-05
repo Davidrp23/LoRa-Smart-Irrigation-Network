@@ -152,6 +152,176 @@
     @apply flex h-12 w-12 items-center justify-center rounded-xl shadow-inner;
     @apply bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400;
   }
+
+  /* --- Estilos de Mapa (Globalizados desde mapUtils) --- */
+
+  /* 1. Overrides de Leaflet Popup */
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    @apply bg-white text-slate-900 border border-slate-200 shadow-xl !important;
+    @apply rounded-2xl !important;
+    @apply p-0 !important;
+  }
+
+  .dark .leaflet-popup-content-wrapper, .dark .leaflet-popup-tip {
+    @apply bg-slate-900 text-slate-100 border-slate-700 !important;
+  }
+  
+  .leaflet-popup-content {
+    @apply m-0 !important; /* Remove default margin to handle padding ourselves */
+    @apply w-auto !important;
+  }
+
+  .leaflet-container a.leaflet-popup-close-button {
+    @apply text-muted-foreground hover:text-foreground !important;
+    @apply top-3 right-3 !important;
+  }
+
+  /* 2. Estructura de Contenido del Popup */
+  .map-popup-container {
+    @apply p-5 min-w-[260px] font-sans text-sm;
+  }
+
+  .map-popup-header {
+    @apply flex items-center justify-between gap-3 mb-4 pb-3 border-b border-border;
+  }
+
+  .map-popup-title {
+    @apply font-bold text-base text-foreground leading-tight block;
+    list-style: none; /* Fix for black dot artifact */
+  }
+
+  .map-popup-subtitle {
+    @apply text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5;
+  }
+
+  .map-popup-body {
+    @apply space-y-2.5;
+  }
+
+  .map-popup-row {
+    @apply flex justify-between items-center text-xs;
+  }
+
+  .map-popup-label {
+    @apply text-muted-foreground font-medium;
+  }
+
+  .map-popup-value {
+    @apply font-bold text-foreground;
+  }
+  
+  .map-popup-mono {
+    @apply font-mono text-muted-foreground;
+  }
+
+  .map-popup-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border;
+  }
+  
+  .map-popup-badge.ok {
+      @apply bg-green-100 text-green-700 border-green-200;
+  }
+  .dark .map-popup-badge.ok {
+      @apply bg-green-900/30 text-green-400 border-green-900/50;
+  }
+  
+  .map-popup-badge.alert {
+      @apply bg-red-100 text-red-700 border-red-200;
+  }
+  .dark .map-popup-badge.alert {
+      @apply bg-red-900/30 text-red-400 border-red-900/50;
+  }
+  
+  .map-popup-badge.neutral {
+      @apply bg-slate-100 text-slate-700 border-slate-200;
+  }
+  .dark .map-popup-badge.neutral {
+      @apply bg-slate-800 text-slate-300 border-slate-700;
+  }
+
+  /* 3. Detalles Técnicos (Colapsable) */
+  .map-tech-details {
+    @apply mt-4 pt-3 border-t border-border;
+  }
+
+  .map-tech-summary {
+    @apply cursor-pointer text-xs font-bold text-primary hover:text-primary/80 select-none flex items-center gap-1.5 outline-none transition-colors;
+  }
+
+  .map-tech-grid {
+    @apply grid grid-cols-2 gap-2 text-[10px] mt-3;
+  }
+  
+  .map-tech-box {
+    @apply bg-slate-100 p-2 rounded-lg border border-slate-200;
+  }
+  .dark .map-tech-box {
+    @apply bg-slate-800/50 border-slate-700/50;
+  }
+
+  .map-tech-label {
+    @apply text-muted-foreground font-bold uppercase tracking-wider mb-0.5;
+  }
+
+  .map-tech-value {
+    @apply font-mono font-bold text-foreground text-xs;
+  }
+
+  .map-action-button {
+    @apply mt-4 w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2;
+    @apply bg-blue-100 text-blue-700 hover:bg-blue-200;
+  }
+  .dark .map-action-button {
+    @apply bg-blue-900/30 text-blue-400 hover:bg-blue-900/50;
+  }
+
+  /* 4. Marcadores y Etiquetas */
+  .map-floating-label {
+    @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2;
+    @apply flex items-center justify-center w-max px-3 py-1.5 rounded-full backdrop-blur-md border shadow-lg transition-all;
+    @apply bg-white/90 border-slate-200 text-slate-800;
+    @apply dark:bg-slate-900/90 dark:border-slate-700 dark:text-slate-100;
+    @apply text-xs font-bold whitespace-nowrap;
+  }
+
+  .device-marker-container {
+    @apply relative flex items-center justify-center;
+  }
+  
+  .device-ring {
+    @apply absolute rounded-full h-full w-full z-0 opacity-60;
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
+  
+  .device-dot {
+    @apply relative rounded-full z-10 border-2 border-white dark:border-transparent shadow-sm transition-transform hover:scale-110;
+  }
+
+  /* --- Estilos Específicos para Popup de Mapa (Réplica de Galería) --- */
+  
+  .map-badge-emerald {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold;
+    @apply bg-emerald-100 text-emerald-800 border border-emerald-200;
+  }
+  .dark .map-badge-emerald {
+    @apply bg-emerald-900/30 text-emerald-400 border-emerald-900/50;
+  }
+
+  .map-badge-amber {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold;
+    @apply bg-amber-100 text-amber-800 border border-amber-200;
+  }
+  .dark .map-badge-amber {
+    @apply bg-amber-900/30 text-amber-400 border-amber-900/50;
+  }
+
+  .map-metric-card {
+    @apply p-3 rounded-xl border cursor-pointer transition-colors mb-3;
+    @apply bg-blue-100 border-blue-200 hover:bg-blue-200;
+  }
+  .dark .map-metric-card {
+    @apply bg-blue-900/20 border-blue-800/30 hover:bg-blue-900/30;
+  }
 }
 
 @font-face {
@@ -164,4 +334,9 @@
 .font-tech {
   font-family: 'NothingTech', monospace;
   letter-spacing: 0.05em; 
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.5); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
 }

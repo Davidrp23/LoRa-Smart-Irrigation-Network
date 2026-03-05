@@ -56,39 +56,6 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
   const devicesGroup = L.layerGroup().addTo(map);
   const connectionsGroup = L.layerGroup().addTo(map);
 
-  // Inyectar estilos para animaciones de marcadores si no existen
-  if (!document.getElementById('device-map-styles')) {
-    const style = document.createElement('style');
-    style.id = 'device-map-styles';
-    style.innerHTML = `
-      @keyframes pulse-ring {
-        0% { transform: scale(0.5); opacity: 0.8; }
-        100% { transform: scale(2.5); opacity: 0; }
-      }
-      .device-marker-container {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .device-ring {
-        position: absolute;
-        border-radius: 50%;
-        height: 100%;
-        width: 100%;
-        animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-        z-index: 0;
-      }
-      .device-dot {
-        position: relative;
-        border-radius: 50%;
-        box-shadow: 0 0 8px rgba(0,0,0,0.4);
-        z-index: 1;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
   // Mapa auxiliar para buscar coordenadas de routers por ID
   const routerPositions = new Map<number, [number, number]>();
   parcelas.forEach(p => {
@@ -108,10 +75,22 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
     }).addTo(polygonsGroup);
 
     const defaultPopupContent = `
-      <div style="font-family: sans-serif;">
-        <b style="font-size: 16px;">${p.nombre}</b><br>
-        <span style="color: #64748b; font-size: 12px;">${p.cultivo}</span><br><br>
-        Humedad Media: <b>${p.humedad}%</b>
+      <div class="map-popup-container">
+        <div class="map-popup-header">
+           <div>
+             <div class="map-popup-title">${p.nombre}</div>
+             <div class="map-popup-subtitle">${p.cultivo}</div>
+           </div>
+           <div class="map-popup-badge ${p.estado === 'alerta' ? 'alert' : 'ok'}">
+             ${p.estado === 'alerta' ? 'ALERTA' : 'OK'}
+           </div>
+        </div>
+        <div class="map-popup-body">
+           <div class="map-popup-row">
+             <span class="map-popup-label">Humedad Media</span>
+             <span class="map-popup-value text-base">${p.humedad}%</span>
+           </div>
+        </div>
       </div>
     `;
 
@@ -134,10 +113,8 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
     const textIcon = L.divIcon({
       className: 'bg-transparent border-none shadow-none',
       html: `
-        <div style="transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center;">
-          <div class="px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-sm border border-white/20 shadow-lg">
-            <span class="text-white text-xs font-semibold whitespace-nowrap">${p.nombre}</span>
-          </div>
+        <div class="map-floating-label">
+            <span>${p.nombre}</span>
         </div>
       `,
       iconSize: [0, 0],
@@ -174,7 +151,7 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
           html: `
             <div class="device-marker-container" style="width: ${size}px; height: ${size}px;">
               <div class="device-ring" style="background-color: ${ringColor};"></div>
-              <div class="device-dot" style="background-color: ${devColor}; width: ${size * 0.6}px; height: ${size * 0.6}px; border: 2px solid white;"></div>
+              <div class="device-dot" style="background-color: ${devColor}; width: ${size * 0.6}px; height: ${size * 0.6}px;"></div>
             </div>
           `,
           iconSize: [size, size],
@@ -188,22 +165,22 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
         let technicalDetailsHtml = '';
         if (isRouter) {
           technicalDetailsHtml = `
-            <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 mt-3">
-              <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Enviados</div>
-                <div class="font-mono font-bold text-slate-700">${d.paquetesEnviados ?? 0}</div>
+            <div class="map-tech-grid">
+              <div class="map-tech-box">
+                <div class="map-tech-label">Enviados</div>
+                <div class="map-tech-value">${d.paquetesEnviados ?? 0}</div>
               </div>
-              <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Recibidos</div>
-                <div class="font-mono font-bold text-slate-700">${d.paquetesRecibidos ?? 0}</div>
+              <div class="map-tech-box">
+                <div class="map-tech-label">Recibidos</div>
+                <div class="map-tech-value">${d.paquetesRecibidos ?? 0}</div>
               </div>
-              <div class="bg-red-50 p-1.5 rounded border border-red-100">
-                <div class="text-red-400 font-semibold uppercase tracking-wider text-[10px]">Err. TX/RX</div>
-                <div class="font-mono font-bold text-red-700">${d.erroresTx ?? 0} / ${d.erroresRx ?? 0}</div>
+              <div class="map-tech-box border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-900/50">
+                <div class="map-tech-label text-red-600 dark:text-red-400">Err. TX/RX</div>
+                <div class="map-tech-value text-red-700 dark:text-red-300">${d.erroresTx ?? 0} / ${d.erroresRx ?? 0}</div>
               </div>
-              <div class="bg-orange-50 p-1.5 rounded border border-orange-100">
-                <div class="text-orange-400 font-semibold uppercase tracking-wider text-[10px]">Err. CRC</div>
-                <div class="font-mono font-bold text-orange-700">${d.erroresCrc ?? 0}</div>
+              <div class="map-tech-box border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-900/50">
+                <div class="map-tech-label text-amber-600 dark:text-amber-400">Err. CRC</div>
+                <div class="map-tech-value text-amber-700 dark:text-amber-300">${d.erroresCrc ?? 0}</div>
               </div>
             </div>
           `;
@@ -215,49 +192,76 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
 
           technicalDetailsHtml = `
             <div class="mt-3 space-y-2">
-              <div class="bg-slate-50 p-2 rounded border border-slate-100">
+              <div class="map-tech-box">
                 <div class="flex justify-between items-center mb-1 text-xs">
-                   <span class="text-slate-500 font-bold uppercase">Señal (RSSI)</span>
-                   <span class="font-mono font-bold ${rssiColor}">${d.rssi ?? 'N/A'} dBm</span>
+                   <span class="map-tech-label">Señal (RSSI)</span>
+                   <span class="map-tech-value ${rssiColor}">${d.rssi ?? 'N/A'} dBm</span>
                 </div>
-                <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div class="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                   <div class="${rssiBg} h-1.5 rounded-full transition-all duration-500" style="width: ${signalPercent}%"></div>
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                  <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">SNR</div>
-                  <div class="font-mono font-bold text-slate-700">${d.snr ?? 'N/A'} dB</div>
+              <div class="map-tech-grid">
+                <div class="map-tech-box">
+                  <div class="map-tech-label">SNR</div>
+                  <div class="map-tech-value">${d.snr ?? 'N/A'} dB</div>
                 </div>
-                <div class="bg-slate-50 p-1.5 rounded border border-slate-100">
-                  <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Pérdidas</div>
-                  <div class="font-mono font-bold text-slate-700">${d.erroresRx ?? 0}</div>
+                <div class="map-tech-box">
+                  <div class="map-tech-label">Pérdidas</div>
+                  <div class="map-tech-value">${d.erroresRx ?? 0}</div>
                 </div>
               </div>
             </div>
           `;
         }
 
-        // Popup con información detallada
+        // Popup con información detallada usando clases globales
         const popupContent = `
-          <div class="font-sans p-1 min-w-[240px]">
-            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+          <div class="map-popup-container">
+            <div class="map-popup-header">
               <div class="w-2.5 h-2.5 rounded-full ${d.estado === 'online' ? 'bg-green-500' : d.estado === 'low-battery' ? 'bg-yellow-500' : 'bg-red-500'}"></div>
-              <span class="font-bold text-base text-slate-800">${isRouter ? 'Router LoRaWAN' : 'Sensor Node'}</span>
-            </div>
-            <div class="space-y-2 text-sm text-slate-600">
-              ${d.nombre ? `<div class="flex justify-between"><span>Nombre:</span> <span class="font-semibold text-slate-800">${d.nombre}</span></div>` : ''}
-              <div class="flex justify-between"><span>ID:</span> <span class="font-mono text-slate-500">#${d.id}</span></div>
-              <div class="flex justify-between"><span>Modelo:</span> <span class="font-semibold text-slate-800">${d.modelo || 'N/A'}</span></div>
-              ${d.ssid ? `<div class="flex justify-between"><span>SSID:</span> <span class="font-semibold text-slate-800">${d.ssid}</span></div>` : ''}
-              ${isRouter ? `<div class="flex justify-between items-center"><span>Red:</span> <span class="font-bold text-xs px-2 py-0.5 rounded-full ${d.esPublico ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}">${d.esPublico ? 'Pública' : 'Privada'}</span></div>` : ''}
-              ${!isRouter && d.humedad !== undefined ? `<div class="flex justify-between items-center pt-1 border-t border-slate-50 mt-1"><span class="text-slate-500 font-bold">Humedad:</span> <span class="font-bold text-blue-600 text-base">${d.humedad}%</span></div>` : ''}
-              <div class="flex justify-between"><span>Batería:</span> <span class="font-bold ${d.bateria && d.bateria < 20 ? 'text-red-600' : 'text-green-600'}">${d.bateria}%</span></div>
-              <div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400 text-right">Últ. conexión: ${d.fechaUltimaConexion || 'N/A'}</div>
+              <span class="map-popup-title">${isRouter ? 'Router LoRaWAN' : 'Sensor Node'}</span>
             </div>
             
-            <details class="mt-3 pt-2 border-t border-slate-100 group">
-              <summary class="cursor-pointer text-sm font-bold text-blue-600 hover:text-blue-700 select-none flex items-center gap-1 outline-none">
+            <div class="map-popup-body">
+              ${d.nombre ? `<div class="map-popup-row"><span class="map-popup-label">Nombre:</span> <span class="map-popup-value">${d.nombre}</span></div>` : ''}
+              <div class="map-popup-row"><span class="map-popup-label">ID:</span> <span class="map-popup-mono">#${d.id}</span></div>
+              <div class="map-popup-row"><span class="map-popup-label">Modelo:</span> <span class="map-popup-value">${d.modelo || 'N/A'}</span></div>
+              ${d.ssid ? `<div class="map-popup-row"><span class="map-popup-label">SSID:</span> <span class="map-popup-value">${d.ssid}</span></div>` : ''}
+              
+              ${isRouter ? `
+                <div class="map-popup-row">
+                  <span class="map-popup-label">Red:</span> 
+                  <span class="map-popup-badge ${d.esPublico ? 'ok' : 'neutral'}">
+                    ${d.esPublico ? 'Pública' : 'Privada'}
+                  </span>
+                </div>
+              ` : ''}
+              
+              ${!isRouter && d.humedad !== undefined ? `
+                <div class="map-popup-row pt-1 border-t border-border mt-1">
+                  <span class="map-popup-label">Humedad:</span> 
+                  <span class="map-popup-value text-blue-600 dark:text-blue-400 text-base">${d.humedad}%</span>
+                </div>
+              ` : ''}
+              
+              <div class="map-popup-row">
+                <span class="map-popup-label">Batería:</span> 
+                <span class="map-popup-value ${d.bateria && d.bateria < 20 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">
+                  ${d.bateria}%
+                </span>
+              </div>
+              
+              <div class="mt-2 pt-2 border-t border-border text-xs text-muted-foreground text-right">
+                Últ. conexión: ${d.fechaUltimaConexion ? (() => {
+                    const date = new Date(d.fechaUltimaConexion);
+                    return isNaN(date.getTime()) ? d.fechaUltimaConexion : date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                })() : 'N/A'}
+              </div>
+            </div>
+            
+            <details class="map-tech-details group">
+              <summary class="map-tech-summary">
                 <span class="group-open:hidden">Ver detalles de conexión</span>
                 <span class="hidden group-open:inline">Ocultar detalles</span>
               </summary>
@@ -265,8 +269,8 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
             </details>
             
             ${!isRouter && options?.onDeviceHistoryClick ? `
-              <button id="btn-device-history-${d.id}" class="mt-3 w-full py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-blue-200">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+              <button id="btn-device-history-${d.id}" class="map-action-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
                 Ver Historial
               </button>
             ` : ''}

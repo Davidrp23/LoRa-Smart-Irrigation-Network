@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { X, Map, Undo2, Check, ChevronDown, Search, CheckCircle } from 'lucide-react';
 import { initParcelMap, type Parcela, type ParcelMapManager } from '../../utils/mapUtils';
+import { useTheme } from '../../context/ThemeContext';
 
 
 const CULTIVOS_DISPONIBLES = [
@@ -31,6 +32,7 @@ interface RegistrarParcelaModalProps {
 
 export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExistentes, parcelaAEditar, onGuardar }: RegistrarParcelaModalProps) {
   // Inicializar estado directamente con props para evitar renderizados vacíos iniciales
+  const { theme } = useTheme();
   const [nombre, setNombre] = useState(parcelaAEditar?.nombre || '');
   const [cultivo, setCultivo] = useState(parcelaAEditar?.cultivo || '');
   const [tipoSuelo, setTipoSuelo] = useState(parcelaAEditar?.tipoSuelo || '');
@@ -344,7 +346,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 ${theme}`}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -289,37 +289,57 @@ export default function ParcelasView() {
       },
       getPopupContent: (p) => {
         const container = document.createElement('div');
-        container.className = "min-w-[240px] font-sans";
+        container.className = "map-popup-container";
+        
+        // Iconos SVG inline para el popup
+        const sproutIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.2.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1.7-1.6 1.6-3.4 1.6-3.4s-.3-1.1-1.6-1.7c-2.7-1.2-4.4.7-4.4.7z"/></svg>`;
+        const layersIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+        const dropletsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500/40 mb-1"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.8-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>`;
+
         container.innerHTML = `
           <div>
-            <div class="flex justify-between items-start mb-3">
+            <div class="map-popup-header">
               <div>
-                <h3 class="text-lg font-bold text-slate-800 m-0 leading-tight">${p.nombre}</h3>
-                <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-1">${p.cultivo}</p>
-                ${p.tipoSuelo ? `<p class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> ${p.tipoSuelo}</p>` : ''}
+                <h3 class="map-popup-title">${p.nombre}</h3>
+                <div class="flex flex-wrap gap-2 mt-1.5">
+                    <span class="map-badge-emerald">
+                      ${sproutIcon} ${p.cultivo}
+                    </span>
+                    ${p.tipoSuelo ? `
+                      <span class="map-badge-amber">
+                        ${layersIcon} ${p.tipoSuelo}
+                      </span>
+                    ` : ''}
+                </div>
               </div>
               ${p.estado === 'alerta' 
-                ? '<span class="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded-full border border-red-200">ALERTA</span>' 
-                : '<span class="bg-green-100 text-green-600 text-[10px] font-bold px-2 py-1 rounded-full border border-green-200">OK</span>'
+                ? '<span class="map-popup-badge alert">ALERTA</span>' 
+                : '<span class="map-popup-badge ok">OK</span>'
               }
             </div>
             
-            <div class="grid grid-cols-2 gap-3 mb-3">
-              <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <div class="flex items-center gap-1.5 mb-1">
-                  <span class="text-[10px] text-slate-400 font-bold uppercase">Humedad</span>
+            <div class="map-metric-card">
+                <div class="flex justify-between items-end">
+                  <div>
+                    <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Humedad Media</p>
+                    <div class="text-xl font-extrabold text-foreground">${p.humedad}%</div>
+                  </div>
+                  ${dropletsIcon}
                 </div>
-                <div class="text-xl font-extrabold text-slate-700">${p.humedad}%</div>
+            </div>
+
+            <div class="map-tech-grid mb-3">
+              <div class="map-tech-box p-2">
+                <div class="map-tech-label">Riego</div>
+                <div class="text-sm font-bold text-foreground mt-0.5">${p.proximoRiego}</div>
               </div>
-              <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <div class="flex items-center gap-1.5 mb-1">
-                  <span class="text-[10px] text-slate-400 font-bold uppercase">Riego</span>
-                </div>
-                <div class="text-sm font-bold text-slate-700 mt-0.5">${p.proximoRiego}</div>
+              <div class="map-tech-box p-2">
+                <div class="map-tech-label">Motas</div>
+                <div class="text-sm font-bold text-foreground mt-0.5">${p.motas}</div>
               </div>
             </div>
           </div>
-          <button id="btn-history-${p.id}" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-md shadow-blue-200">
+          <button id="btn-history-${p.id}" class="map-action-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
             Ver Historial
           </button>
@@ -373,7 +393,7 @@ export default function ParcelasView() {
         )}
 
         {vista === 'mapa' ? (
-          <div className="relative flex-1 overflow-hidden rounded-3xl border border-border shadow-inner">
+          <div className={`relative flex-1 overflow-hidden rounded-3xl border border-border shadow-inner ${theme}`}>
             {/* Controles flotantes compactos para el mapa */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] flex gap-2">
                <div className="flex items-center gap-1 rounded-full border border-border/50 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
