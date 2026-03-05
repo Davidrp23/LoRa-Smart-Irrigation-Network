@@ -29,17 +29,17 @@ export default function Sidebar({ menuActivo, setMenuActivo, handleLogout }: Sid
       </div>
 
       <nav className="flex w-full flex-col gap-2">
-        <button onClick={() => setMenuActivo('parcelas')} className={`flex w-full items-center justify-center gap-3 rounded-xl p-3 transition-all ${isCollapsed ? '' : 'md:justify-start'} ${menuActivo === 'parcelas' ? 'bg-green-300 backdrop-blur-md dark:bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
+        <button onClick={() => setMenuActivo('parcelas')} className={`flex w-full items-center justify-center gap-3 rounded-xl p-3 transition-all ${isCollapsed ? '' : 'md:justify-start'} ${menuActivo === 'parcelas' ? 'bg-primary/15 backdrop-blur-md dark:bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
           <Sprout size={22} />
           {!isCollapsed && <span className="hidden font-medium md:block">Mis Parcelas</span>}
         </button>
         
-        <button onClick={() => setMenuActivo('dispositivos')} className={`flex w-full items-center justify-center gap-3 rounded-xl p-3 transition-all ${isCollapsed ? '' : 'md:justify-start'} ${menuActivo === 'dispositivos' ? 'bg-green-300 backdrop-blur-md dark:bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
+        <button onClick={() => setMenuActivo('dispositivos')} className={`flex w-full items-center justify-center gap-3 rounded-xl p-3 transition-all ${isCollapsed ? '' : 'md:justify-start'} ${menuActivo === 'dispositivos' ? 'bg-primary/15 backdrop-blur-md dark:bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
           <Cpu size={22} />
           {!isCollapsed && <span className="hidden font-medium md:block">Dispositivos</span>}
         </button>
 
-        <button onClick={() => setMenuActivo('ajustes')} className={`flex w-full items-center justify-center gap-3 rounded-xl p-3 transition-all ${isCollapsed ? '' : 'md:justify-start'} ${menuActivo === 'ajustes' ? 'bg-green-300 backdrop-blur-md dark:bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
+        <button onClick={() => setMenuActivo('ajustes')} className={`flex w-full items-center justify-center gap-3 rounded-xl p-3 transition-all ${isCollapsed ? '' : 'md:justify-start'} ${menuActivo === 'ajustes' ? 'bg-primary/15 backdrop-blur-md dark:bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
           <Settings size={22} />
           {!isCollapsed && <span className="hidden font-medium md:block">Configuración</span>}
         </button>
