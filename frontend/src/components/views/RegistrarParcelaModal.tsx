@@ -147,7 +147,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
         parcelMapManagerRef.current = initParcelMap(map, parcelasParaMapa, {
           onClick: (parcel) => {
             const center = L.polygon(parcel.coordenadas).getBounds().getCenter();
-            map.flyTo(center, 16, { duration: 1.5 });
+            map.setView(center, 16, { animate: true, duration: 1.5 });
           },
           getPopupContent: () => null // No mostrar popup en este modo
         });

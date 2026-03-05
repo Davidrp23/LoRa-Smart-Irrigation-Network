@@ -282,7 +282,9 @@ export default function ParcelasView() {
       onClick: (parcel) => {
         // Calcular centro para hacer zoom
         const center = L.polygon(parcel.coordenadas).getBounds().getCenter();
-        map.flyTo(center, 16, { duration: 1.5 });
+        // Usamos setView en lugar de flyTo para evitar el bug de desplazamiento de marcadores
+        // si el usuario interrumpe la transición moviendo el mapa manualmente.
+        map.setView(center, 16, { animate: true, duration: 1.5 });
       },
       onDeviceHistoryClick: (device) => {
         openHistory({ type: 'mota', data: device });
@@ -368,6 +370,7 @@ export default function ParcelasView() {
     }
 
     map.on('zoomend', parcelManager.updateVisibility);
+    map.on('moveend', parcelManager.updateVisibility); // Asegurar actualización al terminar de mover
 
     // Ejecutar la visibilidad inicial después de que el mapa y las capas se hayan configurado
     parcelManager.updateVisibility();
