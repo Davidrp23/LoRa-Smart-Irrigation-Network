@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
 import ConfirmarEliminarModal from './ConfirmarEliminarModal';
@@ -138,6 +138,126 @@ const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }
   );
 };
 
+// Componente Modal para Decisión de Riego
+const IrrigationDecisionModal = ({ parcel }: { parcel: Parcela }) => {
+  // Datos meteorológicos simulados (Mock)
+  const forecast = [
+    { day: 'Hoy', temp: 28, rain: 0, icon: Sun, condition: 'Soleado' },
+    { day: 'Mañana', temp: 26, rain: 0, icon: Sun, condition: 'Soleado' },
+    { day: 'Mié', temp: 22, rain: 45, icon: CloudRain, condition: 'Lluvia' },
+    { day: 'Jue', temp: 20, rain: 80, icon: CloudRain, condition: 'Tormenta' },
+    { day: 'Vie', temp: 23, rain: 10, icon: Cloud, condition: 'Nublado' },
+    { day: 'Sáb', temp: 25, rain: 0, icon: Sun, condition: 'Soleado' },
+    { day: 'Dom', temp: 27, rain: 0, icon: Sun, condition: 'Soleado' },
+  ];
+
+  return (
+    <div className="p-6 space-y-8 overflow-y-auto max-h-[80vh]">
+       {/* Top Summary Card */}
+       <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/20">
+          <div className="flex justify-between items-start">
+             <div>
+                <div className="flex items-center gap-2 opacity-90 mb-1">
+                   <Clock size={16} />
+                   <span className="text-sm font-medium uppercase tracking-wide">Próximo Riego</span>
+                </div>
+                <div className="text-3xl font-bold">{parcel.proximoRiego}</div>
+                <div className="mt-2 inline-flex items-center bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg text-sm font-medium">
+                   <Droplets size={14} className="mr-1.5" /> 45 min programados
+                </div>
+             </div>
+             <div className="text-right">
+                <div className="text-sm opacity-80">Humedad Objetivo</div>
+                <div className="text-2xl font-bold">60%</div>
+                <div className="text-xs opacity-70 mt-1">Actual: {parcel.humedad}%</div>
+             </div>
+          </div>
+       </div>
+
+       {/* Analysis Grid */}
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Agronomic Context */}
+          <div className="space-y-3">
+             <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Sprout size={16} /> Contexto Agronómico
+             </h4>
+             <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-4 h-full">
+                <div className="flex items-center justify-between p-2 bg-background rounded-xl border border-border/50">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+                         <Sprout size={20} />
+                      </div>
+                      <div>
+                         <div className="text-xs text-muted-foreground">Cultivo</div>
+                         <div className="font-bold text-foreground">{parcel.cultivo}</div>
+                      </div>
+                   </div>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-background rounded-xl border border-border/50">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                         <Layers size={20} />
+                      </div>
+                      <div>
+                         <div className="text-xs text-muted-foreground">Suelo</div>
+                         <div className="font-bold text-foreground">{parcel.tipoSuelo || 'Estándar'}</div>
+                      </div>
+                   </div>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed px-1">
+                   El sistema ha calculado una retención de agua media-baja debido al suelo <b>{parcel.tipoSuelo?.toLowerCase() || 'franco'}</b>. Se requiere riego frecuente pero corto para evitar drenaje profundo.
+                </p>
+             </div>
+          </div>
+
+          {/* Weather Analysis */}
+          <div className="space-y-3">
+             <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Cloud size={16} /> Análisis Meteorológico
+             </h4>
+             <div className="bg-muted/30 border border-border rounded-2xl p-4 h-full flex flex-col justify-between">
+                <div className="flex items-center gap-4 mb-4">
+                   <div className="flex-1">
+                      <div className="text-xs text-muted-foreground mb-1">Precipitación (7d)</div>
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">135 mm</div>
+                   </div>
+                   <div className="w-px h-10 bg-border"></div>
+                   <div className="flex-1">
+                      <div className="text-xs text-muted-foreground mb-1">Evapotranspiración</div>
+                      <div className="text-2xl font-bold text-orange-500">Alta</div>
+                   </div>
+                </div>
+                <div className="bg-blue-100 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-200 dark:border-blue-900/30">
+                   <p className="text-xs text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
+                      <span className="font-bold">Aviso:</span> Se esperan lluvias significativas a partir del miércoles. El riego programado para hoy es preventivo para mantener la humedad hasta entonces.
+                   </p>
+                </div>
+             </div>
+          </div>
+       </div>
+
+       {/* Forecast Strip */}
+       <div className="space-y-3 pt-6">
+          <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+             <Calendar size={16} /> Previsión Semanal
+          </h4>
+          <div className="grid grid-cols-7 gap-2">
+             {forecast.map((day, i) => (
+                <div key={i} className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${day.rain > 20 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-background border-border'}`}>
+                   <span className="text-[10px] font-bold text-muted-foreground mb-1">{day.day}</span>
+                   <day.icon size={20} className={`mb-1.5 ${day.rain > 0 ? 'text-blue-500' : 'text-orange-400'}`} />
+                   <span className="text-xs font-bold text-foreground">{day.temp}°</span>
+                   <div className="h-1 w-full bg-muted rounded-full mt-1.5 overflow-hidden">
+                      <div className="h-full bg-blue-500" style={{ width: `${Math.min(day.rain, 100)}%` }}></div>
+                   </div>
+                </div>
+             ))}
+          </div>
+       </div>
+    </div>
+  );
+};
+
 // Componente de Gráfico de Humedad Detallado con Navegación
 const DetailedHumidityChart = ({ data }: { data: { label: string, value: number }[] }) => {
   const ITEMS_PER_PAGE = 24;
@@ -256,6 +376,7 @@ export default function ParcelasView() {
   const [targetParcelId, setTargetParcelId] = useState<number | null>(null);
   const [editingParcel, setEditingParcel] = useState<Parcela | null>(null);
   const [viewingDevicesParcel, setViewingDevicesParcel] = useState<Parcela | null>(null);
+  const [viewingIrrigationParcel, setViewingIrrigationParcel] = useState<Parcela | null>(null);
 
   // Actualizar datos cuando cambia el rango o el ítem seleccionado
   useEffect(() => {
@@ -480,7 +601,7 @@ export default function ParcelasView() {
 
                   {/* Secondary Metrics Grid */}
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="info-card-riego">
+                    <div className="info-card-riego cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setViewingIrrigationParcel(p)}>
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Clock size={12}/> Riego</span>
                       <span className="font-semibold text-card-foreground truncate">{p.proximoRiego}</span>
                     </div>
@@ -615,6 +736,32 @@ export default function ParcelasView() {
                 </button>
               </div>
               <DeviceSummaryModal parcel={viewingDevicesParcel} onClose={() => setViewingDevicesParcel(null)} />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Decisión de Riego */}
+      <AnimatePresence>
+        {viewingIrrigationParcel && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-2xl overflow-hidden rounded-3xl bg-card shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-border p-6">
+                <h3 className="text-xl font-bold text-card-foreground flex items-center gap-2">
+                  <Droplets className="text-blue-500"/> 
+                  Decisión de Riego: {viewingIrrigationParcel.nombre}
+                </h3>
+                <button onClick={() => setViewingIrrigationParcel(null)} className="rounded-full bg-secondary p-2 text-secondary-foreground hover:bg-muted">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <IrrigationDecisionModal parcel={viewingIrrigationParcel} />
             </motion.div>
           </div>
         )}
