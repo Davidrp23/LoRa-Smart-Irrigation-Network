@@ -10,17 +10,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateMotaDto = void 0;
-const swagger_1 = require("@nestjs/swagger");
-const create_mota_dto_1 = require("./create-mota.dto");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
-class UpdateMotaDto extends (0, swagger_1.PartialType)(create_mota_dto_1.CreateMotaDto) {
+class UpdateMotaDto {
     nombre;
     parcelaId;
+    frecuencia;
+    canal;
     latitud;
     longitud;
     routerId;
     bateriaUltima;
+    humedad;
+    rssi;
+    snr;
+    erroresRxMota;
     fechaUltimaConexion;
 }
 exports.UpdateMotaDto = UpdateMotaDto;
@@ -34,6 +38,16 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "parcelaId", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "frecuencia", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "canal", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),
@@ -54,6 +68,26 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateMotaDto.prototype, "bateriaUltima", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "humedad", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "rssi", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "snr", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresRxMota", void 0);
 __decorate([
     (0, class_transformer_1.Type)(() => Date),
     (0, class_validator_1.IsOptional)(),

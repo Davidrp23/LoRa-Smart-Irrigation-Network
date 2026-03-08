@@ -3,10 +3,18 @@ import { CreateRouterDto } from './create-router.dto';
 import { IsBoolean, IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class UpdateRouterDto extends PartialType(CreateRouterDto) {
+export class UpdateRouterDto{
+    @IsOptional()
+    @IsString()
+    nombre: string;
+
     @IsOptional()
     @IsString()
     ssid: string;  // Nombre de la red LoRa/WiFi
+
+    @IsOptional()
+    @IsNumber()
+    canal: number;
     
     // --- ROAMING Y COMUNIDAD ---
     @IsOptional()
@@ -51,4 +59,8 @@ export class UpdateRouterDto extends PartialType(CreateRouterDto) {
     @IsOptional()
     @IsNumber()
     erroresCrc: number; // Paquetes corruptos específicos
+
+    @IsNumber()
+    @IsOptional()
+    parcelaId: number;
 }

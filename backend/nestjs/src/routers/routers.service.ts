@@ -7,12 +7,13 @@ import { NotFoundException, ForbiddenException, ConflictException } from '@nestj
 import { VincularRouterDto } from './dto/vincular-router.dto';
 
 import { randomBytes } from 'crypto';
+import { ParcelasService } from 'src/parcelas/parcelas.service';
 
 @Injectable()
 export class RoutersService {
 
   // Inyecta Prisma en el constructor
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService , private parcelasService: ParcelasService) {}
 
 
   async create(createRouterDto: CreateRouterDto): Promise<Router> {
@@ -71,6 +72,12 @@ export class RoutersService {
   }
 
   async update(usuarioId: number, id: number, updateRouterDto: UpdateRouterDto): Promise<Router> {
+    
+    if(updateRouterDto.parcelaId != null){
+      const parcela = await this.prisma.parcela.findUnique({where: {id: updateRouterDto.parcelaId, usuarioId}});
+      if(!parcela) throw new NotFoundException(`La parcela con ID ${updateRouterDto.parcelaId} no existe o no te pertenece.`);
+    }
+
     return this.prisma.router.update({
       where: {id, usuarioId},
       data: updateRouterDto,

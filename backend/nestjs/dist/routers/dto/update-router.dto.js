@@ -10,12 +10,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateRouterDto = void 0;
-const swagger_1 = require("@nestjs/swagger");
-const create_router_dto_1 = require("./create-router.dto");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
-class UpdateRouterDto extends (0, swagger_1.PartialType)(create_router_dto_1.CreateRouterDto) {
+class UpdateRouterDto {
+    nombre;
     ssid;
+    canal;
     esPublico;
     latitud;
     longitud;
@@ -26,13 +26,24 @@ class UpdateRouterDto extends (0, swagger_1.PartialType)(create_router_dto_1.Cre
     erroresTx;
     erroresRx;
     erroresCrc;
+    parcelaId;
 }
 exports.UpdateRouterDto = UpdateRouterDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], UpdateRouterDto.prototype, "nombre", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateRouterDto.prototype, "ssid", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "canal", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
@@ -83,4 +94,9 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateRouterDto.prototype, "erroresCrc", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "parcelaId", void 0);
 //# sourceMappingURL=update-router.dto.js.map

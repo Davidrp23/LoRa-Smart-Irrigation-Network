@@ -3,7 +3,7 @@ import { CreateMotaDto } from './create-mota.dto';
 import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class UpdateMotaDto extends PartialType(CreateMotaDto) {
+export class UpdateMotaDto{
 
     @IsString()
     @IsOptional()
@@ -12,6 +12,14 @@ export class UpdateMotaDto extends PartialType(CreateMotaDto) {
     @IsNumber()
     @IsOptional()
     parcelaId: number;
+
+    @IsNumber()
+    @IsOptional()
+    frecuencia: number; //Frecuencia con la que manda datos
+
+    @IsNumber()
+    @IsOptional()
+    canal: number; //Canal LoRa en el que opera
 
     @IsNumber()
     @IsOptional()
@@ -28,6 +36,22 @@ export class UpdateMotaDto extends PartialType(CreateMotaDto) {
     @IsNumber()
     @IsOptional()
     bateriaUltima: number;
+
+    @IsNumber()
+    @IsOptional()
+    humedad: number;
+
+    @IsNumber()
+    @IsOptional()
+    rssi: number;
+
+    @IsNumber()
+    @IsOptional()
+    snr: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresRxMota: number;
 
     @Type(() => Date)
     @IsOptional()

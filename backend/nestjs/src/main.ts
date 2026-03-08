@@ -3,9 +3,11 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { PrismaClientExceptionFilter } from 'nestjs-prisma';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors();
 
   // --- CONFIGURACIÓN SWAGGER (Añade esto) ---
   const config = new DocumentBuilder()
@@ -29,6 +31,10 @@ async function bootstrap() {
     transform: true,       // Convierte tipos automáticamente
   }));
   // ------------------------------------------
+
+  // --- AUMENTAR LÍMITE DE TAMAÑO (Para subir fotos) ---
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   await app.listen(3000);
 }

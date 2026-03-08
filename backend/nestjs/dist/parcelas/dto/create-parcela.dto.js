@@ -14,8 +14,10 @@ const class_validator_1 = require("class-validator");
 class CreateParcelaDto {
     nombre;
     cultivo;
+    tipoSuelo;
     latitudCentro;
     longitudCentro;
+    puntos;
 }
 exports.CreateParcelaDto = CreateParcelaDto;
 __decorate([
@@ -29,6 +31,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateParcelaDto.prototype, "cultivo", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateParcelaDto.prototype, "tipoSuelo", void 0);
+__decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Number)
@@ -38,4 +45,9 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Number)
 ], CreateParcelaDto.prototype, "longitudCentro", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Object)
+], CreateParcelaDto.prototype, "puntos", void 0);
 //# sourceMappingURL=create-parcela.dto.js.map

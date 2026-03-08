@@ -1,7 +1,7 @@
-import { CreateRouterDto } from './create-router.dto';
-declare const UpdateRouterDto_base: import("@nestjs/common").Type<Partial<CreateRouterDto>>;
-export declare class UpdateRouterDto extends UpdateRouterDto_base {
+export declare class UpdateRouterDto {
+    nombre: string;
     ssid: string;
+    canal: number;
     esPublico: boolean;
     latitud: number;
     longitud: number;
@@ -12,5 +12,5 @@ export declare class UpdateRouterDto extends UpdateRouterDto_base {
     erroresTx: number;
     erroresRx: number;
     erroresCrc: number;
+    parcelaId: number;
 }
-export {};

@@ -23,10 +23,20 @@ import {
   Unlink,
   ChevronLeft,
   ChevronRight,
-  Radio
+  Radio,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
 import Select from '../ui/Select';
+import { createDevice, updateDevice, deleteDevice, getMediciones } from '../../services/dataService';
+
+const CHANNEL_FREQUENCIES: Record<number, string> = {
+  0: '868.1 MHz',
+  1: '868.3 MHz',
+  2: '868.5 MHz',
+  3: '869.525 MHz'
+};
 
 // Tipos basados en schema.prisma + campos de UI solicitados
 interface DispositivoBase {
@@ -34,16 +44,19 @@ interface DispositivoBase {
   codigoVinculacion: string;
   modelo: string;
   fechaUltimaConexion: string;
-  parcela: string | null;
-  canal: number; // 0-3
-  frecuencia: string; // Campo solicitado extra
+  parcelaId?: number | null; // Usamos ID para la lógica
+  nombre?: string | null; // Ahora común para ambos (Routers y Motas)
+  canal?: number; // 0-3 (Opcional porque puede ser null)
+  frecuencia?: number; // Opcional (Solo Motas) - En minutos
   estado: 'online' | 'offline' | 'alerta';
-  historialConsumo: number[]; // % consumido por hora (últimas 24h)
+  historialConsumo: { value: number; date: string }[]; // % consumido por hora (últimas 24h)
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 interface Router extends DispositivoBase {
   tipo: 'router';
-  ssid: string;
+  ssid: string | null; // Puede ser null desde el backend
   esPublico: boolean;
   bateria: number | null; // Puede ir con placa solar
   paquetesEnviados: number;
@@ -55,112 +68,16 @@ interface Router extends DispositivoBase {
 
 interface Mota extends DispositivoBase {
   tipo: 'mota';
-  nombre: string;
   bateriaUltima: number;
   routerId: number;
-  rssi: number; // Señal
-  snr: number;
+  rssi: number | null; // Señal puede ser null
+  snr: number | null;
   erroresRx: number; // Pérdidas
 }
 
 type Dispositivo = Router | Mota;
 
-const dispositivosIniciales: Dispositivo[] = [
-  { 
-    id: 101, 
-    tipo: 'router', 
-    codigoVinculacion: 'GW-N-001',
-    modelo: 'Gateway Pro V2', 
-    ssid: 'LoRa-Norte', 
-    esPublico: true, 
-    bateria: 100, 
-    fechaUltimaConexion: '2023-10-25T10:00:00Z',
-    parcela: 'Sector Norte - Olivos',
-    canal: 1,
-    frecuencia: '15 min',
-    estado: 'online',
-    paquetesEnviados: 15420,
-    paquetesRecibidos: 15380,
-    erroresTx: 5,
-    erroresRx: 12,
-    erroresCrc: 3,
-    historialConsumo: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] // AC Power
-  },
-  { 
-    id: 102, 
-    tipo: 'mota', 
-    codigoVinculacion: 'SN-H-001',
-    nombre: 'Sensor Humedad 1', 
-    modelo: 'Heltec V3', 
-    bateriaUltima: 85, 
-    fechaUltimaConexion: '2023-10-25T10:05:00Z',
-    parcela: 'Sector Norte - Olivos',
-    routerId: 101,
-    rssi: -85,
-    snr: 9.5,
-    erroresRx: 0,
-    canal: 1,
-    frecuencia: '30 min',
-    estado: 'online',
-    historialConsumo: [1, 2, 1, 0, 1, 1, 2, 3, 1, 0, 1, 1, 2, 1, 1, 0, 1, 2, 1, 1, 0, 1, 2, 1]
-  },
-  { 
-    id: 201, 
-    tipo: 'router', 
-    codigoVinculacion: 'GW-S-002',
-    modelo: 'Gateway Lite', 
-    ssid: 'LoRa-Sur', 
-    esPublico: false, 
-    bateria: 5, 
-    fechaUltimaConexion: '2023-10-25T09:55:00Z',
-    parcela: 'Sector Sur - Vides',
-    canal: 2,
-    frecuencia: '15 min',
-    estado: 'online',
-    paquetesEnviados: 8900,
-    paquetesRecibidos: 8850,
-    erroresTx: 2,
-    erroresRx: 5,
-    erroresCrc: 0,
-    historialConsumo: [5, 4, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5, 4, 5, 6, 5]
-  },
-  { 
-    id: 202, 
-    tipo: 'mota', 
-    codigoVinculacion: 'SN-S-002',
-    nombre: 'Sensor Superficie B', 
-    modelo: 'Heltec V3', 
-    bateriaUltima: 75, 
-    fechaUltimaConexion: '2023-10-25T08:00:00Z',
-    parcela: 'Sector Sur - Vides',
-    routerId: 201,
-    rssi: -95,
-    snr: 6.5,
-    erroresRx: 2,
-    canal: 2,
-    frecuencia: '1 hora',
-    estado: 'alerta',
-    historialConsumo: [8, 7, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8, 7, 8, 9, 8]
-  },
-  { 
-    id: 301, 
-    tipo: 'mota', 
-    codigoVinculacion: 'SN-X-999',
-    nombre: 'Mota Sin Asignar', 
-    modelo: 'Heltec V2', 
-    bateriaUltima: 50, 
-    fechaUltimaConexion: '2023-10-24T18:00:00Z',
-    parcela: null,
-    routerId: 0,
-    rssi: 0,
-    snr: 0,
-    erroresRx: 0,
-    canal: 0,
-    frecuencia: '1 hora',
-    estado: 'offline',
-    historialConsumo: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  },
-];
+// Eliminamos dispositivosIniciales
 
 // Componente de Batería con Relleno Proporcional
 const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: number; className?: string }) => {
@@ -191,16 +108,16 @@ const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: n
 };
 
 // Componente de Gráfico de Barras Simple (Historial de Consumo)
-const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () => void }) => {
-  const hasData = data.length > 0 && data.some(v => v > 0);
+const BatteryHistoryChart = ({ data, onClick }: { data: { value: number; date: string }[], onClick?: () => void }) => {
+  const hasData = data && data.length > 0;
   
   // Configuración de paginación para evitar barras cortadas
   const ITEMS_PER_PAGE = 12;
   const [startIndex, setStartIndex] = useState(Math.max(0, data.length - ITEMS_PER_PAGE));
 
   const displayData = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  const maxVal = Math.max(...displayData, 1);
-  const [hovered, setHovered] = useState<{ val: number, i: number } | null>(null);
+  const maxVal = Math.max(...displayData.map(d => d.value), 1);
+  const [hovered, setHovered] = useState<{ val: number, date: string, i: number } | null>(null);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -233,10 +150,12 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
       <div className="flex justify-between items-center mb-2 h-5">
         {hovered !== null ? (
            <span className="text-xs font-bold text-foreground">
-             -{hovered.val}% <span className="text-[10px] font-normal text-muted-foreground ml-1">({hovered.i}:00)</span>
+             {hovered.val}% <span className="text-[10px] font-normal text-muted-foreground ml-1">
+               {new Date(hovered.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+             </span>
            </span>
         ) : (
-           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Consumo</span>
+           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Historial Batería</span>
         )}
         
         <div className="flex items-center gap-2">
@@ -267,15 +186,15 @@ const BatteryHistoryChart = ({ data, onClick }: { data: number[], onClick?: () =
         </div>
       </div>
       <div className="flex items-end gap-[2px] h-10 w-full overflow-hidden">
-        {displayData.map((value, i) => (
+        {displayData.map((item, i) => (
           <div 
             key={startIndex + i} 
             className="relative flex-1 h-full flex items-end"
-            onMouseEnter={() => setHovered({ val: value, i: startIndex + i })}
+            onMouseEnter={() => setHovered({ val: item.value, date: item.date, i: startIndex + i })}
           >
             <div 
-              className={`w-full rounded-sm transition-colors ${hovered?.i === startIndex + i ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-400 dark:bg-slate-500'}`}
-              style={{ height: `${(value / maxVal) * 100}%`, minHeight: value > 0 ? '2px' : '0' }}
+              className={`w-full rounded-sm transition-colors ${hovered?.i === startIndex + i ? 'bg-green-500 dark:bg-green-400' : 'bg-green-600/40 dark:bg-green-500/40'}`}
+              style={{ height: `${(item.value / maxVal) * 100}%`, minHeight: item.value > 0 ? '2px' : '0' }}
             ></div>
           </div>
         ))}
@@ -315,10 +234,10 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
        <div className="h-96 w-full flex items-end gap-2 px-4">
           {displayData.map((d, i) => (
             <div key={startIndex + i} className="flex-1 flex flex-col justify-end group relative h-full">
-              <div className="w-full bg-blue-500/70 dark:bg-blue-500/20 rounded-t-sm border-t-2 border-blue-500 relative transition-all group-hover:bg-blue-600 dark:group-hover:bg-blue-500/40" style={{ height: `${Math.max(d.value * 5, 5)}%` }}>
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">-{d.value}%</div>
+              <div className="w-full bg-green-500/70 dark:bg-green-500/20 rounded-t-sm border-t-2 border-green-500 relative transition-all group-hover:bg-green-600 dark:group-hover:bg-green-500/40" style={{ height: `${d.value}%` }}>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">{d.value}%</div>
               </div>
-              <span className="text-[10px] text-foreground text-center mt-2 truncate w-full block">{d.label}</span>
+              <span className="text-[10px] text-foreground text-center mt-2 truncate w-full block">{new Date(d.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           ))}
        </div>
@@ -377,11 +296,11 @@ const ConnectionDetailsModal = ({ device, onClose }: { device: Dispositivo, onCl
             <div className="space-y-3">
                <div className="flex justify-between items-center pb-2 border-b border-border/50">
                   <span className="text-sm text-muted-foreground">Intensidad (RSSI)</span>
-                  <span className={`font-mono font-bold ${device.rssi > -100 ? 'text-green-600' : 'text-amber-600'}`}>{device.rssi} dBm</span>
+                  <span className={`font-mono font-bold ${(device.rssi || -999) > -100 ? 'text-green-600' : 'text-amber-600'}`}>{device.rssi ?? '--'} dBm</span>
                </div>
                <div className="flex justify-between items-center pb-2 border-b border-border/50">
                   <span className="text-sm text-muted-foreground">Calidad (SNR)</span>
-                  <span className="font-mono font-bold text-foreground">{device.snr} dB</span>
+                  <span className="font-mono font-bold text-foreground">{device.snr ?? '--'} dB</span>
                </div>
                <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Paquetes Perdidos</span>
@@ -395,141 +314,198 @@ const ConnectionDetailsModal = ({ device, onClose }: { device: Dispositivo, onCl
   );
 };
 
-export default function DispositivosView() {
-  const [dispositivos, setDispositivos] = useState<Dispositivo[]>(dispositivosIniciales);
+interface DispositivosViewProps {
+  datosDispositivos: Dispositivo[];
+  parcelasDisponibles: any[]; // Recibimos las parcelas para el selector
+  onRefresh: () => void;
+  onVerEnMapa?: (coords: { lat: number; lng: number }) => void;
+}
+
+export default function DispositivosView({ datosDispositivos, parcelasDisponibles, onRefresh, onVerEnMapa }: DispositivosViewProps) {
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [dispositivos, setDispositivos] = useState<Dispositivo[]>(datosDispositivos);
   const [busqueda, setBusqueda] = useState('');
   const [editingDevice, setEditingDevice] = useState<Dispositivo | null>(null); // Dispositivo que se está editando
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [newDeviceType, setNewDeviceType] = useState<'router' | 'mota'>('mota');
   const [bindingCode, setBindingCode] = useState('');
-  const [newDeviceName, setNewDeviceName] = useState('');
   const [selectedHistoryDevice, setSelectedHistoryDevice] = useState<Dispositivo | null>(null);
   const [viewingConnectionDevice, setViewingConnectionDevice] = useState<Dispositivo | null>(null); // Nuevo estado para modal de conexión
   const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
+  const [historyData, setHistoryData] = useState<{ label: string, value: number, date: string }[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false); // Estado para el modal de desvinculación
   // State para filtros
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'mota' | 'router'>('todos');
   const [filtroParcela, setFiltroParcela] = useState<string>('todas');
 
-  // Derivar listas únicas para los filtros
-  const parcelasUnicas = [...new Set(dispositivos.map(d => d.parcela).filter((p): p is string => !!p))].sort();
+  // Sincronizar props con estado local
+  useEffect(() => {
+    setDispositivos(datosDispositivos);
+  }, [datosDispositivos]);
+
+  // Efecto para notificaciones
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Helper para obtener nombre de parcela por ID
+  const getNombreParcela = (id?: number | null) => {
+    if (!id) return null;
+    return parcelasDisponibles.find(p => p.id === id)?.nombre || 'Desconocida';
+  };
 
   // Filtrado
   const dispositivosFiltrados = dispositivos.filter(d => {
     // Filtro por búsqueda de texto
     const termino = busqueda.toLowerCase();
     const busquedaMatch = busqueda === '' ||
-      (d.tipo === 'mota' ? d.nombre.toLowerCase().includes(termino) : d.modelo.toLowerCase().includes(termino)) ||
-      d.codigoVinculacion.toLowerCase().includes(termino) ||
-      d.parcela?.toLowerCase().includes(termino);
+      (d.nombre || '').toLowerCase().includes(termino) ||
+      (d.modelo || '').toLowerCase().includes(termino) ||
+      d.codigoVinculacion.toLowerCase().includes(termino);
 
     // Filtro por tipo
     const tipoMatch = filtroTipo === 'todos' || d.tipo === filtroTipo;
 
     // Filtro por parcela
     const parcelaMatch = filtroParcela === 'todas' || 
-                         (filtroParcela === 'sin_asignar' && d.parcela === null) ||
-                         d.parcela === filtroParcela;
+                         (filtroParcela === 'sin_asignar' && !d.parcelaId) ||
+                         (d.parcelaId && d.parcelaId.toString() === filtroParcela);
 
     return busquedaMatch && tipoMatch && parcelaMatch;
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDevice) return;
     
-    setDispositivos(prev => prev.map(d => d.id === editingDevice.id ? editingDevice : d));
-    setEditingDevice(null);
+    try {
+      await updateDevice(editingDevice.id, editingDevice, editingDevice.tipo);
+      setNotification({ type: 'success', message: 'Dispositivo actualizado correctamente' });
+      setEditingDevice(null);
+      onRefresh();
+    } catch (error) {
+      console.error(error);
+      setNotification({ type: 'error', message: 'Error al actualizar el dispositivo' });
+    }
   };
 
-  const handleConfirmUnlink = () => { // Función que se llama al confirmar la desvinculación
+  const handleConfirmUnlink = async () => { 
     if (editingDevice) {
-      setDispositivos(prev => prev.filter(d => d.id !== editingDevice.id));
-      setEditingDevice(null);
-      setIsUnlinkModalOpen(false); // Cerrar el modal después de desvincular
+      try {
+        await deleteDevice(editingDevice.id, editingDevice.tipo);
+        setNotification({ type: 'success', message: 'Dispositivo desvinculado correctamente' });
+        setEditingDevice(null);
+        setIsUnlinkModalOpen(false);
+        onRefresh();
+      } catch (error) {
+        setNotification({ type: 'error', message: 'No se pudo desvincular el dispositivo' });
+      }
     }
   };
 
   const handleBindingCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Eliminar caracteres no alfanuméricos y convertir a mayúsculas
     let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    
-    // Limitar a 12 caracteres (3 bloques de 4)
     if (val.length > 12) val = val.slice(0, 12);
-    
-    // Insertar guiones cada 4 caracteres
     const parts = val.match(/.{1,4}/g);
-    if (parts) {
-      setBindingCode(parts.join('-'));
-    } else {
-      setBindingCode(val);
-    }
+    if (parts) { setBindingCode(parts.join('-')); } else { setBindingCode(val); }
   };
 
-  const handleLinkDevice = (e: React.FormEvent) => {
+  const handleLinkDevice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (bindingCode.length < 14) return; // 12 chars + 2 guiones
 
-    const newId = Math.max(0, ...dispositivos.map(d => d.id)) + 1;
-    
+    // Preparamos el objeto temporal para enviar al backend
+    // Nota: El ID lo asignará la base de datos, aquí solo mandamos datos
     const newDevice: Dispositivo = newDeviceType === 'router' ? {
-      id: newId,
+      id: 0, // Temporal
       tipo: 'router',
       codigoVinculacion: bindingCode,
-      modelo: newDeviceName || 'Nuevo Gateway',
-      ssid: `LoRa-Gateway-${newId}`,
+      modelo: 'Gateway Genérico',
+      ssid: `LoRa-Gateway-New`,
       esPublico: false,
       bateria: 100,
       fechaUltimaConexion: new Date().toISOString(),
-      parcela: null,
+      parcelaId: null,
       canal: 0,
-      frecuencia: '15 min',
       estado: 'online',
       paquetesEnviados: 0,
       paquetesRecibidos: 0,
       erroresTx: 0,
       erroresRx: 0,
       erroresCrc: 0,
-      historialConsumo: Array(24).fill(0) // Añadido para corregir el error de tipo
+      historialConsumo: []
     } : {
-      id: newId,
+      id: 0, // Temporal
       tipo: 'mota',
       codigoVinculacion: bindingCode,
-      nombre: newDeviceName || 'Nuevo Sensor',
+      nombre: 'Nuevo Sensor',
       modelo: 'Heltec V3',
       bateriaUltima: 100,
       fechaUltimaConexion: new Date().toISOString(),
-      parcela: null,
+      parcelaId: null,
       canal: 0,
       routerId: 101, // Default mock
-      rssi: -70,
-      snr: 10,
+      rssi: null,
+      snr: null,
       erroresRx: 0,
-      frecuencia: '15 min',
+      frecuencia: 15,
       estado: 'online',
-      historialConsumo: Array(24).fill(0)
+      historialConsumo: []
     };
 
-    setDispositivos(prev => [...prev, newDevice]);
-    setIsLinkModalOpen(false);
-    setBindingCode('');
-    setNewDeviceName('');
+    try {
+      await createDevice(newDevice, newDeviceType);
+      setNotification({ type: 'success', message: 'Dispositivo vinculado exitosamente' });
+      setIsLinkModalOpen(false);
+      setBindingCode('');
+      onRefresh();
+    } catch (error) {
+      setNotification({ type: 'error', message: 'Error al vincular. Verifica el código.' });
+    }
   };
 
-  // Generador de datos ficticios para el modal de historial
-  const getDetailedHistoryData = (range: '24h' | '7d' | '30d') => {
-    const count = range === '24h' ? 24 : range === '7d' ? 7 : 30;
-    return Array.from({ length: count }, (_, i) => ({
-      label: range === '24h' ? `${i}:00` : range === '7d' ? `Día ${i+1}` : `Día ${i+1}`,
-      value: Math.floor(Math.random() * 15),
-      date: new Date().toLocaleDateString()
-    }));
-  };
+  // Efecto para cargar historial real cuando se abre el modal o cambia el rango
+  useEffect(() => {
+    if (!selectedHistoryDevice || selectedHistoryDevice.tipo !== 'mota') return;
 
-  const historyData = useMemo(() => getDetailedHistoryData(historyRange), [historyRange]);
+    const fetchHistory = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const end = new Date();
+        const start = new Date();
+        
+        if (historyRange === '24h') start.setHours(start.getHours() - 24);
+        else if (historyRange === '7d') start.setDate(start.getDate() - 7);
+        else if (historyRange === '30d') start.setDate(start.getDate() - 30);
 
-  const getBateriaColor = (nivel: number) => {
+        const mediciones = await getMediciones(selectedHistoryDevice.id, start, end);
+        
+        // Mapeamos las mediciones al formato de la gráfica
+        const formattedData = mediciones.map((m: any) => ({
+          label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          value: m.bateria, // Usamos nivel de batería real (0-100)
+          date: m.fecha
+        }));
+
+        setHistoryData(formattedData);
+      } catch (error) {
+        console.error("Error cargando historial:", error);
+        setNotification({ type: 'error', message: 'No se pudo cargar el historial' });
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    fetchHistory();
+  }, [selectedHistoryDevice, historyRange]);
+
+  const getBateriaColor = (nivel: number | null | undefined) => {
+    if (nivel === null || nivel === undefined) return 'text-muted-foreground'; // Gris si es null
     if (nivel > 50) return 'text-green-500';
     if (nivel > 20) return 'text-amber-500';
     return 'text-destructive';
@@ -584,7 +560,7 @@ export default function DispositivosView() {
           options={[
             { value: 'todas', label: 'Todas las Parcelas' },
             { value: 'sin_asignar', label: 'Sin Asignar' },
-            ...parcelasUnicas.map(p => ({ value: p, label: p }))
+            ...parcelasDisponibles.map(p => ({ value: p.id.toString(), label: p.nombre }))
           ]}
         />
         </div>
@@ -595,7 +571,7 @@ export default function DispositivosView() {
         {dispositivosFiltrados.map((disp) => (
           <motion.div 
             layout
-            key={disp.id} 
+            key={`${disp.tipo}-${disp.id}`} 
             className="flora-card group p-5"
           >
             {/* Cabecera de la Tarjeta */}
@@ -606,16 +582,33 @@ export default function DispositivosView() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-foreground leading-tight">
-                      {disp.tipo === 'mota' ? disp.nombre : disp.modelo}
+                    <h4 className={`font-bold leading-tight ${!disp.nombre ? 'text-amber-600 dark:text-amber-500 italic' : 'text-foreground'}`}>
+                      {disp.nombre || 'Sin Nombre'}
                     </h4>
-                    <span className="text-[10px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50">#{disp.id}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50">
+                      #{disp.tipo === 'router' ? 'R' : 'M'}{disp.id}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1">
+                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">{disp.modelo || 'Modelo Genérico'}</p>
+                  <div className="group/status relative flex items-center gap-1.5 mt-1 cursor-help">
                     <span className={`flex h-2 w-2 rounded-full ${
                       disp.estado === 'online' ? 'bg-green-500' : disp.estado === 'alerta' ? 'bg-destructive' : 'bg-muted'
                     }`} />
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{disp.estado}</span>
+                    
+                    {/* Tooltip Explicativo de Estado */}
+                    <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-4 text-sm text-card-foreground shadow-2xl border border-border z-[100] group-hover/status:block animate-in fade-in zoom-in-95 duration-200">
+                      <div className="font-bold mb-2 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${disp.estado === 'online' ? 'bg-green-500' : 'bg-muted'}`}></div>
+                        {disp.estado === 'online' ? 'Dispositivo Operativo' : 'Sin Conexión Reciente'}
+                      </div>
+                      <p className="leading-relaxed opacity-90 text-xs text-muted-foreground">
+                        Debido al ahorro de energía (Deep Sleep), se considera <strong>Online</strong> si ha reportado datos en las últimas 24h.
+                      </p>
+                      <div className="mt-3 pt-2 border-t border-border/50 text-[10px] opacity-70 font-mono text-muted-foreground">
+                        Última conexión: {disp.fechaUltimaConexion ? new Date(disp.fechaUltimaConexion).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Nunca'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -629,31 +622,88 @@ export default function DispositivosView() {
 
             {/* Detalles Técnicos */}
             <div className="space-y-3 mb-5">
+              {/* Fila de Parcela */}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5"><MapPin size={14}/> Ubicación</span>
-                <span className="font-medium text-foreground text-right truncate max-w-[140px]">
-                  {disp.parcela || 'Sin asignar'}
-                </span>
+                <span className="text-muted-foreground flex items-center gap-1.5"><MapPin size={14}/> Parcela</span>
+                {disp.parcelaId ? (
+                  <span className="font-medium text-foreground text-right truncate max-w-[140px]">
+                    {getNombreParcela(disp.parcelaId)}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/50">
+                    <AlertTriangle size={10} /> SIN ASIGNAR
+                  </span>
+                )}
+              </div>
+
+              {/* Fila de GPS */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="group/gps-label relative flex items-center gap-1.5 text-muted-foreground cursor-help">
+                  <Globe size={14}/> <span className="border-b border-dotted border-muted-foreground/50">GPS</span>
+                  {/* Tooltip GPS */}
+                  <div className="absolute top-full left-0 mt-2 hidden w-64 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[100] group-hover/gps-label:block animate-in fade-in zoom-in-95 duration-200">
+                    <div className="font-bold mb-1 text-foreground">Posicionamiento Eficiente</div>
+                    <p className="opacity-90 leading-relaxed">
+                      Para maximizar la autonomía, las coordenadas solo se envían al conectarse a la red. 
+                      Si cambia el dispositivo de lugar, solicite una actualización física (reinicio) para registrar la nueva ubicación.
+                    </p>
+                  </div>
+                </div>
+                {disp.latitud && disp.longitud ? (
+                  <button onClick={() => onVerEnMapa && onVerEnMapa({ lat: disp.latitud!, lng: disp.longitud! })} className="text-right group/gps">
+                    <span className="font-mono font-bold text-foreground block group-hover/gps:text-blue-600">
+                      {disp.latitud.toFixed(4)}, {disp.longitud.toFixed(4)}
+                    </span>
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md border border-destructive/20">
+                    <X size={10} /> SIN SEÑAL
+                  </span>
+                )}
               </div>
               
               {disp.tipo === 'router' && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground flex items-center gap-1.5"><Wifi size={14}/> Red (SSID)</span>
-                  <span className="font-medium text-foreground flex items-center gap-1">
-                    {disp.esPublico ? <Globe size={12} className="text-blue-500"/> : <Lock size={12} className="text-amber-500"/>}
-                    {disp.ssid}
-                  </span>
+                  {disp.ssid ? (
+                    <span className="font-medium text-foreground flex items-center gap-1">
+                      {disp.esPublico ? <Globe size={12} className="text-blue-500"/> : <Lock size={12} className="text-amber-500"/>}
+                      {disp.ssid}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">SIN RED</span>
+                  )}
+                </div>
+              )}
+
+              {disp.tipo === 'mota' && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
+                  <span className="font-medium text-foreground">{disp.frecuencia || '--'} min</span>
                 </div>
               )}
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
-                <span className="font-medium text-foreground">{disp.frecuencia}</span>
-              </div>
+                <div className="group/channel-label relative flex items-center gap-1.5 text-muted-foreground cursor-help">
+                  <Radio size={14}/> <span className="border-b border-dotted border-muted-foreground/50">Canal</span>
+                  {/* Tooltip Canal */}
+                  <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[100] group-hover/channel-label:block animate-in fade-in zoom-in-95 duration-200">
+                    <div className="font-bold mb-1 text-foreground">Frecuencia LoRaWAN</div>
+                    <p className="opacity-90 leading-relaxed mb-2">
+                      Canal de comunicación físico. Se recomienda usar canales distintos en redes cercanas para evitar colisiones.
+                    </p>
+                    <div className="bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-800/30 text-amber-700 dark:text-amber-400">
+                      <strong>¡Precaución!</strong> Las motas no cambian de canal remotamente. Si cambia el canal del Router, deberá reiniciar físicamente todas las motas para que reconecten.
+                    </div>
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5"><Radio size={14}/> Canal</span>
-                <span className="font-medium text-foreground">CH {disp.canal}</span>
+                <span className="font-medium text-foreground">
+                  {disp.tipo === 'router' 
+                    ? `CH ${disp.canal ?? '-'} (${CHANNEL_FREQUENCIES[disp.canal ?? -1] || 'Unknown'})` 
+                    : `CH ${disp.canal ?? '-'}`
+                  }
+                </span>
               </div>
             </div>
 
@@ -664,12 +714,15 @@ export default function DispositivosView() {
                 <div className={`flex items-center gap-1.5 text-sm font-bold ${
                   disp.tipo === 'router' && !disp.bateria 
                     ? 'text-blue-500' 
-                    : getBateriaColor(disp.tipo === 'router' ? (disp.bateria || 0) : disp.bateriaUltima)
+                    : getBateriaColor(disp.tipo === 'router' ? disp.bateria : disp.bateriaUltima)
                 }`}>
                   {disp.tipo === 'router' && !disp.bateria ? (
                     <><Plug size={16} /> AC</>
                   ) : (
-                    <><BatteryLevel level={disp.tipo === 'router' ? (disp.bateria || 0) : disp.bateriaUltima} size={16} /> {disp.tipo === 'router' ? `${disp.bateria}%` : `${disp.bateriaUltima}%`}</>
+                    <>
+                      <BatteryLevel level={disp.tipo === 'router' ? (disp.bateria || 0) : (disp.bateriaUltima || 0)} size={16} /> 
+                      {disp.tipo === 'router' ? (disp.bateria !== null ? `${disp.bateria}%` : '--%') : (disp.bateriaUltima !== null ? `${disp.bateriaUltima}%` : '--%')}
+                    </>
                   )}
                 </div>
               </div>
@@ -683,9 +736,17 @@ export default function DispositivosView() {
                 </span>
                 <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
                   {disp.tipo === 'router' ? (
-                    <><Activity size={16} className="text-blue-500"/> {disp.paquetesEnviados}</>
+                    (disp.paquetesEnviados > 0 || disp.paquetesRecibidos > 0) ? (
+                      <><Activity size={16} className="text-blue-500"/> {disp.paquetesEnviados}</>
+                    ) : (
+                      <span className="text-xs font-normal text-muted-foreground italic">--</span>
+                    )
                   ) : (
-                    <><Signal size={16} className="text-blue-500"/> {disp.rssi} dBm</>
+                    (disp.rssi !== null && disp.rssi !== undefined) ? (
+                      <><Signal size={16} className={disp.rssi > -100 ? "text-blue-500" : "text-amber-500"}/> {disp.rssi} dBm</>
+                    ) : (
+                      <span className="text-xs font-normal text-muted-foreground italic">--</span>
+                    )
                   )}
                 </div>
               </div>
@@ -708,7 +769,7 @@ export default function DispositivosView() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl"
+              className="w-full max-w-md rounded-3xl bg-card shadow-2xl"
             >
               <div className="flex items-center justify-between border-b border-border p-6">
                 <h3 className="text-xl font-bold text-foreground">Configurar Dispositivo</h3>
@@ -718,18 +779,27 @@ export default function DispositivosView() {
               </div>
               
               <form onSubmit={handleSave} className="p-6 space-y-5">
+                {/* Aviso de Configuración Diferida */}
+                <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 flex gap-3">
+                  <Info className="text-blue-600 dark:text-blue-400 shrink-0" size={20} />
+                  <div>
+                    <h4 className="font-bold text-blue-700 dark:text-blue-300 text-sm mb-1">Aplicación Diferida de Cambios</h4>
+                    <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
+                      Para garantizar una autonomía de varios meses, el dispositivo permanece en reposo la mayor parte del tiempo. Las configuraciones se transmitirán y aplicarán automáticamente durante la <strong>próxima conexión</strong> programada.
+                    </p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                    {editingDevice.tipo === 'mota' ? 'Nombre del Sensor' : 'Modelo / Identificador'}
+                    Nombre del Dispositivo
                   </label>
                   <input 
                     type="text" 
-                    value={editingDevice.tipo === 'mota' ? editingDevice.nombre : editingDevice.modelo}
+                    value={editingDevice.nombre || ''}
                     onChange={(e) => setEditingDevice(prev => {
                       if (!prev) return null;
-                      return prev.tipo === 'mota' 
-                        ? { ...prev, nombre: e.target.value } 
-                        : { ...prev, modelo: e.target.value };
+                      return { ...prev, nombre: e.target.value };
                     })}
                     className="flora-input py-3"
                   />
@@ -741,7 +811,7 @@ export default function DispositivosView() {
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">SSID de Red</label>
                       <input 
                         type="text" 
-                        value={editingDevice.ssid}
+                        value={editingDevice.ssid || ''} // <--- CORRECCIÓN: Evita el valor null
                         onChange={(e) => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, ssid: e.target.value } : prev)}
                         className="flora-input py-3"
                       />
@@ -765,29 +835,45 @@ export default function DispositivosView() {
                 <div>
                   <Select 
                     label="Asignar a Parcela"
-                    value={editingDevice.parcela || ''}
-                    onChange={(val) => setEditingDevice(prev => prev ? { ...prev, parcela: val || null } : null)}
+                    value={editingDevice.parcelaId?.toString() || ''}
+                    onChange={(val) => setEditingDevice(prev => prev ? { ...prev, parcelaId: val ? parseInt(val) : null } : null)}
                     options={[
                       { value: '', label: 'Sin Asignar (En almacén)' },
-                      ...parcelasUnicas.map(p => ({ value: p, label: p }))
+                      ...parcelasDisponibles.map(p => ({ value: p.id.toString(), label: p.nombre }))
                     ]}
                   />
                 </div>
 
-                <div>
-                  <Select 
-                    label="Frecuencia de Actualización"
-                    value={editingDevice.frecuencia}
-                    onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: val } : null)}
-                    options={[
-                      { value: '5 min', label: '5 min (Alto Consumo)' },
-                      { value: '15 min', label: '15 min (Estándar)' },
-                      { value: '30 min', label: '30 min (Ahorro)' },
-                      { value: '1 hora', label: '1 hora (Eco)' },
-                      { value: '6 horas', label: '6 horas (Extremo)' }
-                    ]}
-                  />
-                </div>
+                {editingDevice.tipo === 'router' ? (
+                  <div>
+                    <Select 
+                      label="Canal de Operación"
+                      value={editingDevice.canal?.toString() || '0'}
+                      onChange={(val) => setEditingDevice(prev => prev ? { ...prev, canal: parseInt(val) } : null)}
+                      options={[
+                        { value: '0', label: 'Canal 0 (868.1 MHz)' },
+                        { value: '1', label: 'Canal 1 (868.3 MHz)' },
+                        { value: '2', label: 'Canal 2 (868.5 MHz)' },
+                        { value: '3', label: 'Canal 3 (869.525 MHz)' }
+                      ]}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <Select 
+                      label="Frecuencia de Actualización"
+                      value={editingDevice.frecuencia?.toString() || '15'}
+                      onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: parseInt(val) } : null)}
+                      options={[
+                        { value: '5', label: '5 min (Alto Consumo)' },
+                        { value: '15', label: '15 min (Estándar)' },
+                        { value: '30', label: '30 min (Ahorro)' },
+                        { value: '60', label: '1 hora (Eco)' },
+                        { value: '360', label: '6 horas (Extremo)' }
+                      ]}
+                    />
+                  </div>
+                )}
 
                 <div className="pt-4 mt-4 border-t border-border space-y-3">
                   <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-green-500/10 transition-all">
@@ -865,16 +951,6 @@ export default function DispositivosView() {
                   <p className="mt-2 text-xs text-muted-foreground text-center">Introduce el ID de 12 caracteres impreso en el dispositivo.</p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Nombre Identificativo (Opcional)</label>
-                  <input 
-                    type="text" 
-                    value={newDeviceName}
-                    onChange={(e) => setNewDeviceName(e.target.value)}
-                    placeholder={newDeviceType === 'mota' ? "Ej: Sensor Tomates" : "Ej: Gateway Principal"}
-                    className="flora-input py-3"
-                  />
-                </div>
 
                 <div className="pt-2">
                   <button 
@@ -936,7 +1012,13 @@ export default function DispositivosView() {
                 </div>
 
                 {/* Gráfica Grande */}
-                <DetailedHistoryChart data={historyData} />
+                {isLoadingHistory ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <DetailedHistoryChart data={historyData} />
+                )}
               </div>
             </motion.div>
           </div>
@@ -959,6 +1041,33 @@ export default function DispositivosView() {
         onConfirm={handleConfirmUnlink}
         dispositivo={editingDevice}
       />
+
+      {/* SISTEMA DE NOTIFICACIONES FLOTANTES (TOASTS) */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-6 right-6 z-[1100] flex items-center gap-4 rounded-2xl border p-5 shadow-2xl backdrop-blur-xl ${
+              notification.type === 'success' 
+                ? 'bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400' 
+                : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400'
+            }`}
+          >
+            <div className={`rounded-full p-2 ${notification.type === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+              {notification.type === 'success' ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
+            </div>
+            <div>
+              <h4 className="font-bold text-base">{notification.type === 'success' ? 'Operación Exitosa' : 'Error'}</h4>
+              <p className="text-sm opacity-90">{notification.message}</p>
+            </div>
+            <button onClick={() => setNotification(null)} className="ml-2 rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+              <X size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

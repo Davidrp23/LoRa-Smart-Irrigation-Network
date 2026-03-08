@@ -3,9 +3,11 @@ import { UpdateRouterDto } from './dto/update-router.dto';
 import { Router } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { VincularRouterDto } from './dto/vincular-router.dto';
+import { ParcelasService } from 'src/parcelas/parcelas.service';
 export declare class RoutersService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private parcelasService;
+    constructor(prisma: PrismaService, parcelasService: ParcelasService);
     create(createRouterDto: CreateRouterDto): Promise<Router>;
     findAll(usuarioId: number): Promise<Router[]>;
     findOne(usuarioId: number, id: number): Promise<Router | null>;

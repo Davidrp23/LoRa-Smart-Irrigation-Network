@@ -53,6 +53,10 @@ export class BigPacketService {
             longitud: mota.longitud,
             routerId: routerID, // Enganchamos la mota al router que nos acaba de hablar
             fechaUltimaConexion: ahora,
+            humedad: mota.humedad,
+            rssi: mota.rssi,
+            snr: mota.snr,
+            erroresRxMota: mota.erroresRxMota,
           },
         })
       );

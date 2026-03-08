@@ -51,8 +51,17 @@ export class MotasService {
     throw new InternalServerErrorException('No se pudo generar un código único para el router.');
 }
 
-  async findAll(usuarioId: number): Promise<Mota[]> {
-    return this.prisma.mota.findMany({where: {usuarioId}});
+  async findAll(usuarioId: number) {
+    return this.prisma.mota.findMany({
+      where: { usuarioId },
+      include: {
+        mediciones: {
+          select: { bateria: true, fecha: true }, // Necesitamos batería y fecha para la gráfica
+          orderBy: { fecha: 'desc' },
+          take: 24 // Últimas 24 mediciones (aprox 24h si es cada hora, o las últimas 24 muestras)
+        }
+      }
+    });
   }
 
   async findOne(usuarioId: number, id: number): Promise<Mota | null> {

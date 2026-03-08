@@ -1,12 +1,15 @@
-import { CreateMotaDto } from './create-mota.dto';
-declare const UpdateMotaDto_base: import("@nestjs/common").Type<Partial<CreateMotaDto>>;
-export declare class UpdateMotaDto extends UpdateMotaDto_base {
+export declare class UpdateMotaDto {
     nombre: string;
     parcelaId: number;
+    frecuencia: number;
+    canal: number;
     latitud: number;
     longitud: number;
     routerId: number;
     bateriaUltima: number;
+    humedad: number;
+    rssi: number;
+    snr: number;
+    erroresRxMota: number;
     fechaUltimaConexion: Date;
 }
-export {};

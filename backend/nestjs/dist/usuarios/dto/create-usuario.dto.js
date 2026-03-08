@@ -15,6 +15,7 @@ class CreateUsuarioDto {
     email;
     nombre;
     password;
+    foto;
 }
 exports.CreateUsuarioDto = CreateUsuarioDto;
 __decorate([
@@ -31,4 +32,9 @@ __decorate([
     (0, class_validator_1.MinLength)(8, { message: 'La contraseña es muy corta, minimo 8 caracteres. ' }),
     __metadata("design:type", String)
 ], CreateUsuarioDto.prototype, "password", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUsuarioDto.prototype, "foto", void 0);
 //# sourceMappingURL=create-usuario.dto.js.map

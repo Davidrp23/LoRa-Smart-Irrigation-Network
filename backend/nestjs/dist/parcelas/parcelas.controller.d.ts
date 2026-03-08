@@ -7,40 +7,50 @@ export declare class ParcelasController {
     create(req: any, createParcelaDto: CreateParcelaDto): Promise<{
         nombre: string;
         cultivo: string | null;
+        tipoSuelo: string | null;
         latitudCentro: number;
         longitudCentro: number;
+        puntos: import("@prisma/client/runtime/library").JsonValue | null;
         id: number;
         usuarioId: number;
     }>;
     findAll(req: any): Promise<{
         nombre: string;
         cultivo: string | null;
+        tipoSuelo: string | null;
         latitudCentro: number;
         longitudCentro: number;
+        puntos: import("@prisma/client/runtime/library").JsonValue | null;
         id: number;
         usuarioId: number;
     }[]>;
     findOne(req: any, id: number): Promise<{
         nombre: string;
         cultivo: string | null;
+        tipoSuelo: string | null;
         latitudCentro: number;
         longitudCentro: number;
+        puntos: import("@prisma/client/runtime/library").JsonValue | null;
         id: number;
         usuarioId: number;
     } | null>;
     update(req: any, id: number, updateParcelaDto: UpdateParcelaDto): Promise<{
         nombre: string;
         cultivo: string | null;
+        tipoSuelo: string | null;
         latitudCentro: number;
         longitudCentro: number;
+        puntos: import("@prisma/client/runtime/library").JsonValue | null;
         id: number;
         usuarioId: number;
     }>;
     remove(req: any, id: number): Promise<{
         nombre: string;
         cultivo: string | null;
+        tipoSuelo: string | null;
         latitudCentro: number;
         longitudCentro: number;
+        puntos: import("@prisma/client/runtime/library").JsonValue | null;
         id: number;
         usuarioId: number;
     }>;

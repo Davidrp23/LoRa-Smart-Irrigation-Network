@@ -5,7 +5,7 @@ interface Dispositivo {
   id: number;
   codigoVinculacion: string;
   tipo: 'router' | 'mota';
-  nombre?: string;
+  nombre?: string | null;
   modelo?: string;
 }
 

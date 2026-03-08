@@ -39,6 +39,10 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
                     longitud: mota.longitud,
                     routerId: routerID,
                     fechaUltimaConexion: ahora,
+                    humedad: mota.humedad,
+                    rssi: mota.rssi,
+                    snr: mota.snr,
+                    erroresRxMota: mota.erroresRxMota,
                 },
             }));
             medicionesParaInsertar.push({

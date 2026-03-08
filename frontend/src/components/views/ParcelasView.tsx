@@ -1,55 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
 import ConfirmarEliminarModal from './ConfirmarEliminarModal';
 import { initParcelMap, type Parcela, type Dispositivo } from '../../utils/mapUtils';
+import { createParcela, updateParcela, deleteParcela, getMediciones } from '../../services/dataService';
 
-const parcelasFalsas: Parcela[] = [
-  { 
-    id: 1, nombre: 'Sector Norte - Tomates', cultivo: 'Tomate Rojo', tipoSuelo: 'Franco-Arcilloso', humedad: 45, proximoRiego: 'Hoy, 22:00', estado: 'ok', motas: 4,
-    coordenadas: [
-      [36.94887185099825, -6.100605594574611], [36.9501864933793, -6.105923013725575], [36.946008167461436, -6.107466521031202], [36.94468833903622, -6.102233715367487]
-    ] as [number, number][],
-    dispositivos: [
-      { id: 101, tipo: 'router', esPublico: true, coordenadas: [36.9475, -6.1040], estado: 'online', modelo: 'Gateway Pro V2', ssid: 'LoRa-Norte', bateria: 100, fechaUltimaConexion: 'Hace 2 min', paquetesEnviados: 15420, paquetesRecibidos: 15380, erroresTx: 5, erroresRx: 12, erroresCrc: 3, canal: 1 },
-      { id: 102, tipo: 'mota', coordenadas: [36.9485, -6.1020], estado: 'online', nombre: 'Sensor Humedad 1', modelo: 'Heltec V3', bateria: 85, fechaUltimaConexion: 'Hace 10 min', routerId: 101, rssi: -85, snr: 9.5, erroresRx: 0, humedad: 42, canal: 1 },
-      { id: 103, tipo: 'mota', coordenadas: [36.9465, -6.1060], estado: 'online', nombre: 'Sensor Humedad 2', modelo: 'Heltec V3', bateria: 72, fechaUltimaConexion: 'Hace 15 min', routerId: 101, rssi: -92, snr: 7.2, erroresRx: 1, humedad: 48, canal: 1 },
-      { id: 104, tipo: 'mota', coordenadas: [36.9490, -6.1050], estado: 'low-battery', nombre: 'Sensor Suelo A', modelo: 'Heltec V3', bateria: 12, fechaUltimaConexion: 'Hace 1 hora', routerId: 101, rssi: -105, snr: 2.1, erroresRx: 5, humedad: 45, canal: 1 }
-    ]
-  },
-  { 
-    id: 2, nombre: 'Sector Sur - Algodon', cultivo: 'Algodon', tipoSuelo: 'Limoso', humedad: 90, proximoRiego: 'Mañana, 07:00', estado: 'ok', motas: 5,
-    coordenadas: [
-      [36.947696751728195, -6.095302867086164], 
-      [36.95186319198487, -6.093650681420625], [36.95451699582317, -6.104295241892999], 
-      [36.950309323918084, -6.105913161047598]
-    ] as [number, number][],
-    dispositivos: [
-      { id: 201, tipo: 'router', esPublico: false, coordenadas: [36.9510, -6.1000], estado: 'online', modelo: 'Gateway Lite', ssid: 'LoRa-Sur', bateria: 95, fechaUltimaConexion: 'Hace 1 min', paquetesEnviados: 8900, paquetesRecibidos: 8850, erroresTx: 2, erroresRx: 5, erroresCrc: 0, canal: 2 },
-      { id: 202, tipo: 'mota', coordenadas: [36.9525, -6.0970], estado: 'online', nombre: 'Mota Central', modelo: 'Heltec V3', bateria: 60, fechaUltimaConexion: 'Hace 5 min', routerId: 201, rssi: -78, snr: 11.0, erroresRx: 0, humedad: 88, canal: 2 },
-      { id: 203, tipo: 'mota', coordenadas: [36.9500, -6.1030], estado: 'online', nombre: 'Mota Borde', modelo: 'Heltec V3', bateria: 55, fechaUltimaConexion: 'Hace 8 min', routerId: 201, rssi: -95, snr: 6.5, erroresRx: 2, humedad: 92, canal: 2 },
-      { id: 204, tipo: 'mota', coordenadas: [36.9490, -6.0960], estado: 'offline', nombre: 'Mota Vieja', modelo: 'Heltec V2', bateria: 0, fechaUltimaConexion: 'Hace 2 días', routerId: 201, rssi: -125, snr: -5.0, erroresRx: 20, humedad: 0, canal: 2 },
-      { id: 205, tipo: 'mota', coordenadas: [36.9530, -6.1020], estado: 'online', nombre: 'Sensor Nuevo', modelo: 'Heltec V3', bateria: 98, fechaUltimaConexion: 'Hace 1 min', routerId: 201, rssi: -65, snr: 12.5, erroresRx: 0, humedad: 90, canal: 2 }
-    ]
-  },
-  { 
-    id: 3, nombre: 'Sector Este - Vides', cultivo: 'Viñedo Tempranillo', tipoSuelo: 'Calcáreo', humedad: 37, proximoRiego: 'Hoy, 18:00', estado: 'alerta', motas: 3,
-    coordenadas: [
-      [36.95307824110262, -6.116886463551348], 
-      [36.9572215752587, -6.115265353562782], [36.961317959487495, -6.1316134803903655], 
-      [36.95718131680132, -6.133309343564988]
-    ] as [number, number][],
-    dispositivos: [
-      { id: 301, tipo: 'router', esPublico: false, coordenadas: [36.9570, -6.1240], estado: 'online', modelo: 'Gateway Pro', ssid: 'LoRa-Este', bateria: 88, fechaUltimaConexion: 'Hace 3 min', paquetesEnviados: 22000, paquetesRecibidos: 21950, erroresTx: 10, erroresRx: 25, erroresCrc: 8, canal: 0 },
-      { id: 302, tipo: 'mota', coordenadas: [36.9550, -6.1200], estado: 'online', nombre: 'Vides 1', modelo: 'Heltec V3', bateria: 40, fechaUltimaConexion: 'Hace 20 min', routerId: 301, rssi: -88, snr: 8.0, erroresRx: 1, humedad: 35, canal: 0 },
-      { id: 303, tipo: 'mota', coordenadas: [36.9590, -6.1280], estado: 'low-battery', nombre: 'Vides 2', modelo: 'Heltec V3', bateria: 15, fechaUltimaConexion: 'Hace 45 min', routerId: 301, rssi: -110, snr: 1.5, erroresRx: 8, humedad: 39, canal: 0 }
-    ]
-  },
-];
+// Eliminamos parcelasFalsas
 
 const generateRandomData = (range: '24h' | '7d' | '30d') => {
   const count = range === '24h' ? 24 : range === '7d' ? 7 : 30;
@@ -60,6 +20,21 @@ const generateRandomData = (range: '24h' | '7d' | '30d') => {
 };
 
 type HistoryItem = { type: 'parcela', data: Parcela } | { type: 'mota', data: Dispositivo };
+
+// Interfaz local para dispositivos con propiedades extra de UI (lat/lng para Leaflet)
+interface DispositivoExtended extends Omit<Dispositivo, 'coordenadas' | 'bateria' | 'rssi' | 'canal'> {
+  lat?: number | null;
+  lng?: number | null;
+  coordenadas?: number[] | null; // Relajamos el tipo estricto [number, number]
+  bateria?: number | null;       // Fix: Aseguramos que bateria existe (mapeado desde bateriaUltima)
+  rssi?: number | null;          // Fix: Aseguramos rssi
+  canal?: number | null;         // Fix: Aseguramos canal
+}
+
+// Extendemos la interfaz Parcela localmente para incluir la lista completa
+interface ParcelaExtended extends Parcela {
+  dispositivosTodos: DispositivoExtended[];
+}
 
 // Componente de Batería con Relleno Proporcional
 const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: number; className?: string }) => {
@@ -90,9 +65,10 @@ const BatteryLevel = ({ level, size = 18, className }: { level: number; size?: n
 };
 
 // Componente Modal para Resumen de Dispositivos
-const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }) => {
-  const routers = parcel.dispositivos?.filter(d => d.tipo === 'router') || [];
-  const motas = parcel.dispositivos?.filter(d => d.tipo === 'mota') || [];
+const DeviceSummaryModal = ({ parcel }: { parcel: ParcelaExtended, onClose: () => void }) => {
+  // Usamos dispositivosTodos para mostrar incluso los que no tienen GPS
+  const routers = parcel.dispositivosTodos?.filter(d => d.tipo === 'router') || [];
+  const motas = parcel.dispositivosTodos?.filter(d => d.tipo === 'mota') || [];
 
   const DeviceList = ({ title, devices, icon: Icon, colorClass }: any) => (
     <div className="mb-6 last:mb-0">
@@ -103,23 +79,35 @@ const DeviceSummaryModal = ({ parcel }: { parcel: Parcela, onClose: () => void }
         <p className="text-sm text-muted-foreground italic">No hay dispositivos de este tipo.</p>
       ) : (
         <div className="grid gap-3">
-          {devices.map((d: Dispositivo) => (
+          {devices.map((d: DispositivoExtended) => (
             <div key={d.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border transition-colors hover:bg-muted">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${d.estado === 'online' ? 'bg-green-500' : d.estado === 'low-battery' ? 'bg-yellow-500' : 'bg-red-500'}`} />
                 <div>
-                  <p className="font-bold text-card-foreground text-sm">{d.nombre || d.modelo || `Dispositivo #${d.id}`}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-card-foreground text-sm">{d.nombre || d.modelo || `Dispositivo #${d.id}`}</p>
+                    {(!d.lat || !d.lng) && (
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                        SIN GPS
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{d.ssid || `ID: ${d.id}`}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 text-xs font-medium">
                 {d.tipo === 'mota' && (
                   <div className="flex items-center gap-1 text-muted-foreground">
-                    <Signal size={14} /> {d.rssi} dBm
+                    <Signal size={14} /> {d.rssi ?? '--'} dBm
                   </div>
                 )}
-                <div className={`flex items-center gap-1 ${d.bateria && d.bateria < 20 ? 'text-red-500' : 'text-green-600'}`}>
-                  <BatteryLevel level={d.bateria || 0} size={14} /> {d.bateria}%
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Radio size={14} /> CH {d.canal ?? '--'}
+                </div>
+                <div className={`flex items-center gap-1 ${d.bateria != null && d.bateria < 20 ? 'text-red-500' : 'text-green-600'}`}>
+                  {d.bateria != null 
+                    ? <><BatteryLevel level={d.bateria} size={14} /> {d.bateria}%</>
+                    : <span className="text-muted-foreground">--%</span>}
                 </div>
               </div>
             </div>
@@ -359,10 +347,17 @@ const DetailedHumidityChart = ({ data }: { data: { label: string, value: number 
   );
 };
 
-export default function ParcelasView() {
+interface ParcelasViewProps {
+  datosParcelas: Parcela[];
+  onRefresh: () => void;
+  mapTarget?: { lat: number; lng: number } | null;
+  onMapTargetCleared?: () => void;
+}
+
+export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMapTargetCleared }: ParcelasViewProps) {
   const { theme } = useTheme();
-  const [parcelas, setParcelas] = useState<Parcela[]>(parcelasFalsas);
-  const [vista, setVista] = useState<'galeria' | 'mapa'>('galeria');
+  const [parcelas, setParcelas] = useState<Parcela[]>(datosParcelas);
+  const [vista, setVista] = useState<'galeria' | 'mapa'>(mapTarget ? 'mapa' : 'galeria');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -373,15 +368,75 @@ export default function ParcelasView() {
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
   const [chartData, setChartData] = useState<{label: string, value: number}[]>([]);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [targetParcelId, setTargetParcelId] = useState<number | null>(null);
   const [editingParcel, setEditingParcel] = useState<Parcela | null>(null);
-  const [viewingDevicesParcel, setViewingDevicesParcel] = useState<Parcela | null>(null);
+  const [viewingDevicesParcel, setViewingDevicesParcel] = useState<ParcelaExtended | null>(null);
   const [viewingIrrigationParcel, setViewingIrrigationParcel] = useState<Parcela | null>(null);
+
+  // ESTADO PARA NOTIFICACIONES (TOASTS)
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  // Efecto para ocultar la notificación automáticamente después de 4 segundos
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Sincronizar props con estado local si cambian (ej: recarga desde dashboard)
+  useEffect(() => {
+    setParcelas(datosParcelas);
+  }, [datosParcelas]);
+
+  // Si recibimos un objetivo de mapa externo, cambiamos a la vista de mapa
+  useEffect(() => {
+    if (mapTarget) setVista('mapa');
+  }, [mapTarget]);
+
+  // Limpieza al desmontar el componente (salir de la pestaña Parcelas)
+  // Usamos useRef para evitar problemas de dependencias con la función prop
+  const onMapTargetClearedRef = useRef(onMapTargetCleared);
+  useEffect(() => { onMapTargetClearedRef.current = onMapTargetCleared; }, [onMapTargetCleared]);
+
+  useEffect(() => {
+    return () => {
+      if (onMapTargetClearedRef.current) onMapTargetClearedRef.current();
+    };
+  }, []);
 
   // Actualizar datos cuando cambia el rango o el ítem seleccionado
   useEffect(() => {
     if (selectedHistoryItem) {
-      setChartData(generateRandomData(timeRange));
+      if (selectedHistoryItem.type === 'mota') {
+        // Cargar datos reales para Motas
+        const fetchMotaHistory = async () => {
+          setIsLoadingHistory(true);
+          try {
+            const end = new Date();
+            const start = new Date();
+            if (timeRange === '24h') start.setHours(start.getHours() - 24);
+            else if (timeRange === '7d') start.setDate(start.getDate() - 7);
+            else if (timeRange === '30d') start.setDate(start.getDate() - 30);
+
+            const mediciones = await getMediciones(selectedHistoryItem.data.id, start, end);
+            
+            setChartData(mediciones.map((m: any) => ({
+              label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              value: m.humedad // Mostramos humedad en el historial de parcelas/motas
+            })));
+          } catch (e) {
+            console.error(e);
+          } finally {
+            setIsLoadingHistory(false);
+          }
+        };
+        fetchMotaHistory();
+      } else {
+        // Para parcelas (media) seguimos usando mock por ahora o implementar lógica de agregación
+        setChartData(generateRandomData(timeRange));
+      }
     }
   }, [timeRange, selectedHistoryItem]);
 
@@ -395,11 +450,18 @@ export default function ParcelasView() {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDeleteAndClose = () => {
+  const confirmDeleteAndClose = async () => {
     if (!parcelaParaEliminar) return;
-    setParcelas(prev => prev.filter(p => p.id !== parcelaParaEliminar.id));
-    setIsDeleteModalOpen(false);
-    setParcelaParaEliminar(null);
+    try {
+      await deleteParcela(parcelaParaEliminar.id);
+      setNotification({ type: 'success', message: 'Parcela eliminada correctamente' });
+      setIsDeleteModalOpen(false);
+      setParcelaParaEliminar(null);
+      onRefresh(); // Recargar datos del servidor
+    } catch (error) {
+      console.error("Error al eliminar:", error);
+      setNotification({ type: 'error', message: 'No se pudo eliminar la parcela.' });
+    }
   };
 
   const handleEditParcel = (parcel: Parcela) => {
@@ -407,17 +469,80 @@ export default function ParcelasView() {
     setIsModalOpen(true);
   };
 
-  const handleSaveParcel = (parcelaGuardada: Parcela) => {
-    if (editingParcel) {
-      // Actualizar existente
-      setParcelas(prev => prev.map(p => p.id === parcelaGuardada.id ? parcelaGuardada : p));
-    } else {
-      // Crear nueva
-      setParcelas(prev => [...prev, parcelaGuardada]);
+  const handleSaveParcel = async (parcelaGuardada: Parcela) => {
+    try {
+      if (editingParcel) {
+        // Actualizar existente
+        await updateParcela(editingParcel.id, parcelaGuardada);
+        setNotification({ type: 'success', message: 'Parcela actualizada correctamente' });
+      } else {
+        // Crear nueva
+        await createParcela(parcelaGuardada);
+        setNotification({ type: 'success', message: 'Parcela creada exitosamente' });
+      }
+      setEditingParcel(null);
+      setIsModalOpen(false);
+      onRefresh(); // Recargar datos del servidor
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      setNotification({ type: 'error', message: 'Error al guardar. Verifica los datos.' });
     }
-    setEditingParcel(null);
-    setIsModalOpen(false);
   };
+
+  // --- SANITIZACIÓN DE DATOS CENTRALIZADA ---
+  // Creamos una versión "segura" de las parcelas para usar en TODA la vista (Mapa, Lista y Modales)
+  // Esto evita que el modal de edición explote si recibe coordenadas nulas o mal formadas.
+  const parcelasSeguras = useMemo(() => {
+    return parcelas.map(p => {
+      const pAny = p as any;
+
+      // 1. Validar centro de parcela (Fallback a coordenadas por defecto si falla)
+      let latCentro = Number(pAny.latitudCentro);
+      let lngCentro = Number(pAny.longitudCentro);
+      if (!Number.isFinite(latCentro) || !Number.isFinite(lngCentro)) {
+         latCentro = 37.3891;
+         lngCentro = -5.9845;
+      }
+
+      // 2. Validar coordenadas del polígono
+      let coords = Array.isArray(p.coordenadas) ? p.coordenadas : [];
+      // Filtrar puntos inválidos dentro del polígono
+      coords = coords.filter((c: any) => Array.isArray(c) && c.length >= 2 && Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1])));
+
+      // 3. Procesar TODOS los dispositivos (para modales) y filtrar para MAPA
+      const todosDispositivosProcesados = (p.dispositivos || []).map(d => {
+        const dAny = d as any;
+        const lat = Number(dAny.lat ?? dAny.latitud);
+        const lng = Number(dAny.lng ?? dAny.longitud);
+        const tieneGPS = Number.isFinite(lat) && Number.isFinite(lng);
+        
+        return { 
+          ...d, 
+          lat: tieneGPS ? lat : null, 
+          lng: tieneGPS ? lng : null,
+          latitud: tieneGPS ? lat : null, 
+          longitud: tieneGPS ? lng : null,
+          coordenadas: tieneGPS ? [lat, lng] : null
+        };
+      });
+
+      // Filtramos SOLO los que tienen GPS válido para pasárselos a Leaflet (initParcelMap)
+      // Así evitamos errores de renderizado o marcadores en el océano
+      const dispositivosParaMapa = todosDispositivosProcesados.filter(d => d.lat !== null && d.lng !== null);
+
+      // Devolvemos la parcela con datos garantizados para Leaflet
+      return {
+        ...p, 
+        latitudCentro: latCentro, 
+        longitudCentro: lngCentro, 
+        lat: latCentro, 
+        lng: lngCentro, 
+        coordenadas: coords, 
+        dispositivos: dispositivosParaMapa as unknown as Dispositivo[], // Casting doble para evitar conflicto de tipos estrictos
+        dispositivosTodos: todosDispositivosProcesados as DispositivoExtended[] // Todos para el modal
+      };
+    });
+  }, [parcelas]);
 
   useEffect(() => {
     // Usamos 'as string' para evitar el error de TS que infiere erróneamente que los tipos no se solapan
@@ -427,120 +552,182 @@ export default function ParcelasView() {
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
     
     // Usar la utilidad compartida para inicializar el mapa
-    const parcelManager = initParcelMap(map, parcelas, {
-      onClick: (parcel, latlng) => {
-        const targetZoom = 16;
-        // Proyectamos a píxeles, restamos 150px en Y (subir el centro => bajar el punto de anclaje)
-        // para dejar espacio al popup que se abre hacia arriba.
-        const targetPoint = map.project(latlng, targetZoom).subtract([0, 150]);
-        const targetCenter = map.unproject(targetPoint, targetZoom);
-        map.setView(targetCenter, targetZoom, { animate: true, duration: 1.5 });
-      },
-      onDeviceHistoryClick: (device) => {
-        openHistory({ type: 'mota', data: device });
-      },
-      getPopupContent: (p) => {
-        const container = document.createElement('div');
-        container.className = "map-popup-container";
-        
-        // Iconos SVG inline para el popup
-        const sproutIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.2.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1.7-1.6 1.6-3.4 1.6-3.4s-.3-1.1-1.6-1.7c-2.7-1.2-4.4.7-4.4.7z"/></svg>`;
-        const layersIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
-        const dropletsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500/40 mb-1"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.8-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>`;
+    let parcelManager: any = null;
+    let removeTargetCircle: (() => void) | null = null; // Variable para la función de limpieza
 
-        container.innerHTML = `
-          <div>
-            <div class="map-popup-header">
-              <div>
-                <h3 class="map-popup-title">${p.nombre}</h3>
-                <div class="flex flex-wrap gap-2 mt-1.5">
-                    <span class="map-badge-emerald">
-                      ${sproutIcon} ${p.cultivo}
-                    </span>
-                    ${p.tipoSuelo ? `
-                      <span class="map-badge-amber">
-                        ${layersIcon} ${p.tipoSuelo}
+    try {
+      parcelManager = initParcelMap(map, parcelasSeguras, {
+        onClick: (_parcel, latlng) => {
+          if (removeTargetCircle) removeTargetCircle(); // Limpiar círculo al tocar parcela
+
+          const targetZoom = 16;
+          // Proyectamos a píxeles, restamos 150px en Y (subir el centro => bajar el punto de anclaje)
+          // para dejar espacio al popup que se abre hacia arriba.
+          const targetPoint = map.project(latlng, targetZoom).subtract([0, 150]);
+          const targetCenter = map.unproject(targetPoint, targetZoom);
+          map.setView(targetCenter, targetZoom, { animate: true, duration: 1.5 });
+        },
+        onDeviceHistoryClick: (device) => {
+          if (removeTargetCircle) removeTargetCircle(); // Limpiar círculo al tocar dispositivo
+          openHistory({ type: 'mota', data: device });
+        },
+        getPopupContent: (p) => {
+          const container = document.createElement('div');
+          container.className = "map-popup-container";
+          
+          // Iconos SVG inline para el popup
+          const sproutIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.2.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1.7-1.6 1.6-3.4 1.6-3.4s-.3-1.1-1.6-1.7c-2.7-1.2-4.4.7-4.4.7z"/></svg>`;
+          const layersIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+          const dropletsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500/40 mb-1"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.8-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>`;
+
+          // Calculamos contadores reales usando la lista completa
+          const pExtended = p as unknown as ParcelaExtended;
+          const totalDevs = pExtended.dispositivosTodos?.length || 0;
+          const noGpsDevs = pExtended.dispositivosTodos?.filter(d => !d.lat).length || 0;
+
+          container.innerHTML = `
+            <div>
+              <div class="map-popup-header">
+                <div>
+                  <h3 class="map-popup-title">${p.nombre}</h3>
+                  <div class="flex flex-wrap gap-2 mt-1.5">
+                      <span class="map-badge-emerald">
+                        ${sproutIcon} ${p.cultivo}
                       </span>
-                    ` : ''}
-                </div>
-              </div>
-              ${p.estado === 'alerta' 
-                ? '<span class="map-popup-badge alert">ALERTA</span>' 
-                : '<span class="map-popup-badge ok">OK</span>'
-              }
-            </div>
-            
-            <div class="map-metric-card">
-                <div class="flex justify-between items-end">
-                  <div>
-                    <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Humedad Media</p>
-                    <div class="text-xl font-extrabold text-foreground">${p.humedad}%</div>
+                      ${p.tipoSuelo ? `
+                        <span class="map-badge-amber">
+                          ${layersIcon} ${p.tipoSuelo}
+                        </span>
+                      ` : ''}
                   </div>
-                  ${dropletsIcon}
                 </div>
-            </div>
-
-            <div class="map-tech-grid mb-3">
-              <div class="map-tech-box p-2">
-                <div class="map-tech-label">Riego</div>
-                <div class="text-sm font-bold text-foreground mt-0.5">${p.proximoRiego}</div>
+                ${p.estado === 'alerta' 
+                  ? '<span class="map-popup-badge alert">ALERTA</span>' 
+                  : '<span class="map-popup-badge ok">OK</span>'
+                }
               </div>
-              <div class="map-tech-box p-2">
-                <div class="map-tech-label">Motas</div>
-                <div class="text-sm font-bold text-foreground mt-0.5">${p.motas}</div>
+              
+              <div class="map-metric-card">
+                  <div class="flex justify-between items-end">
+                    <div>
+                      <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Humedad Media</p>
+                      <div class="text-xl font-extrabold text-foreground">${p.humedad}%</div>
+                    </div>
+                    ${dropletsIcon}
+                  </div>
+              </div>
+
+              <div class="map-tech-grid mb-3">
+                <div class="map-tech-box p-2">
+                  <div class="map-tech-label">Riego</div>
+                  <div class="text-sm font-bold text-foreground mt-0.5">${p.proximoRiego}</div>
+                </div>
+                <div class="map-tech-box p-2">
+                  <div class="map-tech-label">Motas</div>
+                  <div class="text-sm font-bold text-foreground mt-0.5">
+                    ${totalDevs} 
+                    ${noGpsDevs > 0 ? `<span class="text-[9px] text-amber-600 ml-1">(${noGpsDevs} sin GPS)</span>` : ''}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <button id="btn-history-${p.id}" class="map-action-button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
-            Ver Historial
-          </button>
-        `;
-        
-        // Añadir listener al botón después de crearlo
-        container.querySelector(`#btn-history-${p.id}`)?.addEventListener('click', () => {
-          openHistory({ type: 'parcela', data: p });
-        });
-        return container;
-      }
-    });
+            <button id="btn-history-${p.id}" class="map-action-button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+              Ver Historial
+            </button>
+          `;
+          
+          // Añadir listener al botón después de crearlo
+          container.querySelector(`#btn-history-${p.id}`)?.addEventListener('click', () => {
+            openHistory({ type: 'parcela', data: p });
+          });
+          return container;
+        }
+      });
+    } catch (error) {
+      console.error("CRITICAL MAP ERROR: Fallo al inicializar capas.", error);
+    }
 
-    // Si hay una parcela objetivo (venimos desde la galería), centramos en ella
-    if (targetParcelId) {
-      const target = parcelas.find(p => p.id === targetParcelId);
+    // PRIORIDAD 1: Objetivo externo (GPS de dispositivo)
+    if (mapTarget) {
+      map.setView([mapTarget.lat, mapTarget.lng], 19, { animate: true, duration: 1.5 });
+      // Marcador de ubicación exacta (5 metros de radio)
+      const targetCircle = L.circle([mapTarget.lat, mapTarget.lng], {
+        radius: 12, // 12 metros reales
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.2,
+        weight: 2 // Borde sólido
+      }).addTo(map);
+
+      // Definimos la función de limpieza que usaremos en todos los eventos
+      removeTargetCircle = () => {
+        if (map.hasLayer(targetCircle)) map.removeLayer(targetCircle);
+      };
+
+      // Eliminar el círculo al hacer clic en cualquier parte del mapa
+      map.once('click', () => {
+        if (removeTargetCircle) removeTargetCircle();
+        if (onMapTargetCleared) onMapTargetCleared(); // Limpiar estado en Dashboard
+      });
+    } else if (targetParcelId) {
+      // PRIORIDAD 2: Parcela seleccionada desde galería
+      const target = parcelasSeguras.find(p => p.id === targetParcelId);
       if (target) {
         const center = L.polygon(target.coordenadas).getBounds().getCenter();
         map.setView(center, 16);
       }
       setTargetParcelId(null); // Resetear objetivo
-    } else if (parcelas.length > 0) {
-      map.fitBounds(parcelManager.getBounds(), { padding: [50, 50] });
+    } else if (parcelasSeguras.length > 0) {
+      const bounds = parcelManager?.getBounds();
+      if (bounds && bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
     } else {
       map.setView([37.385, -5.978], 14);
     }
 
-    map.on('zoomend', parcelManager.updateVisibility);
-    map.on('moveend', parcelManager.updateVisibility); // Asegurar actualización al terminar de mover
+    // Wrapper seguro para evitar que errores de Leaflet rompan la UI
+    const safeUpdateVisibility = () => {
+      if (!parcelManager) return;
+      try {
+        parcelManager.updateVisibility();
+      } catch (err) {
+        // Error silencioso en renderizado de capa para no interrumpir UX
+      }
+    };
 
-    // Ejecutar la visibilidad inicial después de que el mapa y las capas se hayan configurado
-    parcelManager.updateVisibility();
+    if (parcelManager) {
+      map.on('zoomend', safeUpdateVisibility);
+      map.on('moveend', safeUpdateVisibility);
+
+      safeUpdateVisibility();
+    }
 
     return () => { 
-      parcelManager.cleanup();
+      if (parcelManager) parcelManager.cleanup();
       map.remove(); 
     };
-  }, [vista, theme, parcelas]); // Añadido parcelas a dependencias para redibujar si cambian
+  }, [vista, theme, parcelasSeguras, mapTarget, onMapTargetCleared]); // Dependemos de los datos sanitizados
 
   return (
     <>
+      {/* Estilos globales para mejorar visibilidad de líneas en el mapa */}
+      <style>{`
+        .leaflet-overlay-pane path.leaflet-interactive {
+          stroke-width: 4px !important;
+          stroke-opacity: 0.8 !important;
+          filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.3));
+        }
+      `}</style>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-full flex-col">
         {/* Encabezado solo visible en modo Galería para maximizar espacio en Mapa */}
         {vista === 'galeria' && (
           <div className="mb-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl">
             <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
             <div className="flex rounded-lg border border-border bg-card p-1">
-              <button onClick={() => setVista('galeria')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'galeria' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><LayoutGrid size={16} /> Galería</button>
-              <button onClick={() => setVista('mapa')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${vista === 'mapa' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/50'}`}><Globe size={16} /> Satélite</button>
+              <button onClick={() => setVista('galeria')} className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors bg-primary text-primary-foreground shadow-sm"><LayoutGrid size={16} /> Galería</button>
+              <button onClick={() => setVista('mapa')} className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors text-muted-foreground hover:bg-muted/50"><Globe size={16} /> Satélite</button>
             </div>
           </div>
         )}
@@ -550,8 +737,11 @@ export default function ParcelasView() {
             {/* Controles flotantes compactos para el mapa */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] flex gap-2">
                <div className="flex items-center gap-1 rounded-full border border-border/50 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
-                  <button onClick={() => setVista('galeria')} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all"><LayoutGrid size={16} /> Galería</button>
-                  <button onClick={() => setVista('mapa')} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-primary text-primary-foreground shadow-sm transition-all"><Globe size={16} /> Satélite</button>
+                  <button type="button" onClick={() => {
+                    setVista('galeria');
+                    if (onMapTargetCleared) onMapTargetCleared(); // Limpiar al salir del mapa manualmente
+                  }} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all"><LayoutGrid size={16} /> Galería</button>
+                  <button type="button" onClick={() => setVista('mapa')} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-primary text-primary-foreground shadow-sm transition-all"><Globe size={16} /> Satélite</button>
                </div>
             </div>
             <div ref={mapRef} className="h-full w-full z-0" />
@@ -565,7 +755,7 @@ export default function ParcelasView() {
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-green-200 group-hover:text-green-600"><Plus size={28} /></div>
               <span className="font-semibold text-card-foreground">Registrar Parcela</span>
             </button>
-            {parcelas.map(p => (
+            {parcelasSeguras.map(p => (
               <div key={p.id} className="flora-card group">
                 {/* Header */}
                 <div className="p-5">
@@ -607,11 +797,11 @@ export default function ParcelasView() {
                     </div>
                     <div 
                       className="info-card-dispositivos group/dev"
-                      onClick={() => setViewingDevicesParcel(p)}
+                      onClick={() => setViewingDevicesParcel(p as unknown as ParcelaExtended)}
                     >
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Wifi size={12}/> Dispositivos</span>
                       <span className="font-semibold text-card-foreground">
-                        {p.dispositivos?.length || 0} Activos
+                        {(p as unknown as ParcelaExtended).dispositivosTodos?.length || 0} Activos
                       </span>
                     </div>
                   </div>
@@ -652,7 +842,7 @@ export default function ParcelasView() {
       <RegistrarParcelaModal 
         isOpen={isModalOpen} 
         onClose={() => { setIsModalOpen(false); setEditingParcel(null); }} 
-        parcelasExistentes={parcelas}
+        parcelasExistentes={parcelasSeguras}
         parcelaAEditar={editingParcel}
         onGuardar={handleSaveParcel}
       />
@@ -712,7 +902,13 @@ export default function ParcelasView() {
                   </div>
                 </div>
 
-                <DetailedHumidityChart data={chartData} />
+                {isLoadingHistory ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <DetailedHumidityChart data={chartData} />
+                )}
               </div>
             </motion.div>
           </div>
@@ -764,6 +960,33 @@ export default function ParcelasView() {
               <IrrigationDecisionModal parcel={viewingIrrigationParcel} />
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* SISTEMA DE NOTIFICACIONES FLOTANTES (TOASTS) */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-6 right-6 z-[1100] flex items-center gap-4 rounded-2xl border p-5 shadow-2xl backdrop-blur-xl ${
+              notification.type === 'success' 
+                ? 'bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400' 
+                : 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400'
+            }`}
+          >
+            <div className={`rounded-full p-2 ${notification.type === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+              {notification.type === 'success' ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
+            </div>
+            <div>
+              <h4 className="font-bold text-base">{notification.type === 'success' ? 'Operación Exitosa' : 'Error'}</h4>
+              <p className="text-sm opacity-90">{notification.message}</p>
+            </div>
+            <button onClick={() => setNotification(null)} className="ml-2 rounded-full p-1 hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+              <X size={18} />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

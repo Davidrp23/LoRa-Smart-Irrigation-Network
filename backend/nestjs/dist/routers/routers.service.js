@@ -14,10 +14,13 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const common_2 = require("@nestjs/common");
 const crypto_1 = require("crypto");
+const parcelas_service_1 = require("../parcelas/parcelas.service");
 let RoutersService = class RoutersService {
     prisma;
-    constructor(prisma) {
+    parcelasService;
+    constructor(prisma, parcelasService) {
         this.prisma = prisma;
+        this.parcelasService = parcelasService;
     }
     async create(createRouterDto) {
         let intentos = 0;
@@ -57,6 +60,11 @@ let RoutersService = class RoutersService {
         });
     }
     async update(usuarioId, id, updateRouterDto) {
+        if (updateRouterDto.parcelaId != null) {
+            const parcela = await this.prisma.parcela.findUnique({ where: { id: updateRouterDto.parcelaId, usuarioId } });
+            if (!parcela)
+                throw new common_2.NotFoundException(`La parcela con ID ${updateRouterDto.parcelaId} no existe o no te pertenece.`);
+        }
         return this.prisma.router.update({
             where: { id, usuarioId },
             data: updateRouterDto,
@@ -155,6 +163,6 @@ let RoutersService = class RoutersService {
 exports.RoutersService = RoutersService;
 exports.RoutersService = RoutersService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService, parcelas_service_1.ParcelasService])
 ], RoutersService);
 //# sourceMappingURL=routers.service.js.map

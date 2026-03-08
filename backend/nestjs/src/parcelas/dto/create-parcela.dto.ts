@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateParcelaDto {
     @IsString()
@@ -8,6 +8,10 @@ export class CreateParcelaDto {
     @IsString()
     @IsNotEmpty()
     cultivo: string;
+
+    @IsOptional()
+    @IsString()
+    tipoSuelo?: string;
   
     // Centro aproximado de la parcela para el mapa
     @IsNumber()
@@ -17,5 +21,9 @@ export class CreateParcelaDto {
     @IsNumber()
     @IsNotEmpty()
     longitudCentro: number;
+
+    @IsOptional() //Puntos del poligono que forma la parcela -> json
+    @IsArray()
+    puntos?: any;
     
 }

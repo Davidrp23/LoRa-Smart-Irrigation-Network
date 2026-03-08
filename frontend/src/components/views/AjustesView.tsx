@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save } from 'lucide-react';
+import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save, Check, AlertCircle, Loader2 } from 'lucide-react';
 import Select from '../ui/Select';
+import { getProfile, updateProfile } from '../../services/authService';
 
 // Componente para el interruptor (toggle switch)
 const ToggleSwitch = ({ label, description, defaultChecked = false }: { label: string, description: string, defaultChecked?: boolean }) => (
@@ -17,21 +18,112 @@ const ToggleSwitch = ({ label, description, defaultChecked = false }: { label: s
   </div>
 );
 
-export default function AjustesView() {
+// Definimos qué props recibe este componente
+interface AjustesViewProps {
+  onProfileUpdate: () => void; // Función que nos pasa el padre (Dashboard)
+}
+
+export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
   const [activeTab, setActiveTab] = useState('perfil');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80');
+  
+  // ESTADOS DE DATOS
+  const [profileImage, setProfileImage] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [email, setEmail] = useState('');
   const [telemetria, setTelemetria] = useState('15');
+
+  // ESTADOS DE SEGURIDAD
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // ESTADOS DE UI (Feedback)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+
+  // Cargar datos al montar
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const user = await getProfile();
+      setNombre(user.nombre || '');
+      setEmail(user.email || '');
+      // Si no hay foto, usamos la ruta relativa por defecto
+      setProfileImage(user.foto || '../../../media/profile.png');
+    } catch (error) {
+      console.error("Error cargando perfil", error);
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setProfileImage(event.target?.result as string);
+        const base64 = event.target?.result as string;
+        setProfileImage(base64);
       };
       reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  // Validación de contraseña nueva
+  const passwordRequirements = [
+    { id: 1, text: "Mínimo 8 caracteres", valid: newPassword.length >= 8 },
+    { id: 2, text: "Al menos una mayúscula", valid: /[A-Z]/.test(newPassword) },
+    { id: 3, text: "Al menos un número", valid: /[0-9]/.test(newPassword) },
+    { id: 4, text: "Al menos un carácter especial", valid: /[^A-Za-z0-9]/.test(newPassword) },
+  ];
+  const isNewPasswordValid = passwordRequirements.every(req => req.valid);
+  const passwordsMatch = newPassword === confirmPassword && newPassword !== '';
+
+  const handleSave = async () => {
+    setStatus('loading');
+    setStatusMessage('');
+
+    try {
+      if (activeTab === 'perfil') {
+        // Actualizar datos básicos y foto
+        await updateProfile({
+          nombre,
+          // email: email, // Normalmente el email no se cambia tan fácil, lo omitimos por seguridad o lo incluimos si el backend lo permite
+          foto: profileImage.includes('base64') ? profileImage : undefined // Solo enviamos si cambió (es base64)
+        });
+        setStatusMessage('Perfil actualizado correctamente');
+        
+        // ¡IMPORTANTE! Avisamos al padre (Dashboard) para que actualice el Header
+        onProfileUpdate();
+      } 
+      else if (activeTab === 'seguridad') {
+        // Validaciones previas
+        if (!isNewPasswordValid) throw new Error('La nueva contraseña no es segura.');
+        if (!passwordsMatch) throw new Error('Las contraseñas no coinciden.');
+        
+        // Actualizar contraseña
+        await updateProfile({
+          password: newPassword
+        });
+        
+        // Limpiar campos
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setStatusMessage('Contraseña actualizada correctamente');
+      }
+
+      setStatus('success');
+      setTimeout(() => setStatus('idle'), 3000); // Resetear estado a los 3s
+    } catch (error: any) {
+      setStatus('error');
+      setStatusMessage(error.message || 'Error al guardar cambios');
+      setTimeout(() => setStatus('idle'), 4000);
     }
   };
 
@@ -51,7 +143,11 @@ export default function AjustesView() {
             <div className="space-y-6">
               <div className="flex items-center gap-6">
                 <div className="relative group">
-                  <img src={profileImage} alt="Foto de perfil" className="h-24 w-24 rounded-full object-cover border-4 border-background shadow-md"/>
+                  <img 
+                    src={profileImage} 
+                    alt="Foto de perfil" 
+                    className="h-24 w-24 rounded-full object-cover border-4 border-background shadow-md bg-muted"
+                  />
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -61,14 +157,14 @@ export default function AjustesView() {
                   <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-card-foreground">David</h3>
-                  <p className="text-sm text-muted-foreground">david@flora.com</p>
+                  <h3 className="text-xl font-bold text-card-foreground">{nombre || 'Usuario'}</h3>
+                  <p className="text-sm text-muted-foreground">{email}</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-6">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
-                  <input type="text" defaultValue="David" className="flora-input mt-2" />
+                  <label className="text-sm font-medium text-muted-foreground">Nombre</label>
+                  <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} className="flora-input mt-2" />
                 </div>
               </div>
             </div>
@@ -79,27 +175,50 @@ export default function AjustesView() {
           <motion.div key="seguridad" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
             <h2 className="text-2xl font-bold text-card-foreground mb-6">Contraseña y Seguridad</h2>
             <div className="space-y-6">
-              <div>
+              {/* <div>
                 <label className="text-sm font-medium text-muted-foreground">Contraseña Actual</label>
                 <div className="relative mt-2">
-                  <input type={showCurrentPassword ? 'text' : 'password'} className="flora-input" />
+                  <input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="flora-input pr-10" />
                   <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
                     {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-              </div>
+              </div> */}
+              
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Nueva Contraseña</label>
                 <div className="relative mt-2">
-                  <input type={showNewPassword ? 'text' : 'password'} className="flora-input" />
+                  <input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="flora-input pr-10" />
                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
                     {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {/* Requisitos de contraseña */}
+                {newPassword.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {passwordRequirements.map(req => (
+                      <div key={req.id} className={`flex items-center gap-2 text-xs ${req.valid ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                        {req.valid ? <Check size={12} /> : <div className="w-3 h-3 rounded-full border border-current opacity-50" />}
+                        <span>{req.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
                <div>
                 <label className="text-sm font-medium text-muted-foreground">Confirmar Nueva Contraseña</label>
-                <input type="password" className="flora-input mt-2" />
+                <div className="relative mt-2">
+                  <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="flora-input pr-10" />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-4 text-muted-foreground">
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {confirmPassword.length > 0 && (
+                  <p className={`text-xs mt-2 ${passwordsMatch ? 'text-green-600' : 'text-red-500'}`}>
+                    {passwordsMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
+                  </p>
+                )}
               </div>
             </div>
           </motion.div>
@@ -173,12 +292,31 @@ export default function AjustesView() {
             {renderContent()}
           </AnimatePresence>
         </div>
-        <div className="mt-6 flex justify-end rounded-3xl border border-border/50 bg-card/60 p-4 shadow-sm backdrop-blur-xl">
+        
+        <div className="mt-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-4 shadow-sm backdrop-blur-xl">
+          {/* Área de Notificaciones de Estado */}
+          <div className="flex-1 px-4">
+            <AnimatePresence mode="wait">
+              {status === 'success' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm">
+                  <Check size={18} /> {statusMessage}
+                </motion.div>
+              )}
+              {status === 'error' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium text-sm">
+                  <AlertCircle size={18} /> {statusMessage}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <button 
-            onClick={() => alert('Guardado!')}
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all"
+            onClick={handleSave}
+            disabled={status === 'loading' || (activeTab === 'seguridad' && (!isNewPasswordValid || !passwordsMatch))}
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save size={18} /> Guardar Cambios
+            {status === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            {status === 'loading' ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
       </main>

@@ -4,6 +4,7 @@ import { CreateMedicionDto } from './dto/create-medicion.dto';
 
 import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ObtenerMedicionDto } from './dto/obtener-medicion.dto';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('mediciones')
@@ -11,16 +12,16 @@ export class MedicionesController {
   constructor(private readonly medicionesService: MedicionesService) {}
 
   @Post()
-  create(@Body() createMedicioneDto: CreateMedicionDto) {
-    return this.medicionesService.create(createMedicioneDto);
+  create(@Request() req,@Body() createMedicioneDto: CreateMedicionDto) {
+    return this.medicionesService.create(req.user.id, createMedicioneDto);
   }
   //Las mediciones no se pueden borrar, se consultan las mediciones de cada mota con el campo de "mediciones" en la BD,
   //no hay necesidad de hacerlo directamente.
 
-  // @Get()
-  // findAll() {
-  //   return this.medicionesService.findAll();
-  // }
+  @Post('buscar/')
+  findByDate(@Request() req, @Body() obtenerMedicionDto: ObtenerMedicionDto){
+    return this.medicionesService.findByDate(req.user.id, obtenerMedicionDto);
+  }
 
   // @Get(':id')
   // findOne(@Param('id', ParseIntPipe) id: number) {

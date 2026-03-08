@@ -18,17 +18,32 @@ let MedicionesService = class MedicionesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async create(createMedicionDto) {
-        const mota = await this.prisma.mota.findUnique({ where: { id: createMedicionDto.motaId } });
+    async create(usuarioId, createMedicionDto) {
+        const mota = await this.prisma.mota.findUnique({ where: { id: createMedicionDto.motaId, usuarioId } });
         if (!mota) {
-            throw new common_2.NotFoundException(`La mota con ID ${createMedicionDto.motaId} no existe.`);
+            throw new common_2.NotFoundException(`La mota con ID ${createMedicionDto.motaId} no existe o no te pertenece.`);
         }
         return this.prisma.medicion.create({
             data: createMedicionDto
         });
     }
-    findAll() {
-        return this.prisma.medicion.findMany();
+    async findByDate(usuarioId, obtenerMedicionDto) {
+        let motaId = obtenerMedicionDto.motaId;
+        let fechaBegin = obtenerMedicionDto.fechaBegin;
+        let fechaEnd = obtenerMedicionDto.fechaEnd;
+        const mota = await this.prisma.mota.findUnique({ where: { id: motaId, usuarioId } });
+        if (!mota) {
+            throw new common_2.NotFoundException(`La mota con ID ${motaId} no existe o no te pertenece.`);
+        }
+        return this.prisma.medicion.findMany({
+            where: {
+                motaId: motaId,
+                fecha: {
+                    gte: new Date(fechaBegin),
+                    lte: new Date(fechaEnd)
+                }
+            }
+        });
     }
     findOne(id) {
         return this.prisma.medicion.findUnique({

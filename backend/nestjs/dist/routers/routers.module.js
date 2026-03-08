@@ -11,12 +11,13 @@ const common_1 = require("@nestjs/common");
 const routers_service_1 = require("./routers.service");
 const routers_controller_1 = require("./routers.controller");
 const auth_module_1 = require("../auth/auth.module");
+const parcelas_module_1 = require("../parcelas/parcelas.module");
 let RoutersModule = class RoutersModule {
 };
 exports.RoutersModule = RoutersModule;
 exports.RoutersModule = RoutersModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule],
+        imports: [auth_module_1.AuthModule, parcelas_module_1.ParcelasModule],
         controllers: [routers_controller_1.RoutersController],
         providers: [routers_service_1.RoutersService],
         exports: [routers_service_1.RoutersService],

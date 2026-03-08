@@ -5,8 +5,10 @@ const app_module_1 = require("./app.module");
 const swagger_1 = require("@nestjs/swagger");
 const nestjs_prisma_1 = require("nestjs-prisma");
 const common_1 = require("@nestjs/common");
+const express_1 = require("express");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.enableCors();
     const config = new swagger_1.DocumentBuilder()
         .setTitle('FLoRa API')
         .setDescription('La API del TFG de Riego Inteligente')
@@ -21,6 +23,8 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
         transform: true,
     }));
+    app.use((0, express_1.json)({ limit: '10mb' }));
+    app.use((0, express_1.urlencoded)({ extended: true, limit: '10mb' }));
     await app.listen(3000);
 }
 bootstrap();

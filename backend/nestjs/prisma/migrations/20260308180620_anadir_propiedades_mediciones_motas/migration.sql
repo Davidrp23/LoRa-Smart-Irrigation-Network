@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Mota" ADD COLUMN     "erroresRxMota" INTEGER,
+ADD COLUMN     "humedad" DOUBLE PRECISION,
+ADD COLUMN     "rssi" INTEGER,
+ADD COLUMN     "snr" DOUBLE PRECISION;

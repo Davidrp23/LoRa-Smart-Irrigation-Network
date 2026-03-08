@@ -18,23 +18,36 @@ const mediciones_service_1 = require("./mediciones.service");
 const create_medicion_dto_1 = require("./dto/create-medicion.dto");
 const common_2 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
+const obtener_medicion_dto_1 = require("./dto/obtener-medicion.dto");
 let MedicionesController = class MedicionesController {
     medicionesService;
     constructor(medicionesService) {
         this.medicionesService = medicionesService;
     }
-    create(createMedicioneDto) {
-        return this.medicionesService.create(createMedicioneDto);
+    create(req, createMedicioneDto) {
+        return this.medicionesService.create(req.user.id, createMedicioneDto);
+    }
+    findByDate(req, obtenerMedicionDto) {
+        return this.medicionesService.findByDate(req.user.id, obtenerMedicionDto);
     }
 };
 exports.MedicionesController = MedicionesController;
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_medicion_dto_1.CreateMedicionDto]),
+    __metadata("design:paramtypes", [Object, create_medicion_dto_1.CreateMedicionDto]),
     __metadata("design:returntype", void 0)
 ], MedicionesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('buscar/'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, obtener_medicion_dto_1.ObtenerMedicionDto]),
+    __metadata("design:returntype", void 0)
+], MedicionesController.prototype, "findByDate", null);
 exports.MedicionesController = MedicionesController = __decorate([
     (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('mediciones'),
