@@ -27,6 +27,7 @@ import {
   Info
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
+import ConnectionHistoryModal from './ConnectionHistoryModal';
 import Select from '../ui/Select';
 import { createDevice, updateDevice, deleteDevice, getMediciones, getRouterReportes } from '../../services/dataService';
 
@@ -240,75 +241,6 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
             </div>
           ))}
        </div>
-    </div>
-  );
-};
-
-// Modal de Detalles de Conexión (Estilo Map Popup)
-const ConnectionDetailsModal = ({ device, onClose }: { device: Dispositivo, onClose: () => void }) => {
-  const isRouter = device.tipo === 'router';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-sm overflow-hidden rounded-3xl bg-card shadow-2xl border border-border"
-      >
-        <div className="flex items-center justify-between border-b border-border p-5 bg-muted/30">
-          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-            {isRouter ? <Activity className="text-blue-500" size={20}/> : <Signal className="text-blue-500" size={20}/>}
-            Detalles de Conexión
-          </h3>
-          <button onClick={onClose} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:bg-accent transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-        
-        <div className="p-5 space-y-4">
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl border border-border/50">
-             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Radio size={16}/> Canal LoRaWAN</span>
-             <span className="text-lg font-bold text-foreground">CH {device.canal}</span>
-          </div>
-
-          {isRouter ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-border/50">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Enviados</div>
-                <div className="text-xl font-mono font-bold text-foreground">{device.paquetesEnviados}</div>
-              </div>
-              <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-border/50">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Recibidos</div>
-                <div className="text-xl font-mono font-bold text-foreground">{device.paquetesRecibidos}</div>
-              </div>
-              <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-200 dark:border-red-900/30">
-                <div className="text-[10px] font-bold text-red-600/70 dark:text-red-400/70 uppercase tracking-wider mb-1">Err. TX/RX</div>
-                <div className="text-lg font-mono font-bold text-red-700 dark:text-red-400">{device.erroresTx} / {device.erroresRx}</div>
-              </div>
-              <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-xl border border-amber-200 dark:border-amber-900/30">
-                <div className="text-[10px] font-bold text-amber-600/70 dark:text-amber-400/70 uppercase tracking-wider mb-1">Err. CRC</div>
-                <div className="text-lg font-mono font-bold text-amber-700 dark:text-amber-400">{device.erroresCrc}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-               <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">Intensidad (RSSI)</span>
-                  <span className={`font-mono font-bold ${(device.rssi || -999) > -100 ? 'text-green-600' : 'text-amber-600'}`}>{device.rssi ?? '--'} dBm</span>
-               </div>
-               <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">Calidad (SNR)</span>
-                  <span className="font-mono font-bold text-foreground">{device.snr ?? '--'} dB</span>
-               </div>
-               <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Paquetes Perdidos</span>
-                  <span className="font-mono font-bold text-red-500">{device.erroresRx}</span>
-               </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
     </div>
   );
 };
@@ -1048,9 +980,9 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {/* Modal de Detalles de Conexión */}
       <AnimatePresence>
         {viewingConnectionDevice && (
-          <ConnectionDetailsModal 
+          <ConnectionHistoryModal
             device={viewingConnectionDevice} 
-            onClose={() => setViewingConnectionDevice(null)} 
+            onClose={() => setViewingConnectionDevice(null)}
           />
         )}
       </AnimatePresence>
