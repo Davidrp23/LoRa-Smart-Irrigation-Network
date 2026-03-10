@@ -27,6 +27,7 @@ export default function Dashboard() {
   // ESTADO DE DATOS DEL SISTEMA
   const [parcelas, setParcelas] = useState<any[]>([]);
   const [dispositivos, setDispositivos] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token'); // Limpiamos el token al salir
@@ -51,12 +52,17 @@ export default function Dashboard() {
 
   // Función para cargar datos del negocio (Parcelas y Dispositivos)
   const cargarDatosSistema = async () => {
+    if (isRefreshing) return; // Evita múltiples recargas simultáneas
+    setIsRefreshing(true);
     try {
       const { parcelas, dispositivos } = await getDashboardData();
       setParcelas(parcelas);
       setDispositivos(dispositivos);
     } catch (error) {
       console.error("Error cargando datos del sistema", error);
+      // Aquí podrías añadir una notificación de error para el usuario
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -92,6 +98,8 @@ export default function Dashboard() {
         <Header 
           menuActivo={menuActivo} 
           usuario={usuario} 
+          onRefresh={cargarDatosSistema}
+          isRefreshing={isRefreshing}
         />
 
         {/* 3. El contenido principal irá aquí */}

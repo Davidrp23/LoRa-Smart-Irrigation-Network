@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 interface HeaderProps {
   menuActivo: string;
   usuario: { nombre: string; foto: string; email: string };
+  onRefresh: () => void;
+  isRefreshing: boolean;
 }
 
-export default function Header({ menuActivo, usuario }: HeaderProps) {
+export default function Header({ menuActivo, usuario, onRefresh, isRefreshing }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const [saludo, setSaludo] = useState('Hola');
 
@@ -33,6 +35,14 @@ export default function Header({ menuActivo, usuario }: HeaderProps) {
       </div>
       
       <div className="flex items-center gap-4">
+        <button 
+          onClick={onRefresh} 
+          disabled={isRefreshing}
+          className="rounded-full bg-secondary p-2.5 text-secondary-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          title="Actualizar datos"
+        >
+          <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+        </button>
         <button onClick={toggleTheme} className="rounded-full bg-secondary p-2.5 text-secondary-foreground transition-colors hover:bg-muted">
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
         </button>

@@ -639,8 +639,8 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
               <div class="map-metric-card">
                   <div class="flex justify-between items-end">
                     <div>
-                      <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Humedad Media</p>
-                      <div class="text-xl font-extrabold text-foreground">${p.humedad}%</div>
+                      <p class="text-[10px] font-bold ${p.humedad != null ? 'text-blue-600' : 'text-muted-foreground'} uppercase tracking-wider mb-0.5">Humedad Media</p>
+                      <div class="text-xl font-extrabold ${p.humedad != null ? 'text-foreground' : 'text-muted-foreground'}">${p.humedad != null ? `${p.humedad}%` : '--'}</div>
                     </div>
                     ${dropletsIcon}
                   </div>
@@ -838,13 +838,18 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                   </div>
 
                   {/* Main Metric: Humidity */}
-                  <div className="metric-card-blue" onClick={() => openHistory({ type: 'parcela', data: p })}>
+                  <div 
+                    className={`metric-card-blue ${p.humedad == null ? '!bg-muted/30 hover:!bg-muted/40 border border-dashed !cursor-default' : ''}`} 
+                    onClick={() => p.humedad != null && openHistory({ type: 'parcela', data: p })}
+                  >
                     <div className="flex justify-between items-end">
                       <div>
-                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Humedad Media</p>
-                        <div className="text-3xl font-extrabold text-card-foreground">{p.humedad}%</div>
+                        <p className={`text-xs font-bold ${p.humedad == null ? 'text-muted-foreground' : 'text-blue-600'} uppercase tracking-wider mb-1`}>Humedad Media</p>
+                        <div className={`text-3xl font-extrabold ${p.humedad == null ? 'text-muted-foreground' : 'text-card-foreground'}`}>
+                          {p.humedad != null ? `${p.humedad}%` : '--'}
+                        </div>
                       </div>
-                      <Droplets className="text-blue-500/40 mb-1" size={32} />
+                      <Droplets className={`${p.humedad == null ? 'text-muted-foreground/30' : 'text-blue-500/40'} mb-1`} size={32} />
                     </div>
                   </div>
 
@@ -965,8 +970,16 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                   <div className="h-96 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                   </div>
-                ) : (
+                ) : chartData.length > 0 ? (
                   <DetailedHumidityChart data={chartData} />
+                ) : (
+                  <div className="h-96 flex flex-col items-center justify-center text-center text-muted-foreground bg-muted/30 rounded-xl">
+                    <BarChart3 size={48} className="mb-4 opacity-50" />
+                    <span className="font-bold text-lg text-foreground">No hay datos históricos</span>
+                    <span className="text-sm max-w-xs mt-1">
+                      No se han registrado mediciones para {selectedHistoryItem?.type === 'parcela' ? 'esta parcela' : 'este sensor'} en el período de tiempo seleccionado.
+                    </span>
+                  </div>
                 )}
               </div>
             </motion.div>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Activity, Signal, Radio, ChevronLeft, ChevronRight, BarChart3, Wifi, AlertTriangle } from 'lucide-react';
+import { X, Signal, Radio, BarChart3, Wifi } from 'lucide-react';
 import { getMediciones, getRouterReportes } from '../../services/dataService';
 
 // Tipos duplicados de DispositivosView para que el componente sea autocontenido
@@ -156,8 +156,8 @@ export default function ConnectionHistoryModal({ device, onClose }: { device: Di
         if (device.tipo === 'mota') {
           const data = await getMediciones(device.id, start, end);
           setChartData([
-            { name: 'RSSI', color: '#22c55e', data: data.map((d: any) => ({ date: d.fecha, value: d.rssi })).filter(d => d.value !== null) },
-            { name: 'SNR', color: '#3b82f6', data: data.map((d: any) => ({ date: d.fecha, value: d.snr })).filter(d => d.value !== null) },
+            { name: 'RSSI', color: '#22c55e', data: data.map((d: any) => ({ date: d.fecha, value: d.rssi })).filter((d: { value: number | null }) => d.value !== null) },
+            { name: 'SNR', color: '#3b82f6', data: data.map((d: any) => ({ date: d.fecha, value: d.snr })).filter((d: { value: number | null }) => d.value !== null) },
             { name: 'Pérdidas', color: '#ef4444', data: calculateDeltas(data, 'erroresRxMota') }
           ]);
         } else if (device.tipo === 'router') {

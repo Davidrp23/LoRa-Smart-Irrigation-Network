@@ -91,7 +91,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         dispositivos: dispositivosEnParcela,
         motas: dispositivosEnParcela.filter(d => d.tipo === 'mota').length, // Contador solo motas
         estado: 'ok', // Valor por defecto UI
-        humedad: p.humedadMedia ? Math.round(p.humedadMedia) : 0,   // Valor por defecto UI
+        humedad: p.humedadMedia != null ? Math.round(p.humedadMedia) : null,
         proximoRiego: 'Programar' // Valor por defecto UI
       };
     });
