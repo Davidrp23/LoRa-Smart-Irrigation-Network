@@ -231,13 +231,25 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
              </div>
            )}
        </div>
-       <div className="h-96 w-full flex items-end gap-2 px-4">
+       <div className="h-96 w-full flex items-end gap-2 px-4 pb-8">
           {displayData.map((d, i) => (
             <div key={startIndex + i} className="flex-1 flex flex-col justify-end group relative h-full">
               <div className="w-full bg-green-500/70 dark:bg-green-500/20 rounded-t-sm border-t-2 border-green-500 relative transition-all group-hover:bg-green-600 dark:group-hover:bg-green-500/40" style={{ height: `${d.value}%` }}>
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">{d.value}%</div>
+                {/* Tooltip Mejorado: Valor + Fecha completa al hacer hover */}
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-md border border-border pointer-events-none flex flex-col items-center">
+                  <span className="font-bold">{d.value}%</span>
+                  <span className="text-[10px] opacity-80 font-normal">{d.label}</span>
+                </div>
               </div>
-              <span className="text-[10px] text-foreground text-center mt-2 truncate w-full block">{new Date(d.date).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+              
+              {/* Eje X: Mostrar solo 1 de cada 6 etiquetas para evitar solapamiento */}
+              <div className="relative w-full h-6 mt-2">
+                {(i % 6 === 0) && (
+                  <span className="absolute left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground text-center whitespace-nowrap w-24">
+                    {d.label.split(' ')[0]}<br/>{d.label.split(' ')[1]}
+                  </span>
+                )}
+              </div>
             </div>
           ))}
        </div>
