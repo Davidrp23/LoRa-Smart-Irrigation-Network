@@ -13,9 +13,9 @@ export declare class MedicionesService {
         snr: number | null;
         erroresRxMota: number | null;
         id: number;
+        fecha: Date;
         bateria: number;
         motaId: number;
-        fecha: Date;
     } | null, null, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
     remove(id: number): import(".prisma/client").Prisma.Prisma__MedicionClient<{
         humedad: number;
@@ -23,8 +23,8 @@ export declare class MedicionesService {
         snr: number | null;
         erroresRxMota: number | null;
         id: number;
+        fecha: Date;
         bateria: number;
         motaId: number;
-        fecha: Date;
     }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
 }

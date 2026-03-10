@@ -3,6 +3,7 @@ import { CreateRouterDto } from './dto/create-router.dto';
 import { UpdateRouterDto } from './dto/update-router.dto';
 import { Router } from '@prisma/client';
 import { VincularRouterDto } from './dto/vincular-router.dto';
+import { ObtenerReportesDto } from './dto/obtener-reportes.dto';
 export declare class RoutersController {
     private readonly routersService;
     constructor(routersService: RoutersService);
@@ -14,4 +15,15 @@ export declare class RoutersController {
     isPublic(req: any, id: number): Promise<boolean> | undefined;
     aceptarCliente(req: any, motaId: number): Promise<boolean>;
     update(req: any, id: number, updateRouterDto: UpdateRouterDto): Promise<Router>;
+    getReportes(req: any, obtenerReportesDto: ObtenerReportesDto): Promise<{
+        id: number;
+        bateria: number | null;
+        paquetesEnviados: number;
+        paquetesRecibidos: number;
+        erroresTx: number;
+        erroresRx: number;
+        erroresCrc: number;
+        fecha: Date;
+        routerId: number;
+    }[]>;
 }

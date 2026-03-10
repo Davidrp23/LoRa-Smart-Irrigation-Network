@@ -47,10 +47,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         ...r,
         tipo: 'router',
         estado: getEstado(r.fechaUltimaConexion),
-        historialConsumo: Array(24).fill(0).map((_, i) => ({ 
-          value: Math.floor(Math.random() * 10), 
-          date: new Date(Date.now() - (23 - i) * 3600000).toISOString() 
-        })), // Mock para gráfica
+        historialConsumo: r.reportes ? r.reportes.map((rep: any) => ({ value: rep.bateria, date: rep.fecha })).reverse() : [],
         // Fix: Leaflet busca lat/lng, creamos alias
         lat: r.latitud,
         lng: r.longitud
@@ -94,7 +91,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         dispositivos: dispositivosEnParcela,
         motas: dispositivosEnParcela.filter(d => d.tipo === 'mota').length, // Contador solo motas
         estado: 'ok', // Valor por defecto UI
-        humedad: 0,   // Valor por defecto UI
+        humedad: p.humedadMedia ? Math.round(p.humedadMedia) : 0,   // Valor por defecto UI
         proximoRiego: 'Programar' // Valor por defecto UI
       };
     });
@@ -277,5 +274,41 @@ export const getMediciones = async (motaId: number, fechaBegin: Date, fechaEnd: 
   //console.log(JSON.stringify({ motaId, fechaBegin, fechaEnd }));
 
   if (!response.ok) throw new Error('Error al obtener mediciones');
+  return await response.json();
+};
+
+export const getRouterReportes = async (routerId: number, fechaBegin: Date, fechaEnd: Date) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/routers/reportes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ routerId, fechaBegin, fechaEnd }),
+  });
+
+  if (!response.ok) throw new Error('Error al obtener reportes del router');
+  return await response.json();
+};
+
+export const getParcelaHistorico = async (parcelaId: number, fechaBegin: Date, fechaEnd: Date) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/parcelas/historico`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ parcelaId, fechaBegin, fechaEnd }),
+  });
+
+  console.log(JSON.stringify({ parcelaId, fechaBegin, fechaEnd }));
+
+  if (!response.ok) throw new Error('Error al obtener histórico de la parcela');
   return await response.json();
 };

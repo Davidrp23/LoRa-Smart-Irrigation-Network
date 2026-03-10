@@ -1,9 +1,10 @@
 import { CreateRouterDto } from './dto/create-router.dto';
 import { UpdateRouterDto } from './dto/update-router.dto';
-import { Router } from '@prisma/client';
+import { Router, ReporteRouter } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { VincularRouterDto } from './dto/vincular-router.dto';
 import { ParcelasService } from 'src/parcelas/parcelas.service';
+import { ObtenerReportesDto } from './dto/obtener-reportes.dto';
 export declare class RoutersService {
     private prisma;
     private parcelasService;
@@ -17,4 +18,5 @@ export declare class RoutersService {
     aceptarCliente(apiToken: string, motaId: number): Promise<boolean>;
     vincularRouter(Userid: number, vincularRouterDto: VincularRouterDto): Promise<Router>;
     desvincularRouter(Userid: number, routerId: number): Promise<Router>;
+    getReportes(usuarioId: number, obtenerReportesDto: ObtenerReportesDto): Promise<ReporteRouter[]>;
 }

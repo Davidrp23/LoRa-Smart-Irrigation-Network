@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   QrCode, 
   Link as LinkIcon,
-  Plug,
   BarChart2,
   Unlink,
   ChevronLeft,
@@ -29,7 +28,7 @@ import {
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
 import Select from '../ui/Select';
-import { createDevice, updateDevice, deleteDevice, getMediciones } from '../../services/dataService';
+import { createDevice, updateDevice, deleteDevice, getMediciones, getRouterReportes } from '../../services/dataService';
 
 const CHANNEL_FREQUENCIES: Record<number, string> = {
   0: '868.1 MHz',
@@ -333,7 +332,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
   const [viewingConnectionDevice, setViewingConnectionDevice] = useState<Dispositivo | null>(null); // Nuevo estado para modal de conexión
   const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
   const [historyData, setHistoryData] = useState<{ label: string, value: number, date: string }[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false); // Sirve para ambos modales de historial
 
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false); // Estado para el modal de desvinculación
   // State para filtros
@@ -357,6 +356,13 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
   const getNombreParcela = (id?: number | null) => {
     if (!id) return null;
     return parcelasDisponibles.find(p => p.id === id)?.nombre || 'Desconocida';
+  };
+
+  // Helper para obtener nombre de router por ID
+  const getNombreRouter = (id?: number | null) => {
+    if (!id) return 'Ninguno';
+    const router = dispositivos.find(d => d.tipo === 'router' && d.id === id);
+    return router?.nombre || `Router #${id}`;
   };
 
   // Filtrado
@@ -471,31 +477,42 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
 
   // Efecto para cargar historial real cuando se abre el modal o cambia el rango
   useEffect(() => {
-    if (!selectedHistoryDevice || selectedHistoryDevice.tipo !== 'mota') return;
+    if (!selectedHistoryDevice) return;
 
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
         const end = new Date();
         const start = new Date();
-        
+
         if (historyRange === '24h') start.setHours(start.getHours() - 24);
         else if (historyRange === '7d') start.setDate(start.getDate() - 7);
         else if (historyRange === '30d') start.setDate(start.getDate() - 30);
 
-        const mediciones = await getMediciones(selectedHistoryDevice.id, start, end);
-        
-        // Mapeamos las mediciones al formato de la gráfica
-        const formattedData = mediciones.map((m: any) => ({
-          label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-          value: m.bateria, // Usamos nivel de batería real (0-100)
-          date: m.fecha
-        }));
+        let formattedData: { label: string, value: number, date: string }[] = [];
 
+        if (selectedHistoryDevice.tipo === 'mota') {
+          const mediciones = await getMediciones(selectedHistoryDevice.id, start, end);
+          formattedData = mediciones.map((m: any) => ({
+            label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            value: m.bateria,
+            date: m.fecha
+          }));
+
+        } else if (selectedHistoryDevice.tipo === 'router') {
+          const reportes = await getRouterReportes(selectedHistoryDevice.id, start, end);
+          formattedData = reportes
+            .filter((r: any) => r.bateria !== null && r.bateria !== undefined)
+            .map((r: any) => ({
+              label: new Date(r.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              value: r.bateria,
+              date: r.fecha
+            }));
+        }
         setHistoryData(formattedData);
       } catch (error) {
         console.error("Error cargando historial:", error);
-        setNotification({ type: 'error', message: 'No se pudo cargar el historial' });
+        setNotification({ type: 'error', message: (error as Error).message || 'No se pudo cargar el historial' });
       } finally {
         setIsLoadingHistory(false);
       }
@@ -572,7 +589,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
           <motion.div 
             layout
             key={`${disp.tipo}-${disp.id}`} 
-            className="flora-card group p-5"
+            className="flora-card group p-5 overflow-visible"
           >
             {/* Cabecera de la Tarjeta */}
             <div className="flex items-start justify-between mb-4">
@@ -627,7 +644,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                 <span className="text-muted-foreground flex items-center gap-1.5"><MapPin size={14}/> Parcela</span>
                 {disp.parcelaId ? (
                   <span className="font-medium text-foreground text-right truncate max-w-[140px]">
-                    {getNombreParcela(disp.parcelaId)}
+                    {getNombreParcela(disp.parcelaId) || 'Desconocida'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/50">
@@ -677,10 +694,21 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
               )}
 
               {disp.tipo === 'mota' && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
-                  <span className="font-medium text-foreground">{disp.frecuencia || '--'} min</span>
-                </div>
+                <>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <RouterIcon size={14}/> Conectado a
+                    </span>
+                    <span className="font-medium text-foreground text-right truncate max-w-[140px]">
+                      {getNombreRouter(disp.routerId)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={14}/> Frecuencia</span>
+                    <span className="font-medium text-foreground">{disp.frecuencia || '--'} min</span>
+                  </div>
+                </>
               )}
 
               <div className="flex items-center justify-between text-xs">
@@ -712,18 +740,10 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase">Batería</span>
                 <div className={`flex items-center gap-1.5 text-sm font-bold ${
-                  disp.tipo === 'router' && !disp.bateria 
-                    ? 'text-blue-500' 
-                    : getBateriaColor(disp.tipo === 'router' ? disp.bateria : disp.bateriaUltima)
+                  getBateriaColor(disp.tipo === 'router' ? disp.bateria : disp.bateriaUltima)
                 }`}>
-                  {disp.tipo === 'router' && !disp.bateria ? (
-                    <><Plug size={16} /> AC</>
-                  ) : (
-                    <>
-                      <BatteryLevel level={disp.tipo === 'router' ? (disp.bateria || 0) : (disp.bateriaUltima || 0)} size={16} /> 
-                      {disp.tipo === 'router' ? (disp.bateria !== null ? `${disp.bateria}%` : '--%') : (disp.bateriaUltima !== null ? `${disp.bateriaUltima}%` : '--%')}
-                    </>
-                  )}
+                  <BatteryLevel level={disp.tipo === 'router' ? (disp.bateria || 0) : (disp.bateriaUltima || 0)} size={16} /> 
+                  {disp.tipo === 'router' ? (disp.bateria !== null && disp.bateria !== undefined ? `${disp.bateria}%` : '--%') : (disp.bateriaUltima !== null && disp.bateriaUltima !== undefined ? `${disp.bateriaUltima}%` : '--%')}
                 </div>
               </div>
               

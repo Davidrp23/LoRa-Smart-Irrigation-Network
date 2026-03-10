@@ -76,6 +76,9 @@ model Router {
   // ¿Quién está conectado a mí ahora mismo?
   motasConectadas Mota[] 
 
+  // Histórico de estado (Logs)
+  reportes        ReporteRouter[]
+
   //Fechas: 
   createdAt DateTime @default(now()) // Fecha de fabricación
   claimedAt DateTime? //Cuando se lo apropio un cliente
@@ -90,6 +93,7 @@ model Parcela {
   nombre         String  // Ej: "Sector Olivos A"
   cultivo        String? 
   tipoSuelo      String? // Ej: "Arcilloso", "Franco"
+  humedadMedia   Float?  // Caché de estado (Calculado automáticamente)
   
   // Centro aproximado de la parcela para el mapa
   latitudCentro  Float
@@ -103,6 +107,9 @@ model Parcela {
   
   motas          Mota[]  // Qué sensores están trabajando aquí
   routers        Router[] // Qué routers dan cobertura aquí
+
+  // Histórico de datos agregados (KPIs)
+  historico      HistoricoParcela[]
 }
 
 // ========================================================
@@ -132,7 +139,7 @@ model Mota {
 
   // --- CONECTIVIDAD (Topología Dinámica) ---
   routerId        Int?     // A qué router estoy enganchado ahora
-  router          Router?  @relation(fields: [routerId], references: [id])
+  router          Router?  @relation(fields: [routerId], references: [id], onDelete: SetNull)
   canal           Int? // Canal lora que esta usando 0 (868100000) , 1 (868300000) , 2(868500000), 3 (869525000).
   
   // --- CACHÉ DE ESTADO (Última Medición / Foto actual) ---
@@ -176,5 +183,50 @@ model Medicion {
 
   // Relaciones
   motaId    Int
-  mota      Mota     @relation(fields: [motaId], references: [id])
+  mota      Mota     @relation(fields: [motaId], references: [id], onDelete: Cascade)
+
+  @@index([fecha])
+  @@index([motaId])
+}
+
+// ========================================================
+// 6. LOGS DE INFRAESTRUCTURA (ROUTERS)
+// ========================================================
+
+model ReporteRouter {
+  id                Int      @id @default(autoincrement())
+  fecha             DateTime @default(now())
+  
+  // Telemetría
+  bateria           Int?
+  
+  // Contadores (Snapshot para calcular deltas)
+  paquetesEnviados  Int
+  paquetesRecibidos Int
+  erroresTx         Int
+  erroresRx         Int
+  erroresCrc        Int
+  
+  routerId          Int
+  router            Router   @relation(fields: [routerId], references: [id], onDelete: Cascade)
+
+  @@index([fecha])
+  @@index([routerId])
+}
+
+// ========================================================
+// 7. HISTÓRICO DE PARCELAS (AGREGADOS)
+// ========================================================
+
+model HistoricoParcela {
+  id              Int      @id @default(autoincrement())
+  fecha           DateTime @default(now())
+  
+  humedadMedia    Float    // KPI calculado
+  
+  parcelaId       Int
+  parcela         Parcela  @relation(fields: [parcelaId], references: [id], onDelete: Cascade)
+
+  @@index([fecha])
+  @@index([parcelaId])
 }

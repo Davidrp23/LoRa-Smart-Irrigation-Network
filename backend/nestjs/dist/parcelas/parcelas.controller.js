@@ -19,6 +19,7 @@ const create_parcela_dto_1 = require("./dto/create-parcela.dto");
 const update_parcela_dto_1 = require("./dto/update-parcela.dto");
 const common_2 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
+const obtener_historico_dto_1 = require("./dto/obtener-historico.dto");
 let ParcelasController = class ParcelasController {
     parcelasService;
     constructor(parcelasService) {
@@ -42,6 +43,10 @@ let ParcelasController = class ParcelasController {
     remove(req, id) {
         const miPropioId = req.user.id;
         return this.parcelasService.remove(miPropioId, id);
+    }
+    getHistorico(req, obtenerHistoricoDto) {
+        const miPropioId = req.user.id;
+        return this.parcelasService.getHistorico(miPropioId, obtenerHistoricoDto);
     }
 };
 exports.ParcelasController = ParcelasController;
@@ -85,6 +90,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", void 0)
 ], ParcelasController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)('/historico'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, obtener_historico_dto_1.ObtenerHistoricoDto]),
+    __metadata("design:returntype", void 0)
+], ParcelasController.prototype, "getHistorico", null);
 exports.ParcelasController = ParcelasController = __decorate([
     (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('parcelas'),

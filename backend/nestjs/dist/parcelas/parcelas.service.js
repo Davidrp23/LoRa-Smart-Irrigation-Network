@@ -41,6 +41,42 @@ let ParcelasService = class ParcelasService {
             where: { id, usuarioId },
         });
     }
+    async actualizarEstadoParcela(parcelaId) {
+        const agregados = await this.prisma.mota.aggregate({
+            where: { parcelaId: parcelaId },
+            _avg: { humedad: true }
+        });
+        const media = agregados._avg.humedad || 0;
+        await this.prisma.$transaction([
+            this.prisma.parcela.update({
+                where: { id: parcelaId },
+                data: { humedadMedia: media }
+            }),
+            this.prisma.historicoParcela.create({
+                data: {
+                    parcelaId: parcelaId,
+                    humedadMedia: media
+                }
+            })
+        ]);
+    }
+    async getHistorico(usuarioId, obtenerHistoricoDto) {
+        let parcelaId = obtenerHistoricoDto.parcelaId;
+        let fechaBegin = obtenerHistoricoDto.fechaBegin;
+        let fechaEnd = obtenerHistoricoDto.fechaEnd;
+        const parcela = await this.findOne(usuarioId, parcelaId);
+        if (!parcela)
+            throw new common_1.NotFoundException('Parcela no encontrada o no te pertenece.');
+        return this.prisma.historicoParcela.findMany({
+            where: { parcelaId,
+                fecha: {
+                    gte: new Date(fechaBegin),
+                    lte: new Date(fechaEnd)
+                }
+            },
+            orderBy: { fecha: 'asc' },
+        });
+    }
 };
 exports.ParcelasService = ParcelasService;
 exports.ParcelasService = ParcelasService = __decorate([

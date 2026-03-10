@@ -13,15 +13,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BigPacketService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const parcelas_service_1 = require("../parcelas/parcelas.service");
 let BigPacketService = BigPacketService_1 = class BigPacketService {
     prisma;
+    parcelasService;
     logger = new common_1.Logger(BigPacketService_1.name);
-    constructor(prisma) {
+    constructor(prisma, parcelasService) {
         this.prisma = prisma;
+        this.parcelasService = parcelasService;
     }
     async create(routerID, createBigPacketDto) {
         const operaciones = [];
         const ahora = new Date();
+        const router = await this.prisma.router.findUnique({
+            where: { id: routerID },
+            select: { canal: true },
+        });
+        const canal = router?.canal;
         const routerUpdateData = createBigPacketDto.router
             ? { ...createBigPacketDto.router, fechaUltimaConexion: ahora }
             : { fechaUltimaConexion: ahora };
@@ -29,6 +37,19 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
             where: { id: routerID },
             data: routerUpdateData,
         }));
+        if (createBigPacketDto.router) {
+            operaciones.push(this.prisma.reporteRouter.create({
+                data: {
+                    routerId: routerID,
+                    bateria: createBigPacketDto.router.bateria,
+                    paquetesEnviados: createBigPacketDto.router.paquetesEnviados ?? 0,
+                    paquetesRecibidos: createBigPacketDto.router.paquetesRecibidos ?? 0,
+                    erroresTx: createBigPacketDto.router.erroresTx ?? 0,
+                    erroresRx: createBigPacketDto.router.erroresRx ?? 0,
+                    erroresCrc: createBigPacketDto.router.erroresCrc ?? 0,
+                }
+            }));
+        }
         const medicionesParaInsertar = [];
         for (const mota of createBigPacketDto.motas) {
             operaciones.push(this.prisma.mota.update({
@@ -40,6 +61,7 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
                     routerId: routerID,
                     fechaUltimaConexion: ahora,
                     humedad: mota.humedad,
+                    canal: canal,
                     rssi: mota.rssi,
                     snr: mota.snr,
                     erroresRxMota: mota.erroresRxMota,
@@ -61,8 +83,16 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
             }));
         }
         try {
-            await this.prisma.$transaction(operaciones);
+            const resultados = await this.prisma.$transaction(operaciones);
             this.logger.log(`BigPacket procesado con éxito. Router ID: ${routerID} | Motas actualizadas: ${createBigPacketDto.motas.length}`);
+            const parcelasAfectadas = new Set();
+            const motasIds = createBigPacketDto.motas.map(m => m.motaId);
+            const motasDb = await this.prisma.mota.findMany({ where: { id: { in: motasIds } }, select: { parcelaId: true } });
+            motasDb.forEach(m => { if (m.parcelaId)
+                parcelasAfectadas.add(m.parcelaId); });
+            for (const parcelaId of parcelasAfectadas) {
+                await this.parcelasService.actualizarEstadoParcela(parcelaId);
+            }
             return { ok: true };
         }
         catch (error) {
@@ -74,6 +104,6 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
 exports.BigPacketService = BigPacketService;
 exports.BigPacketService = BigPacketService = BigPacketService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService, parcelas_service_1.ParcelasService])
 ], BigPacketService);
 //# sourceMappingURL=big-packet.service.js.map

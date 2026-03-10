@@ -9,6 +9,7 @@ import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { HybridAuthGuard } from 'src/auth/guards/hybrid-auth.guard';
 import { DeviceAuthGuard } from 'src/auth/guards/device-auth.guard';
+import { ObtenerReportesDto } from './dto/obtener-reportes.dto';
 
 @Controller('routers')
 export class RoutersController {
@@ -84,4 +85,11 @@ export class RoutersController {
   // async remove(@Param('id', ParseIntPipe) id: number): Promise<Router>  { //Un router no se puede eliminar (sigue existiendo)
   //   return this.routersService.remove(id);                                 //se puede desvincular del usuario
   // }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('/reportes')
+  async getReportes(@Request() req, @Body() obtenerReportesDto: ObtenerReportesDto) {
+    const miPropioId = req.user.id;
+    return this.routersService.getReportes(miPropioId, obtenerReportesDto);
+  }
 }

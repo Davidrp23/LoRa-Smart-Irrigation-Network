@@ -22,6 +22,7 @@ const common_2 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const hybrid_auth_guard_1 = require("../auth/guards/hybrid-auth.guard");
 const device_auth_guard_1 = require("../auth/guards/device-auth.guard");
+const obtener_reportes_dto_1 = require("./dto/obtener-reportes.dto");
 let RoutersController = class RoutersController {
     routersService;
     constructor(routersService) {
@@ -61,6 +62,10 @@ let RoutersController = class RoutersController {
     async update(req, id, updateRouterDto) {
         const miPropioId = req.user.id;
         return this.routersService.update(miPropioId, id, updateRouterDto);
+    }
+    async getReportes(req, obtenerReportesDto) {
+        const miPropioId = req.user.id;
+        return this.routersService.getReportes(miPropioId, obtenerReportesDto);
     }
 };
 exports.RoutersController = RoutersController;
@@ -135,6 +140,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, update_router_dto_1.UpdateRouterDto]),
     __metadata("design:returntype", Promise)
 ], RoutersController.prototype, "update", null);
+__decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Post)('/reportes'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, obtener_reportes_dto_1.ObtenerReportesDto]),
+    __metadata("design:returntype", Promise)
+], RoutersController.prototype, "getReportes", null);
 exports.RoutersController = RoutersController = __decorate([
     (0, common_1.Controller)('routers'),
     __metadata("design:paramtypes", [routers_service_1.RoutersService])

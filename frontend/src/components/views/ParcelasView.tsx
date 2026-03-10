@@ -2,22 +2,13 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio, Search } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
+import Select from '../ui/Select'; // Importamos el componente Select
 import ConfirmarEliminarModal from './ConfirmarEliminarModal';
 import { initParcelMap, type Parcela, type Dispositivo } from '../../utils/mapUtils';
-import { createParcela, updateParcela, deleteParcela, getMediciones } from '../../services/dataService';
-
-// Eliminamos parcelasFalsas
-
-const generateRandomData = (range: '24h' | '7d' | '30d') => {
-  const count = range === '24h' ? 24 : range === '7d' ? 7 : 30;
-  return Array.from({ length: count }, (_, i) => ({
-    label: range === '24h' ? `${i}:00` : range === '7d' ? `Día ${i+1}` : `Día ${i+1}`,
-    value: Math.floor(Math.random() * 60) + 20 // 20-80% random
-  }));
-};
+import { createParcela, updateParcela, deleteParcela, getMediciones, getParcelaHistorico } from '../../services/dataService';
 
 type HistoryItem = { type: 'parcela', data: Parcela } | { type: 'mota', data: Dispositivo };
 
@@ -360,6 +351,9 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
   const [vista, setVista] = useState<'galeria' | 'mapa'>(mapTarget ? 'mapa' : 'galeria');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroCultivo, setFiltroCultivo] = useState('todos');
+  const [filtroTipoSuelo, setFiltroTipoSuelo] = useState('todos');
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [parcelaParaEliminar, setParcelaParaEliminar] = useState<Parcela | null>(null);
@@ -408,36 +402,43 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
 
   // Actualizar datos cuando cambia el rango o el ítem seleccionado
   useEffect(() => {
-    if (selectedHistoryItem) {
-      if (selectedHistoryItem.type === 'mota') {
-        // Cargar datos reales para Motas
-        const fetchMotaHistory = async () => {
-          setIsLoadingHistory(true);
-          try {
-            const end = new Date();
-            const start = new Date();
-            if (timeRange === '24h') start.setHours(start.getHours() - 24);
-            else if (timeRange === '7d') start.setDate(start.getDate() - 7);
-            else if (timeRange === '30d') start.setDate(start.getDate() - 30);
+    if (!selectedHistoryItem) return;
 
-            const mediciones = await getMediciones(selectedHistoryItem.data.id, start, end);
-            
-            setChartData(mediciones.map((m: any) => ({
-              label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-              value: m.humedad // Mostramos humedad en el historial de parcelas/motas
-            })));
-          } catch (e) {
-            console.error(e);
-          } finally {
-            setIsLoadingHistory(false);
-          }
-        };
-        fetchMotaHistory();
-      } else {
-        // Para parcelas (media) seguimos usando mock por ahora o implementar lógica de agregación
-        setChartData(generateRandomData(timeRange));
+    const fetchHistoryData = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const end = new Date();
+        const start = new Date();
+        if (timeRange === '24h') start.setHours(start.getHours() - 24);
+        else if (timeRange === '7d') start.setDate(start.getDate() - 7);
+        else if (timeRange === '30d') start.setDate(start.getDate() - 30);
+
+        let rawData;
+        let formattedData;
+
+        if (selectedHistoryItem.type === 'mota') {
+          rawData = await getMediciones(selectedHistoryItem.data.id, start, end);
+          formattedData = rawData.map((m: any) => ({
+            label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+            value: Math.round(m.humedad)
+          }));
+        } else { // Es de tipo 'parcela'
+          rawData = await getParcelaHistorico(selectedHistoryItem.data.id, start, end);
+          formattedData = rawData.map((h: any) => ({
+            label: new Date(h.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+            value: Math.round(h.humedadMedia)
+          }));
+        }
+        setChartData(formattedData);
+      } catch (error) {
+        console.error("Error cargando historial:", error);
+        setNotification({ type: 'error', message: (error as Error).message || 'No se pudo cargar el historial' });
+      } finally {
+        setIsLoadingHistory(false);
       }
-    }
+    };
+
+    fetchHistoryData();
   }, [timeRange, selectedHistoryItem]);
 
   const openHistory = (item: HistoryItem) => {
@@ -544,6 +545,33 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
     });
   }, [parcelas]);
 
+  // Opciones para los selectores de filtro
+  const opcionesCultivo = useMemo(() => {
+    const cultivos = new Set(parcelasSeguras.map(p => p.cultivo).filter(Boolean));
+    return [
+      { value: 'todos', label: 'Todos los Cultivos' },
+      ...Array.from(cultivos).map(c => ({ value: c as string, label: c as string }))
+    ];
+  }, [parcelasSeguras]);
+
+  const opcionesTipoSuelo = useMemo(() => {
+    const tipos = new Set(parcelasSeguras.map(p => p.tipoSuelo).filter(Boolean));
+    return [
+      { value: 'todos', label: 'Todos los Suelos' },
+      ...Array.from(tipos).map(t => ({ value: t as string, label: t as string }))
+    ];
+  }, [parcelasSeguras]);
+
+  // Filtrado de parcelas para la galería
+  const parcelasFiltradas = useMemo(() => {
+    const terminoBusqueda = busqueda.toLowerCase();
+    return parcelasSeguras.filter(p => 
+      ((p.nombre || '').toLowerCase().includes(terminoBusqueda)) &&
+      (filtroCultivo === 'todos' || p.cultivo === filtroCultivo) &&
+      (filtroTipoSuelo === 'todos' || p.tipoSuelo === filtroTipoSuelo)
+    );
+  }, [parcelasSeguras, busqueda, filtroCultivo, filtroTipoSuelo]);
+
   useEffect(() => {
     // Usamos 'as string' para evitar el error de TS que infiere erróneamente que los tipos no se solapan
     if ((vista as string) !== 'mapa' || !mapRef.current) return;
@@ -582,8 +610,9 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
 
           // Calculamos contadores reales usando la lista completa
           const pExtended = p as unknown as ParcelaExtended;
-          const totalDevs = pExtended.dispositivosTodos?.length || 0;
-          const noGpsDevs = pExtended.dispositivosTodos?.filter(d => !d.lat).length || 0;
+          const motasEnParcela = pExtended.dispositivosTodos?.filter(d => d.tipo === 'mota') || [];
+          const totalMotas = motasEnParcela.length;
+          const noGpsMotas = motasEnParcela.filter(d => !d.lat).length;
 
           container.innerHTML = `
             <div>
@@ -625,8 +654,8 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                 <div class="map-tech-box p-2">
                   <div class="map-tech-label">Motas</div>
                   <div class="text-sm font-bold text-foreground mt-0.5">
-                    ${totalDevs} 
-                    ${noGpsDevs > 0 ? `<span class="text-[9px] text-amber-600 ml-1">(${noGpsDevs} sin GPS)</span>` : ''}
+                    ${totalMotas} 
+                    ${noGpsMotas > 0 ? `<span class="text-[9px] text-amber-600 ml-1">(${noGpsMotas} sin GPS)</span>` : ''}
                   </div>
                 </div>
               </div>
@@ -723,13 +752,43 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-full flex-col">
         {/* Encabezado solo visible en modo Galería para maximizar espacio en Mapa */}
         {vista === 'galeria' && (
-          <div className="mb-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl">
-            <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
-            <div className="flex rounded-lg border border-border bg-card p-1">
-              <button onClick={() => setVista('galeria')} className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors bg-primary text-primary-foreground shadow-sm"><LayoutGrid size={16} /> Galería</button>
-              <button onClick={() => setVista('mapa')} className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors text-muted-foreground hover:bg-muted/50"><Globe size={16} /> Satélite</button>
+          <>
+            <div className="mb-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-6 shadow-sm backdrop-blur-xl">
+              <h2 className="text-lg font-semibold text-card-foreground">Gestión de Terrenos</h2>
+              <div className="flex rounded-lg border border-border bg-card p-1">
+                <button onClick={() => setVista('galeria')} className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors bg-primary text-primary-foreground shadow-sm"><LayoutGrid size={16} /> Galería</button>
+                <button onClick={() => setVista('mapa')} className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors text-muted-foreground hover:bg-muted/50"><Globe size={16} /> Satélite</button>
+              </div>
             </div>
-          </div>
+
+            {/* Barra de Búsqueda */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nombre..." 
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="flora-input pl-10 w-full"
+                />
+              </div>
+              <div className="w-full sm:w-48">
+                <Select
+                  value={filtroCultivo}
+                  onChange={(val) => setFiltroCultivo(val)}
+                  options={opcionesCultivo}
+                />
+              </div>
+              <div className="w-full sm:w-48">
+                <Select
+                  value={filtroTipoSuelo}
+                  onChange={(val) => setFiltroTipoSuelo(val)}
+                  options={opcionesTipoSuelo}
+                />
+              </div>
+            </div>
+          </>
         )}
 
         {vista === 'mapa' ? (
@@ -755,7 +814,7 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-green-200 group-hover:text-green-600"><Plus size={28} /></div>
               <span className="font-semibold text-card-foreground">Registrar Parcela</span>
             </button>
-            {parcelasSeguras.map(p => (
+            {parcelasFiltradas.map(p => (
               <div key={p.id} className="flora-card group">
                 {/* Header */}
                 <div className="p-5">

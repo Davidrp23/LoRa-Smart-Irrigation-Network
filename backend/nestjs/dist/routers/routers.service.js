@@ -51,7 +51,14 @@ let RoutersService = class RoutersService {
     }
     async findAll(usuarioId) {
         return this.prisma.router.findMany({
-            where: { usuarioId }
+            where: { usuarioId },
+            include: {
+                reportes: {
+                    select: { bateria: true, fecha: true },
+                    orderBy: { fecha: 'desc' },
+                    take: 24
+                }
+            }
         });
     }
     async findOne(usuarioId, id) {
@@ -158,6 +165,23 @@ let RoutersService = class RoutersService {
             }
             throw error;
         }
+    }
+    async getReportes(usuarioId, obtenerReportesDto) {
+        let routerId = obtenerReportesDto.routerId;
+        let fechaBegin = obtenerReportesDto.fechaBegin;
+        let fechaEnd = obtenerReportesDto.fechaEnd;
+        const router = await this.prisma.router.findUnique({ where: { id: routerId, usuarioId } });
+        if (!router)
+            throw new common_2.NotFoundException(`El router no existe o no te pertenece.`);
+        return this.prisma.reporteRouter.findMany({
+            where: { routerId,
+                fecha: {
+                    gte: new Date(fechaBegin),
+                    lte: new Date(fechaEnd)
+                }
+            },
+            orderBy: { fecha: 'asc' },
+        });
     }
 };
 exports.RoutersService = RoutersService;

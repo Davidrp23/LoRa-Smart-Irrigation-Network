@@ -5,23 +5,23 @@ export declare class MedicionesController {
     private readonly medicionesService;
     constructor(medicionesService: MedicionesService);
     create(req: any, createMedicioneDto: CreateMedicionDto): Promise<{
-        id: number;
-        fecha: Date;
         humedad: number;
-        bateria: number;
         rssi: number | null;
         snr: number | null;
         erroresRxMota: number | null;
+        id: number;
+        fecha: Date;
+        bateria: number;
         motaId: number;
     }>;
     findByDate(req: any, obtenerMedicionDto: ObtenerMedicionDto): Promise<{
-        id: number;
-        fecha: Date;
         humedad: number;
-        bateria: number;
         rssi: number | null;
         snr: number | null;
         erroresRxMota: number | null;
+        id: number;
+        fecha: Date;
+        bateria: number;
         motaId: number;
     }[] | null>;
 }

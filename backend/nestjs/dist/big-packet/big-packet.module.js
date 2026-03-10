@@ -10,11 +10,13 @@ exports.BigPacketModule = void 0;
 const common_1 = require("@nestjs/common");
 const big_packet_service_1 = require("./big-packet.service");
 const big_packet_controller_1 = require("./big-packet.controller");
+const parcelas_module_1 = require("../parcelas/parcelas.module");
 let BigPacketModule = class BigPacketModule {
 };
 exports.BigPacketModule = BigPacketModule;
 exports.BigPacketModule = BigPacketModule = __decorate([
     (0, common_1.Module)({
+        imports: [parcelas_module_1.ParcelasModule],
         controllers: [big_packet_controller_1.BigPacketController],
         providers: [big_packet_service_1.BigPacketService],
     })

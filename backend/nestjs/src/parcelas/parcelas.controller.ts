@@ -5,6 +5,7 @@ import { UpdateParcelaDto } from './dto/update-parcela.dto';
 
 import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ObtenerHistoricoDto } from './dto/obtener-historico.dto';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('parcelas')
@@ -38,5 +39,11 @@ export class ParcelasController {
   remove(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
     return this.parcelasService.remove(miPropioId, id);
+  }
+
+  @Post('/historico')
+  getHistorico(@Request() req, @Body() obtenerHistoricoDto: ObtenerHistoricoDto) {
+    const miPropioId = req.user.id;
+    return this.parcelasService.getHistorico(miPropioId, obtenerHistoricoDto);
   }
 }

@@ -1,13 +1,14 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateRouterDto } from './dto/create-router.dto';
 import { UpdateRouterDto } from './dto/update-router.dto';
-import { Router } from '@prisma/client'; // 2. Importa el Tipo de Prisma (El Entity real)
+import { Router, ReporteRouter } from '@prisma/client'; // 2. Importa el Tipo de Prisma (El Entity real)
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { VincularRouterDto } from './dto/vincular-router.dto';
 
 import { randomBytes } from 'crypto';
 import { ParcelasService } from 'src/parcelas/parcelas.service';
+import { ObtenerReportesDto } from './dto/obtener-reportes.dto';
 
 @Injectable()
 export class RoutersService {
@@ -61,7 +62,14 @@ export class RoutersService {
 
   async findAll(usuarioId: number): Promise<Router[]> {
     return this.prisma.router.findMany({
-      where: {usuarioId}
+      where: { usuarioId },
+      include: {
+        reportes: {
+          select: { bateria: true, fecha: true }, // Necesitamos batería y fecha para la gráfica
+          orderBy: { fecha: 'desc' },
+          take: 24 // Últimas 24 mediciones (aprox 24h si es cada hora, o las últimas 24 muestras)
+        }
+      }
     });
   }
 
@@ -218,5 +226,28 @@ export class RoutersService {
       // Si es otro error de base de datos, lo dejamos pasar
       throw error; 
     }
+  }
+
+  async getReportes(usuarioId: number, obtenerReportesDto: ObtenerReportesDto): Promise<ReporteRouter[]> {
+    //Buscamos mediciones que se comprendan en las fechas y pertenezcan al usuario
+    let routerId: number = obtenerReportesDto.routerId;
+    let fechaBegin: string = obtenerReportesDto.fechaBegin;
+    let fechaEnd: string = obtenerReportesDto.fechaEnd
+
+    //Nos aseguramos antes de buscar las mediciones si la mota pertenece al usuario.
+    const router = await this.prisma.router.findUnique({where: {id: routerId, usuarioId}});
+
+    if (!router) throw new NotFoundException(`El router no existe o no te pertenece.`);
+
+    return this.prisma.reporteRouter.findMany({
+      where: { routerId,
+        fecha: {
+          gte: new Date(fechaBegin), // Convertimos el string a objeto Date
+          lte: new Date(fechaEnd)
+        }
+       },
+      orderBy: { fecha: 'asc' },
+      
+    });
   }
 }
