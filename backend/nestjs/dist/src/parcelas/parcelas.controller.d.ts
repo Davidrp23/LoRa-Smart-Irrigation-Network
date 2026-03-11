@@ -14,6 +14,9 @@ export declare class ParcelasController {
         sueloId: number | null;
         cultivoId: number | null;
         riegoId: number | null;
+        proximoRiego: Date | null;
+        tiempoRiegoMin: number | null;
+        estadoRiego: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
@@ -28,6 +31,9 @@ export declare class ParcelasController {
         sueloId: number | null;
         cultivoId: number | null;
         riegoId: number | null;
+        proximoRiego: Date | null;
+        tiempoRiegoMin: number | null;
+        estadoRiego: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
@@ -42,6 +48,9 @@ export declare class ParcelasController {
         sueloId: number | null;
         cultivoId: number | null;
         riegoId: number | null;
+        proximoRiego: Date | null;
+        tiempoRiegoMin: number | null;
+        estadoRiego: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
@@ -56,6 +65,9 @@ export declare class ParcelasController {
         sueloId: number | null;
         cultivoId: number | null;
         riegoId: number | null;
+        proximoRiego: Date | null;
+        tiempoRiegoMin: number | null;
+        estadoRiego: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
@@ -70,6 +82,9 @@ export declare class ParcelasController {
         sueloId: number | null;
         cultivoId: number | null;
         riegoId: number | null;
+        proximoRiego: Date | null;
+        tiempoRiegoMin: number | null;
+        estadoRiego: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;

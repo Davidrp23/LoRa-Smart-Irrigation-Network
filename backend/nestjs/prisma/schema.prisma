@@ -130,6 +130,11 @@ model Parcela {
   riegoId        Int?
   riego          TipoRiego?   @relation(fields: [riegoId], references: [id], onDelete: SetNull)
 
+  // --- CACHÉ DEL ALGORITMO DE RIEGO ---
+  proximoRiego     DateTime? // Cuándo debería regarse
+  tiempoRiegoMin   Int?      // Cuántos minutos dura el riego
+  estadoRiego      String?   // Ej: "Programado", "Suelo Óptimo", "Pausado por Lluvia"
+
   // --- UBICACIÓN ESPACIAL ---
   latitudCentro  Float
   longitudCentro Float
