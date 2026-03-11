@@ -5,13 +5,25 @@ export class CreateParcelaDto {
     @IsNotEmpty()
     nombre: string;  // Ej: "Sector Olivos A"
 
-    @IsString()
+    @IsNumber()
     @IsNotEmpty()
-    cultivo: string;
+    areaM2: number;
 
-    @IsOptional()
-    @IsString()
-    tipoSuelo?: string;
+    @IsNumber()
+    @IsNotEmpty()
+    riegoId: number;
+
+    @IsNumber()
+    @IsNotEmpty()
+    caudalRiegoLh: number;
+
+    @IsNumber()
+    @IsNotEmpty()
+    sueloId: number;
+
+    @IsNumber()
+    @IsNotEmpty()
+    cultivoId: number;
   
     // Centro aproximado de la parcela para el mapa
     @IsNumber()

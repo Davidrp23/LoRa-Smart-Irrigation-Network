@@ -12,24 +12,28 @@ export class ParcelasService {
   
   async create(userId: number, createParcelaDto: CreateParcelaDto): Promise<Parcela> {
     return this.prisma.parcela.create({
-      data: {usuarioId: userId, ...createParcelaDto}
+      data: {usuarioId: userId, ...createParcelaDto},
     });
   }
 
   async findAll(usuarioId: number): Promise<Parcela[]> {
-    return this.prisma.parcela.findMany({where: {usuarioId}});
+    return this.prisma.parcela.findMany({
+      where: {usuarioId},
+      include: { cultivo: true, suelo: true, riego: true }
+    });
   }
 
   async findOne(usuarioId: number, id: number): Promise<Parcela | null> {
     return this.prisma.parcela.findUnique({
-      where: {id, usuarioId}
+      where: {id, usuarioId},
+      include: { cultivo: true, suelo: true, riego: true }
     });
   }
 
   async update(usuarioId: number, id: number, updateParcelaDto: UpdateParcelaDto): Promise<Parcela> {
     return this.prisma.parcela.update({
       where: {id, usuarioId},
-      data: updateParcelaDto
+      data: updateParcelaDto,
     });
   }
 

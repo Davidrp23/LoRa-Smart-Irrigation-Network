@@ -84,9 +84,13 @@ export const getDashboardData = async (): Promise<AppData> => {
       // (El backend no siempre devuelve esto anidado, así que lo calculamos aquí)
       const dispositivosEnParcela = dispositivos
         .filter(d => d.parcelaId === p.id);
-
+      
       return {
         ...p,
+        // Adaptador: Aplanamos los objetos de relación a strings para el frontend
+        cultivo: p.cultivo?.nombre || 'Sin Cultivo',
+        tipoSuelo: p.suelo?.nombre,
+        tipoRiego: p.riego?.nombre,
         coordenadas: coordenadas || [],
         dispositivos: dispositivosEnParcela,
         motas: dispositivosEnParcela.filter(d => d.tipo === 'mota').length, // Contador solo motas
@@ -102,6 +106,50 @@ export const getDashboardData = async (): Promise<AppData> => {
     console.error("Error en dataService:", error);
     throw error;
   }
+};
+
+// --- CATÁLOGOS AGRONÓMICOS ---
+
+export const getTiposCultivo = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const headers = { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}` 
+  };
+
+  const response = await fetch(`${API_URL}/tipo-cultivo`, {headers});
+  if (!response.ok) throw new Error('Error al cargar cultivos');
+  return await response.json();
+};
+
+export const getTiposSuelo = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const headers = { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}` 
+  };
+
+  const response = await fetch(`${API_URL}/tipo-suelo`,{headers});
+  if (!response.ok) throw new Error('Error al cargar tipos de suelo');
+  return await response.json();
+};
+
+export const getTiposRiego = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const headers = { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}` 
+  };
+
+  const response = await fetch(`${API_URL}/tipo-riego`,{headers});
+  if (!response.ok) throw new Error('Error al cargar tipos de riego');
+  return await response.json();
 };
 
 // --- GESTIÓN DE PARCELAS ---
@@ -124,8 +172,11 @@ export const createParcela = async (parcela: any) => {
   // Preparamos el payload LIMPIO (solo lo que el DTO permite)
   const payload = {
     nombre: parcela.nombre,
-    cultivo: parcela.cultivo || 'Sin cultivo',
-    tipoSuelo: parcela.tipoSuelo,
+    cultivoId: parcela.cultivoId, // Ahora enviamos ID
+    sueloId: parcela.sueloId,     // Ahora enviamos ID
+    riegoId: parcela.riegoId,     // Nuevo campo
+    areaM2: parcela.areaM2,       // Nuevo campo
+    caudalRiegoLh: parcela.caudalRiegoLh, // Nuevo campo
     latitudCentro: latCentro || 0,
     longitudCentro: lngCentro || 0,
     puntos: parcela.coordenadas // Frontend usa 'coordenadas', Backend espera 'puntos' (mapeado en DTO)
@@ -151,8 +202,11 @@ export const updateParcela = async (id: number, parcela: any) => {
   // Solo enviamos lo necesario
   const payload: any = {
     nombre: parcela.nombre,
-    cultivo: parcela.cultivo,
-    tipoSuelo: parcela.tipoSuelo,
+    cultivoId: parcela.cultivoId,
+    sueloId: parcela.sueloId,
+    riegoId: parcela.riegoId,
+    areaM2: parcela.areaM2,
+    caudalRiegoLh: parcela.caudalRiegoLh
   };
   
   // Si se editaron los puntos, los enviamos

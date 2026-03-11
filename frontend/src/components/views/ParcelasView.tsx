@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio, Search } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio, Search, Ruler } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
 import Select from '../ui/Select'; // Importamos el componente Select
@@ -354,6 +354,7 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
   const [busqueda, setBusqueda] = useState('');
   const [filtroCultivo, setFiltroCultivo] = useState('todos');
   const [filtroTipoSuelo, setFiltroTipoSuelo] = useState('todos');
+  const [filtroRiego, setFiltroRiego] = useState('todos');
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [parcelaParaEliminar, setParcelaParaEliminar] = useState<Parcela | null>(null);
@@ -562,15 +563,24 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
     ];
   }, [parcelasSeguras]);
 
+  const opcionesRiego = useMemo(() => {
+    const tipos = new Set(parcelasSeguras.map(p => p.tipoRiego).filter(Boolean));
+    return [
+      { value: 'todos', label: 'Todos los Riegos' },
+      ...Array.from(tipos).map(t => ({ value: t as string, label: t as string }))
+    ];
+  }, [parcelasSeguras]);
+
   // Filtrado de parcelas para la galería
   const parcelasFiltradas = useMemo(() => {
     const terminoBusqueda = busqueda.toLowerCase();
     return parcelasSeguras.filter(p => 
       ((p.nombre || '').toLowerCase().includes(terminoBusqueda)) &&
       (filtroCultivo === 'todos' || p.cultivo === filtroCultivo) &&
-      (filtroTipoSuelo === 'todos' || p.tipoSuelo === filtroTipoSuelo)
+      (filtroTipoSuelo === 'todos' || p.tipoSuelo === filtroTipoSuelo) &&
+      (filtroRiego === 'todos' || p.tipoRiego === filtroRiego)
     );
-  }, [parcelasSeguras, busqueda, filtroCultivo, filtroTipoSuelo]);
+  }, [parcelasSeguras, busqueda, filtroCultivo, filtroTipoSuelo, filtroRiego]);
 
   useEffect(() => {
     // Usamos 'as string' para evitar el error de TS que infiere erróneamente que los tipos no se solapan
@@ -607,56 +617,70 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
           const sproutIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.2.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1.7-1.6 1.6-3.4 1.6-3.4s-.3-1.1-1.6-1.7c-2.7-1.2-4.4.7-4.4.7z"/></svg>`;
           const layersIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
           const dropletsIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500/40 mb-1"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.8-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>`;
+          const rulerIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0l12.6 12.6z"/><line x1="14.5" y1="5.5" x2="15.5" y2="4.5"/><line x1="11.5" y1="8.5" x2="12.5" y2="7.5"/><line x1="8.5" y1="11.5" x2="9.5" y2="10.5"/><line x1="5.5" y1="14.5" x2="6.5" y2="13.5"/></svg>`;
+          const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+          const wifiIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`;
+          const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`;
+          const alertIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
 
           // Calculamos contadores reales usando la lista completa
           const pExtended = p as unknown as ParcelaExtended;
-          const motasEnParcela = pExtended.dispositivosTodos?.filter(d => d.tipo === 'mota') || [];
-          const totalMotas = motasEnParcela.length;
-          const noGpsMotas = motasEnParcela.filter(d => !d.lat).length;
+          const totalDispositivos = pExtended.dispositivosTodos?.length || 0;
+          const noGpsDispositivos = pExtended.dispositivosTodos?.filter(d => !d.lat).length || 0;
 
           container.innerHTML = `
-            <div>
-              <div class="map-popup-header">
-                <div>
-                  <h3 class="map-popup-title">${p.nombre}</h3>
-                  <div class="flex flex-wrap gap-2 mt-1.5">
-                      <span class="map-badge-emerald">
-                        ${sproutIcon} ${p.cultivo}
-                      </span>
-                      ${p.tipoSuelo ? `
-                        <span class="map-badge-amber">
-                          ${layersIcon} ${p.tipoSuelo}
+            <div style="min-width: 300px;">
+              <div class="map-popup-header" style="align-items: flex-start; justify-content: space-between; gap: 0.5rem;">
+                <div class="flex-1 min-w-0">
+                    <h3 class="map-popup-title leading-tight">${p.nombre}</h3>
+                    ${p.areaM2 ? `
+                        <div class="flex items-center gap-1 mt-1 text-xs font-medium text-muted-foreground">
+                        ${rulerIcon}
+                        <span>${(p.areaM2 / 10000).toFixed(2)} ha</span>
+                        </div>
+                    ` : ''}
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <span class="map-badge-emerald">
+                            ${sproutIcon} ${p.cultivo}
                         </span>
-                      ` : ''}
-                  </div>
+                        ${p.tipoRiego ? `
+                            <span class="map-badge-blue">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.8-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>
+                            ${p.tipoRiego}
+                            </span>
+                        ` : ''}
+                        ${p.tipoSuelo ? `
+                            <span class="map-badge-amber">
+                            ${layersIcon} ${p.tipoSuelo}
+                            </span>
+                        ` : ''}
+                    </div>
                 </div>
-                ${p.estado === 'alerta' 
-                  ? '<span class="map-popup-badge alert">ALERTA</span>' 
-                  : '<span class="map-popup-badge ok">OK</span>'
-                }
+                <div class="${p.estado === 'ok' ? 'status-indicator-ok' : 'status-indicator-alert'} !w-7 !h-7 !flex !items-center !justify-center !rounded-full shrink-0 mt-0.5">
+                  ${p.estado === 'ok' ? checkIcon : alertIcon}
+                </div>
               </div>
               
-              <div class="map-metric-card">
-                  <div class="flex justify-between items-end">
+              <div class="map-metric-card !p-2.5">
+                  <div class="flex justify-between items-center">
                     <div>
-                      <p class="text-[10px] font-bold ${p.humedad != null ? 'text-blue-600' : 'text-muted-foreground'} uppercase tracking-wider mb-0.5">Humedad Media</p>
-                      <div class="text-xl font-extrabold ${p.humedad != null ? 'text-foreground' : 'text-muted-foreground'}">${p.humedad != null ? `${p.humedad}%` : '--'}</div>
+                      <p class="text-[10px] font-bold ${p.humedad != null ? 'text-blue-600' : 'text-muted-foreground'} uppercase tracking-wider">Humedad Media</p>
+                      <div class="text-lg font-extrabold ${p.humedad != null ? 'text-foreground' : 'text-muted-foreground'}">${p.humedad != null ? `${p.humedad}%` : '--'}</div>
                     </div>
                     ${dropletsIcon}
                   </div>
               </div>
 
-              <div class="map-tech-grid mb-3">
-                <div class="map-tech-box p-2">
-                  <div class="map-tech-label">Riego</div>
-                  <div class="text-sm font-bold text-foreground mt-0.5">${p.proximoRiego}</div>
+              <div class="grid grid-cols-[0.8fr_1.2fr] gap-3 text-xs mb-3">
+                <div class="info-card-riego cursor-default">
+                  <span class="text-muted-foreground font-medium flex items-center gap-1">${clockIcon} Riego</span>
+                  <span class="font-semibold text-card-foreground truncate">${p.proximoRiego}</span>
                 </div>
-                <div class="map-tech-box p-2">
-                  <div class="map-tech-label">Motas</div>
-                  <div class="text-sm font-bold text-foreground mt-0.5">
-                    ${totalMotas} 
-                    ${noGpsMotas > 0 ? `<span class="text-[9px] text-amber-600 ml-1">(${noGpsMotas} sin GPS)</span>` : ''}
-                  </div>
+                <div class="info-card-dispositivos cursor-default">
+                  <span class="text-muted-foreground font-medium flex items-center gap-1">${wifiIcon} Dispositivos</span>
+                  <span class="font-semibold text-card-foreground flex items-center">
+                    ${totalDispositivos} Activos ${noGpsDispositivos > 0 ? `<span class="text-amber-500 dark:text-amber-400 ml-1.5 text-[10px]">(${noGpsDispositivos} sin GPS)</span>` : ''}
+                  </span>
                 </div>
               </div>
             </div>
@@ -787,6 +811,13 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                   options={opcionesTipoSuelo}
                 />
               </div>
+              <div className="w-full sm:w-48">
+                <Select
+                  value={filtroRiego}
+                  onChange={(val) => setFiltroRiego(val)}
+                  options={opcionesRiego}
+                />
+              </div>
             </div>
           </>
         )}
@@ -821,13 +852,24 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-lg font-bold text-card-foreground leading-tight">{p.nombre}</h3>
+                      {p.areaM2 && (
+                        <div className="flex items-center gap-1 mt-1 text-xs font-medium text-muted-foreground">
+                          <Ruler size={12} />
+                          <span>{(p.areaM2 / 10000).toFixed(2)} ha</span>
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="badge-emerald">
+                        <span className="badge-emerald" title={`Cultivo: ${p.cultivo}`}>
                           <Sprout size={12} /> {p.cultivo}
                         </span>
                         {p.tipoSuelo && (
-                          <span className="badge-amber">
+                          <span className="badge-amber" title={`Suelo: ${p.tipoSuelo}`}>
                             <Layers size={12} /> {p.tipoSuelo}
+                          </span>
+                        )}
+                        {p.tipoRiego && (
+                          <span className="badge-blue" title={`Riego: ${p.tipoRiego}`}>
+                            <Droplets size={12} /> {p.tipoRiego}
                           </span>
                         )}
                       </div>
@@ -857,7 +899,9 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="info-card-riego cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setViewingIrrigationParcel(p)}>
                       <span className="text-muted-foreground font-medium flex items-center gap-1"><Clock size={12}/> Riego</span>
-                      <span className="font-semibold text-card-foreground truncate">{p.proximoRiego}</span>
+                      <span className="font-semibold text-card-foreground truncate">
+                        {p.proximoRiego}
+                      </span>
                     </div>
                     <div 
                       className="info-card-dispositivos group/dev"

@@ -29,12 +29,18 @@ export interface Parcela {
   nombre: string;
   cultivo: string;
   tipoSuelo?: string;
-  humedad: number;
+  humedad: number | null;
   proximoRiego: string;
   estado: string;
   motas: number;
   dispositivos?: Dispositivo[];
   coordenadas: [number, number][];
+  areaM2?: number;
+  caudalRiegoLh?: number;
+  cultivoId?: number | null;
+  sueloId?: number | null;
+  riegoId?: number | null;
+  tipoRiego?: string;
 }
 
 export interface ParcelMapOptions {

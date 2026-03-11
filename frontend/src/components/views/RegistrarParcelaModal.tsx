@@ -1,26 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Map, Undo2, Check, ChevronDown, Search, CheckCircle } from 'lucide-react';
+import { X, Map, Undo2, Check, ChevronDown, Ruler, Droplets, Sprout, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
 import { initParcelMap, type Parcela, type ParcelMapManager } from '../../utils/mapUtils';
 import { useTheme } from '../../context/ThemeContext';
-
-
-const CULTIVOS_DISPONIBLES = [
-  "Aceituna (Olivo)", "Acelga", "Aguacate", "Ajo", "Albahaca", "Albaricoque", "Alcachofa", "Alfalfa", "Algodón", "Almendra", "Apio", "Arándano", "Arroz", "Avellana", "Avena",
-  "Batata", "Berenjena", "Brócoli", "Cacahuete", "Cacao", "Café", "Calabacín", "Calabaza", "Caña de azúcar", "Caqui", "Cebada", "Cebolla", "Centeno", "Cereza", "Chirimoya", "Ciruela", "Coco", "Col", "Coliflor", "Colza",
-  "Dátil", "Endibia", "Escarola", "Espárrago", "Espinaca", "Frambuesa", "Fresa / Fresón", "Garbanzo", "Girasol", "Granada", "Grosella", "Guisante",
-  "Haba", "Higo", "Hinojo", "Judía", "Kiwi", "Laurel", "Lechuga", "Lenteja", "Lima", "Limón", "Lino", "Lúpulo",
-  "Maíz", "Mandarina", "Mango", "Manzana", "Melocotón", "Melón", "Membrillo", "Mora", "Nabo", "Naranja", "Nectarina", "Níspero", "Nuez",
-  "Ñame", "Papaya", "Patata", "Pepino", "Pera", "Perejil", "Pimiento", "Piña", "Pistacho", "Plátano", "Pomelo", "Puerro",
-  "Rábano", "Remolacha", "Repollo", "Rúcula", "Sandía", "Soja", "Sorgo", "Tabaco", "Tomate", "Trigo", "Tritikale", "Uva (Viñedo)", "Yuca", "Zanahoria", "Zarzamora"
-];
-
-const TIPOS_SUELO = [
-  "Arcilloso", "Arenoso", "Calcáreo", "Franco", "Franco-Arcilloso", "Franco-Arenoso", "Franco-Limoso", "Limoso", "Pedregoso", "Salino", "Turba"
-];
+import { getTiposCultivo, getTiposSuelo, getTiposRiego } from '../../services/dataService';
 
 interface RegistrarParcelaModalProps {
   isOpen: boolean;
@@ -30,17 +16,124 @@ interface RegistrarParcelaModalProps {
   onGuardar: (parcela: Parcela) => void;
 }
 
+// Función auxiliar para calcular área en m2 de coordenadas lat/lng (Aprox para parcelas pequeñas)
+const calcularAreaPoligono = (coords: [number, number][]) => {
+  if (coords.length < 3) return 0;
+  
+  // Proyección simple a metros (Mercator esférica local)
+  // Radio Tierra = 6378137m
+  const R = 6378137;
+  let area = 0;
+
+  for (let i = 0; i < coords.length; i++) {
+    const [lat1, lon1] = coords[i];
+    const [lat2, lon2] = coords[(i + 1) % coords.length];
+    // Conversión a radianes
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const dLambda = (lon2 - lon1) * Math.PI / 180;
+    area += (dLambda * (Math.sin(phi1) + Math.sin(phi2))) / 2;
+  }
+  return Math.abs(area * R * R);
+};
+
+// Componente de Select con búsqueda
+const SearchableSelect = ({ label, value, onChange, options, placeholder }: { label: string, value: string, onChange: (val: string) => void, options: { value: string, label: string }[], placeholder: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedLabel = options.find(o => o.value === value)?.label || '';
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(o => 
+    o.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flora-input text-left w-full flex justify-between items-center"
+        >
+          <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedLabel || placeholder}</span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+            className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border-border bg-popover shadow-xl"
+          >
+            <div className="p-2 border-b border-border">
+              <input type="text" placeholder="Buscar..." className="flora-input w-full" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
+            </div>
+            <ul className="py-1 max-h-48 overflow-y-auto">
+              {filteredOptions.length > 0 ? filteredOptions.map(opt => (
+                <li key={opt.value}><button type="button" onClick={() => { onChange(opt.value); setIsOpen(false); setSearchTerm(''); }} className="w-full px-4 py-2.5 text-left text-sm text-popover-foreground hover:bg-primary/10 hover:text-primary flex items-center justify-between group"><span>{opt.label}</span>{value === opt.value && <CheckCircle size={16} className="text-primary" />}</button></li>
+              )) : <div className="px-4 py-3 text-sm text-muted-foreground text-center">No se encontraron resultados.</div>}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExistentes, parcelaAEditar, onGuardar }: RegistrarParcelaModalProps) {
   // Inicializar estado directamente con props para evitar renderizados vacíos iniciales
   const { theme } = useTheme();
-  const [nombre, setNombre] = useState(parcelaAEditar?.nombre || '');
-  const [cultivo, setCultivo] = useState(parcelaAEditar?.cultivo || '');
-  const [tipoSuelo, setTipoSuelo] = useState(parcelaAEditar?.tipoSuelo || '');
+
+  // Estado del Formulario
+  const [nombre, setNombre] = useState(parcelaAEditar?.nombre || ''); 
+  // IDs de relaciones (ahora usamos IDs en lugar de strings libres)
+  const [cultivoId, setCultivoId] = useState(parcelaAEditar?.cultivoId?.toString() || '');
+  const [sueloId, setSueloId] = useState(parcelaAEditar?.sueloId?.toString() || '');
+  const [riegoId, setRiegoId] = useState(parcelaAEditar?.riegoId?.toString() || '');
+  
+  // Datos numéricos
+  const [areaInput, setAreaInput] = useState(parcelaAEditar?.areaM2 ? (parcelaAEditar.areaM2 / 10000).toFixed(2) : '0'); // Mostramos Ha
+  const [caudal, setCaudal] = useState(parcelaAEditar?.caudalRiegoLh?.toString() || '0');
+  const [areaManual, setAreaManual] = useState(!!parcelaAEditar?.areaM2); // Si ya tenía área, asumimos que puede ser manual o calculada, por defecto dejamos editar
+
   const [puntos, setPuntos] = useState<[number, number][]>(parcelaAEditar?.coordenadas || []);
-  const [isCultivoOpen, setIsCultivoOpen] = useState(false);
-  const [isSueloOpen, setIsSueloOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const dropdownSueloRef = useRef<HTMLDivElement>(null);
+  
+  // Errores de validación
+  const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
+
+  // Validaciones Memoizadas
+  const isGeneralValid = useMemo(() => nombre.trim() !== '' && puntos.length >= 3, [nombre, puntos]);
+
+  const validateGeneral = () => {
+    const newErrors: any = {};
+    if (!nombre.trim()) newErrors.nombre = true;
+    if (puntos.length < 3) newErrors.puntos = true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Estado de Catálogos
+  const [listaCultivos, setListaCultivos] = useState<any[]>([]);
+  const [listaSuelos, setListaSuelos] = useState<any[]>([]);
+  const [listaRiegos, setListaRiegos] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'general' | 'agronomia'>('general');
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -52,27 +145,29 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
   const isEditingRef = useRef(false);
   isEditingRef.current = !!parcelaAEditar;
 
-  // Cerrar dropdown al hacer clic fuera
+  // Cargar Catálogos al iniciar
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsCultivoOpen(false);
-      }
-      if (dropdownSueloRef.current && !dropdownSueloRef.current.contains(event.target as Node)) {
-        setIsSueloOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (isOpen) {
+      getTiposCultivo().then(setListaCultivos).catch(console.error);
+      getTiposSuelo().then(setListaSuelos).catch(console.error);
+      getTiposRiego().then(setListaRiegos).catch(console.error);
+    }
+  }, [isOpen]);
 
-  const cultivosFiltrados = CULTIVOS_DISPONIBLES.filter(c => 
-    c.toLowerCase().includes(cultivo.toLowerCase())
-  );
-
-  const suelosFiltrados = TIPOS_SUELO.filter(s => 
-    s.toLowerCase().includes(tipoSuelo.toLowerCase())
-  );
+  // Efecto para calcular el AREA automáticamente cuando cambian los puntos
+  useEffect(() => {
+    // Solo calculamos si hay un polígono cerrado (>= 3 puntos) Y el usuario no ha forzado un valor manual (o decide sobreescribirlo)
+    // En este diseño UX, recalcularemos siempre visualmente pero permitiremos editar el campo final
+    if (puntos.length >= 3 && !areaManual) {
+      const areaM2 = calcularAreaPoligono(puntos);
+      const areaHa = areaM2 / 10000;
+      // Actualizamos el input con 4 decimales para precisión, usuario puede redondear
+      setAreaInput(areaHa.toFixed(4));
+    } else if (puntos.length < 3) {
+      // Reset si borra puntos
+      if (!areaManual) setAreaInput('0');
+    }
+  }, [puntos, areaManual]);
 
   useEffect(() => {
     if (!isOpen || !mapContainerRef.current) return;
@@ -80,8 +175,11 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
     // Actualizar estado si cambia la parcela a editar mientras el modal está abierto
     if (parcelaAEditar) {
       setNombre(parcelaAEditar.nombre);
-      setCultivo(parcelaAEditar.cultivo);
-      setTipoSuelo(parcelaAEditar.tipoSuelo || '');
+      setCultivoId(parcelaAEditar.cultivoId?.toString() || '');
+      setSueloId(parcelaAEditar.sueloId?.toString() || '');
+      setRiegoId(parcelaAEditar.riegoId?.toString() || '');
+      setAreaInput(parcelaAEditar.areaM2 ? (parcelaAEditar.areaM2 / 10000).toFixed(4) : '0');
+      setCaudal(parcelaAEditar.caudalRiegoLh?.toString() || '0');
       setPuntos(parcelaAEditar.coordenadas);
     }
     // Nota: No reseteamos a vacío aquí para evitar parpadeos, se maneja en el onClose o al montar
@@ -202,8 +300,15 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       
       setPuntos([]);
       setNombre('');
-      setCultivo('');
-      setTipoSuelo('');
+      // Resetear el resto del formulario para evitar persistencia al reabrir
+      setCultivoId('');
+      setSueloId('');
+      setRiegoId('');
+      setAreaInput('0');
+      setCaudal('0');
+      setAreaManual(false);
+      setActiveTab('general');
+      setErrors({});
     };
   }, [isOpen, parcelasExistentes, parcelaAEditar]);
 
@@ -318,21 +423,61 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
     setPuntos(prev => prev.slice(0, -1));
   };
 
+  // Manejador del botón "Siguiente"
+  const handleNextStep = () => {
+    if (validateGeneral()) {
+      setActiveTab('agronomia');
+    } else {
+      // Feedback visual si falla
+      const inputNombre = document.getElementById('input-nombre-parcela');
+      if (inputNombre && !nombre.trim()) inputNombre.focus();
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (puntos.length < 3) {
-      alert("Debes dibujar al menos 3 puntos en el mapa para cerrar un polígono.");
+    
+    // Validación completa antes de guardar
+    if (!validateGeneral()) {
+      setActiveTab('general');
+      const inputNombre = document.getElementById('input-nombre-parcela');
+      if (inputNombre && !nombre.trim()) inputNombre.focus();
       return;
     }
+
+    const newAgroErrors: any = {};
+    if (!cultivoId) newAgroErrors.cultivo = true;
+    if (!sueloId) newAgroErrors.suelo = true;
+    if (!riegoId) newAgroErrors.riego = true;
+    if (!caudal || parseFloat(caudal) <= 0) newAgroErrors.caudal = true;
+
+    if (Object.keys(newAgroErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...newAgroErrors }));
+      // Enfocar el primer error de agronomía si existe
+      if (newAgroErrors.cultivo) (document.querySelector('#input-cultivo-principal button') as HTMLElement)?.focus();
+      else if (newAgroErrors.suelo) (document.querySelector('#input-tipo-suelo button') as HTMLElement)?.focus();
+      else if (newAgroErrors.riego) (document.querySelector('#input-metodo-riego button') as HTMLElement)?.focus();
+      else if (newAgroErrors.caudal) (document.querySelector('#input-caudal-sistema') as HTMLElement)?.focus();
+      return;
+    }
+
+    // Preparar objeto con IDs y conversión de area
+    // Nota: El backend espera IDs numéricos, convertimos strings
+    const cultivoObj = listaCultivos.find(c => c.id.toString() === cultivoId);
+    const sueloObj = listaSuelos.find(s => s.id.toString() === sueloId);
 
     const nuevaParcela: Parcela = {
       id: parcelaAEditar ? parcelaAEditar.id : Date.now(), // ID temporal si es nuevo
       nombre,
-      cultivo,
-      tipoSuelo,
+      cultivoId: cultivoId ? parseInt(cultivoId) : null,
+      sueloId: sueloId ? parseInt(sueloId) : null,
+      riegoId: riegoId ? parseInt(riegoId) : null,
+      cultivo: cultivoObj?.nombre, // Fallback visual frontend
+      tipoSuelo: sueloObj?.nombre, // Fallback visual frontend
       coordenadas: puntos,
-      // Mantener datos existentes o valores por defecto
-      humedad: parcelaAEditar?.humedad ?? 0,
+      areaM2: parseFloat(areaInput) * 10000, // Convertir Ha a m2 para backend
+      caudalRiegoLh: parseFloat(caudal),
+      humedad: parcelaAEditar?.humedad ?? null,
       proximoRiego: parcelaAEditar?.proximoRiego ?? 'N/A',
       estado: parcelaAEditar?.estado ?? 'ok',
       motas: parcelaAEditar?.motas ?? 0,
@@ -354,164 +499,195 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
             className="flex w-full max-w-[95vw] overflow-hidden rounded-3xl bg-card shadow-2xl flex-col md:flex-row h-[90vh]"
           >
             {/* ... Todo el HTML/JSX del formulario se mantiene igual ... */}
-            <div className="flex w-full flex-col justify-between border-r border-border p-8 md:w-1/3 overflow-y-auto">
-              <div>
-                <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-card-foreground">{parcelaAEditar ? 'Editar Parcela' : 'Nueva Parcela'}</h2>
+            <div className="flex w-full flex-col border-r border-border md:w-[400px] overflow-hidden bg-card">
+              
+              {/* Header del Formulario */}
+              <div className="p-6 border-b border-border bg-muted/20">
+                 <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-bold text-card-foreground">{parcelaAEditar ? 'Editar Terreno' : 'Nuevo Terreno'}</h2>
                   <button onClick={onClose} className="rounded-full bg-secondary p-2 text-secondary-foreground hover:bg-muted md:hidden">
                     <X size={20} />
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground">Configura los datos agronómicos y dibuja el perímetro.</p>
                 
-                <form id="parcela-form" onSubmit={handleSubmit} className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-medium text-card-foreground">Nombre de la Parcela</label>
-                    <input 
-                      type="text" required placeholder="Ej. Parcela Olivos A"
-                      value={nombre} onChange={e => setNombre(e.target.value)}
-                      className="flora-input mt-2" 
-                    />
-                  </div>
+                {/* Tabs de navegación interna */}
+                <div className="flex p-1 mt-4 bg-muted rounded-lg">
+                  <button 
+                    onClick={() => setActiveTab('general')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'general' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <Map size={14}/> General
+                  </button>
+                  <button 
+                    disabled // Deshabilitado el click directo, forzamos usar "Siguiente"
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'agronomia' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground/50 cursor-not-allowed'}`}
+                  >
+                    <Sprout size={14}/> Agronomía
+                  </button>
+                </div>
+              </div>
+
+              {/* Contenido Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <form id="parcela-form" className="space-y-5">
                   
-                  <div className="relative" ref={dropdownRef}>
-                    <label className="block text-sm font-medium text-card-foreground">Tipo de Cultivo</label>
-                    <div className="relative mt-2">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                        <Search className="h-4 w-4 text-muted-foreground" />
+                  {activeTab === 'general' && (
+                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
+                      <div>
+                        <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${errors.nombre ? 'text-destructive' : 'text-muted-foreground'}`}>Nombre Identificativo</label>
+                        <input 
+                          id="input-nombre-parcela"
+                          type="text" required placeholder="Ej. Sector Olivos Norte"
+                          value={nombre} onChange={e => { setNombre(e.target.value); if(errors.nombre) setErrors({...errors, nombre: false}); }}
+                          className={`flora-input ${errors.nombre ? 'border-destructive ring-destructive/20' : ''}`}
+                        />
                       </div>
-                      <input 
-                        type="text" required placeholder="Buscar cultivo..."
-                        value={cultivo} 
-                        onChange={e => {
-                          setCultivo(e.target.value);
-                          setIsCultivoOpen(true);
-                        }}
-                        onFocus={() => setIsCultivoOpen(true)}
-                        className="flora-input pl-10 pr-10" 
-                      />
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isCultivoOpen ? 'rotate-180' : ''}`} />
-                      </div>
-                    </div>
 
-                    <AnimatePresence>
-                      {isCultivoOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{ duration: 0.1 }}
-                          className="absolute z-50 mt-2 max-h-60 w-full overflow-auto rounded-xl border-border bg-popover shadow-xl"
-                        >
-                          {cultivosFiltrados.length > 0 ? (
-                            <ul className="py-1">
-                              {cultivosFiltrados.map((c) => (
-                                <li key={c}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setCultivo(c);
-                                      setIsCultivoOpen(false);
-                                    }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-popover-foreground hover:bg-primary/10 hover:text-primary flex items-center justify-between group"
-                                  >
-                                    <span>{c}</span>
-                                    {cultivo === c && <CheckCircle size={16} className="text-primary" />}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                              No se encontraron resultados.
+                      <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30">
+                        <label className="flex items-center justify-between text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-2">
+                          <span className="flex items-center gap-2"><Ruler size={14}/> Área Calculada</span>
+                          <span className="text-[10px] bg-blue-200 dark:bg-blue-800 px-1.5 py-0.5 rounded text-blue-800 dark:text-blue-200">Hectáreas</span>
+                        </label>
+                        <div className="relative">
+                          <input 
+                            type="number" step="0.0001" min="0" required
+                            value={areaInput}
+                            onChange={e => { setAreaInput(e.target.value); setAreaManual(true); }}
+                            className="flora-input text-right font-mono text-lg font-bold pr-12"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Ha</span>
+                        </div>
+                        <p className="text-[10px] text-blue-600/70 dark:text-blue-400/60 mt-2 leading-tight">
+                          Calculado automáticamente al dibujar. Puedes ajustar el valor si conoces el área exacta de las escrituras.
+                        </p>
+                      </div>
+                      
+                      <div className={`instruction-box transition-colors ${errors.puntos ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30' : ''}`}>
+                        <p className={`text-sm font-bold flex items-center gap-2 mb-1 ${errors.puntos ? 'text-red-700 dark:text-red-400' : 'text-blue-800 dark:text-blue-300'}`}>
+                          {errors.puntos ? <AlertCircle size={16}/> : <Map size={16} />} 
+                          {errors.puntos ? 'Polígono Requerido' : 'Dibujar Perímetro'}
+                        </p>
+                        <p className={`text-xs font-medium opacity-80 ${errors.puntos ? 'text-red-600 dark:text-red-300' : 'text-blue-700 dark:text-blue-400'}`}>
+                          Haz clic en el mapa satelital para marcar las esquinas de la parcela. Necesitas al menos 3 puntos.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'agronomia' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
+                      <div id="input-cultivo-principal" className={errors.cultivo ? 'rounded-xl border border-destructive/50 p-1' : ''}>
+                        <SearchableSelect
+                          label="Cultivo Principal"
+                          placeholder="Seleccionar Cultivo"
+                          value={cultivoId}
+                          onChange={(v) => { setCultivoId(v); if(errors.cultivo) setErrors({...errors, cultivo: false}); }}
+                          options={listaCultivos.map(c => ({ value: c.id.toString(), label: c.nombre }))}
+                        />
+                      </div>
+                      
+                      <div id="input-tipo-suelo" className={errors.suelo ? 'rounded-xl border border-destructive/50 p-1' : ''}>
+                        <SearchableSelect
+                          label="Tipo de Suelo"
+                          placeholder="Seleccionar Suelo"
+                          value={sueloId}
+                          onChange={(v) => { setSueloId(v); if(errors.suelo) setErrors({...errors, suelo: false}); }}
+                          options={listaSuelos.map(s => ({ value: s.id.toString(), label: s.nombre }))}
+                        />
+                      </div>
+
+                      <div className="pt-4 border-t border-border mt-4">
+                        <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><Droplets size={16} className="text-blue-500"/> Sistema de Riego</h4>
+                        
+                        <div className="space-y-4">
+                          <div id="input-metodo-riego" className={errors.riego ? 'rounded-xl border border-destructive/50 p-1' : ''}>
+                            <SearchableSelect
+                              label="Método de Riego"
+                              placeholder="Seleccionar Método"
+                              value={riegoId}
+                              onChange={(v) => { setRiegoId(v); if(errors.riego) setErrors({...errors, riego: false}); }}
+                              options={listaRiegos.map(r => ({ value: r.id.toString(), label: r.nombre }))}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${errors.caudal ? 'text-destructive' : 'text-muted-foreground'}`}>Caudal del Sistema</label>
+                            
+                            {/* Diseño de Caudal Mejorado */}
+                            <div className={`flex items-center h-16 px-4 rounded-xl border bg-card transition-colors ${errors.caudal ? 'border-destructive ring-1 ring-destructive' : 'border-border'}`}>
+                               <input 
+                                id="input-caudal-sistema"
+                                type="number" 
+                                value={caudal}
+                                onChange={(e) => { setCaudal(e.target.value); if(errors.caudal) setErrors({...errors, caudal: false}); }}
+                                className="w-full h-full p-0 text-3xl font-bold tracking-tight text-right bg-transparent border-none appearance-none focus:ring-0 text-foreground placeholder:text-muted-foreground/30"
+                                placeholder="0"
+                              />
+                              <span className="ml-3 text-sm font-bold text-muted-foreground">L/h</span>
                             </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
 
-                  {/* Selector de Tipo de Suelo */}
-                  <div className="relative" ref={dropdownSueloRef}>
-                    <label className="block text-sm font-medium text-card-foreground">Tipo de Suelo</label>
-                    <div className="relative mt-2">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                        <Search className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <input 
-                        type="text" required placeholder="Buscar tipo de suelo..."
-                        value={tipoSuelo} 
-                        onChange={e => {
-                          setTipoSuelo(e.target.value);
-                          setIsSueloOpen(true);
-                        }}
-                        onFocus={() => setIsSueloOpen(true)}
-                        className="flora-input pl-10 pr-10" 
-                      />
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isSueloOpen ? 'rotate-180' : ''}`} />
-                      </div>
-                    </div>
-
-                    <AnimatePresence>
-                      {isSueloOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{ duration: 0.1 }}
-                          className="absolute z-50 mt-2 max-h-60 w-full overflow-auto rounded-xl border-border bg-popover shadow-xl"
-                        >
-                          {suelosFiltrados.length > 0 ? (
-                            <ul className="py-1">
-                              {suelosFiltrados.map((s) => (
-                                <li key={s}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setTipoSuelo(s);
-                                      setIsSueloOpen(false);
-                                    }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-popover-foreground hover:bg-primary/10 hover:text-primary flex items-center justify-between group"
-                                  >
-                                    <span>{s}</span>
-                                    {tipoSuelo === s && <CheckCircle size={16} className="text-primary" />}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                              No se encontraron resultados.
+                            <div className="px-1 mt-3">
+                              <input 
+                                type="range" 
+                                min="0" 
+                                max="5000" 
+                                step="10" 
+                                value={caudal} 
+                                onChange={(e) => { setCaudal(e.target.value); if(errors.caudal) setErrors({...errors, caudal: false}); }} 
+                                className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-muted"
+                                style={{
+                                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(parseInt(caudal) || 0) / 50}%, ${theme === 'dark' ? '#334155' : '#e2e8f0'} ${(parseInt(caudal) || 0) / 50}%, ${theme === 'dark' ? '#334155' : '#e2e8f0'} 100%)`
+                                }}
+                              />
                             </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <div className="instruction-box">
-                    <p className="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-1">
-                      <Map size={16} /> Instrucciones
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
-                      Haz clic en el mapa para marcar las esquinas.
-                    </p>
-                  </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </form>
               </div>
 
-              <div className="mt-8 flex gap-3">
-                <button type="button" onClick={onClose} className="flex-1 rounded-xl border-border px-4 py-3 text-sm font-bold text-card-foreground hover:bg-muted">
-                  Cancelar
+              <div className="p-6 border-t border-border bg-muted/20 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => activeTab === 'agronomia' ? setActiveTab('general') : onClose()} 
+                  className="flex-1 rounded-xl border-border px-4 py-3 text-sm font-bold text-card-foreground hover:bg-muted transition-colors"
+                >
+                  {activeTab === 'agronomia' ? 'Atrás' : 'Cancelar'}
                 </button>
-                <button type="submit" form="parcela-form" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10">
-                  <Check size={18}/> Guardar
-                </button>
+                
+                {activeTab === 'general' ? (
+                  <button 
+                    type="button" 
+                    onClick={handleNextStep} 
+                    disabled={!isGeneralValid}
+                    className={`group relative flex-[1.5] flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold shadow-lg transition-all duration-300 overflow-hidden ${
+                      isGeneralValid 
+                        ? 'bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90' 
+                        : 'bg-muted text-muted-foreground cursor-not-allowed'
+                    }`}
+                  >
+                    <span>Siguiente</span>
+                    <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: isGeneralValid ? 0 : -20, opacity: isGeneralValid ? 1 : 0 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
+                      <ArrowRight size={16} />
+                    </motion.div>
+                  </button>
+                ) : (
+                  <button 
+                    type="button" 
+                    onClick={handleSubmit}
+                    className="flex-[1.5] flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-700 shadow-md shadow-green-600/20 transition-all"
+                  >
+                    <Check size={18}/> Guardar
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="relative w-full md:w-2/3 h-64 md:h-full bg-muted/30">
+            {/* MAPA (Lado Derecho) */}
+            <div className="relative flex-1 h-64 md:h-full bg-muted/30">
               <div className="absolute bottom-6 left-0 right-0 z-[400] flex justify-center pointer-events-none">
                  <button 
                   onClick={deshacerUltimoPunto}
