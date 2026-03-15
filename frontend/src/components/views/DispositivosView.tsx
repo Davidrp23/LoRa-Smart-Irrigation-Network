@@ -257,6 +257,27 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
   );
 };
 
+// Componente Estado Vacío para Dispositivos
+const EmptyDeviceState = ({ onAction }: { onAction: () => void }) => (
+  <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border-2 border-dashed border-border/60 bg-muted/20 mt-4">
+    <div className="flex gap-4 mb-6">
+      <div className="bg-purple-100 dark:bg-purple-900/20 p-5 rounded-full">
+        <RouterIcon size={40} className="text-purple-600 dark:text-purple-400" />
+      </div>
+      <div className="bg-blue-100 dark:bg-blue-900/20 p-5 rounded-full">
+        <Cpu size={40} className="text-blue-600 dark:text-blue-400" />
+      </div>
+    </div>
+    <h3 className="text-2xl font-bold text-foreground mb-2">Tu red está vacía</h3>
+    <p className="text-muted-foreground max-w-md mb-8">
+      Vincula tus Gateways y Motas LoRaWAN para empezar a recibir telemetría en tiempo real y controlar tu sistema de riego.
+    </p>
+    <button onClick={onAction} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-bold text-primary-foreground shadow-lg shadow-green-600/20 hover:bg-primary/90 transition-all hover:scale-105">
+      <Plus size={20} /> Vincular Primer Dispositivo
+    </button>
+  </div>
+);
+
 interface DispositivosViewProps {
   datosDispositivos: Dispositivo[];
   parcelasDisponibles: any[]; // Recibimos las parcelas para el selector
@@ -491,8 +512,9 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
         </div>
       </div>
 
-      {/* Barra de Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      {/* Barra de Filtros (Solo visible si hay dispositivos) */}
+      {dispositivos.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
@@ -525,11 +547,21 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
           ]}
         />
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Grid de Dispositivos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 pb-10">
-        {dispositivosFiltrados.map((disp) => (
+      {dispositivos.length === 0 ? (
+        <EmptyDeviceState onAction={() => setIsLinkModalOpen(true)} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 pb-10">
+          {dispositivosFiltrados.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
+              <Search size={48} className="mb-4" />
+              <p className="font-medium">No se encontraron dispositivos con esos filtros</p>
+            </div>
+          ) : (
+            dispositivosFiltrados.map((disp) => (
           <motion.div 
             layout
             key={`${disp.tipo}-${disp.id}`} 
@@ -722,8 +754,10 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
               onClick={() => setSelectedHistoryDevice(disp)}
             />
           </motion.div>
-        ))}
-      </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Modal de Edición */}
       <AnimatePresence>

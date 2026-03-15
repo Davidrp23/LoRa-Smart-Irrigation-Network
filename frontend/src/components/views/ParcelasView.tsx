@@ -338,6 +338,22 @@ const DetailedHumidityChart = ({ data }: { data: { label: string, value: number 
   );
 };
 
+// Componente Estado Vacío para Parcelas
+const EmptyParcelState = ({ onAction }: { onAction: () => void }) => (
+  <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border-2 border-dashed border-border/60 bg-muted/20">
+    <div className="bg-green-100 dark:bg-green-900/20 p-6 rounded-full mb-6">
+      <Sprout size={48} className="text-green-600 dark:text-green-400" />
+    </div>
+    <h3 className="text-2xl font-bold text-card-foreground mb-2">No tienes parcelas registradas</h3>
+    <p className="text-muted-foreground max-w-md mb-8">
+      Empieza registrando tu terreno para monitorizar la humedad, gestionar el riego y visualizar el estado de tus cultivos.
+    </p>
+    <button onClick={onAction} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-bold text-primary-foreground shadow-lg shadow-green-600/20 hover:bg-primary/90 transition-all hover:scale-105">
+      <Plus size={20} /> Registrar Mi Primera Parcela
+    </button>
+  </div>
+);
+
 interface ParcelasViewProps {
   datosParcelas: Parcela[];
   onRefresh: () => void;
@@ -785,8 +801,9 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
               </div>
             </div>
 
-            {/* Barra de Búsqueda */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            {/* Barra de Búsqueda (Solo visible si hay parcelas) */}
+            {parcelasSeguras.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                 <input 
@@ -818,7 +835,8 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                   options={opcionesRiego}
                 />
               </div>
-            </div>
+              </div>
+            )}
           </>
         )}
 
@@ -837,7 +855,11 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
             <div ref={mapRef} className="h-full w-full z-0" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          // Lógica de Galería: Estado vacío o Grid
+          parcelasSeguras.length === 0 ? (
+            <EmptyParcelState onAction={() => { setEditingParcel(null); setIsModalOpen(true); }} />
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <button 
               onClick={() => { setEditingParcel(null); setIsModalOpen(true); }} 
               className="group flex h-40 hover:h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-green-200 dark:hover:bg-primary/10 transition-all duration-500 overflow-hidden"
@@ -945,6 +967,7 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
               </div>
             ))}
           </div>
+          )
         )}
       </motion.div>
       <RegistrarParcelaModal 
