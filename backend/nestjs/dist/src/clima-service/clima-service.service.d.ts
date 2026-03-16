@@ -1,9 +1,7 @@
-import { CreateClimaServiceDto } from './dto/create-clima-service.dto';
-import { UpdateClimaServiceDto } from './dto/update-clima-service.dto';
+import { PrismaService } from '../prisma/prisma.service';
 export declare class ClimaServiceService {
-    create(createClimaServiceDto: CreateClimaServiceDto): string;
-    findAll(): string;
-    findOne(id: number): string;
-    update(id: number, updateClimaServiceDto: UpdateClimaServiceDto): string;
-    remove(id: number): string;
+    private prisma;
+    private readonly logger;
+    constructor(prisma: PrismaService);
+    findOne(lat: number, long: number, timezone: string): Promise<any>;
 }

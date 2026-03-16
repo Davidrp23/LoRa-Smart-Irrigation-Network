@@ -38,7 +38,7 @@ export class RiegoService {
 
       try {
         // 2. OBTENER CLIMA Y ESTADO REAL
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.latitudCentro}&longitude=${p.longitudCentro}&daily=et0_fao_evapotranspiration,precipitation_sum,temperature_2m_max,temperature_2m_min&timezone=${p.zonaHoraria}`;
+        const url = `http://localhost:3000/clima-service/${p.latitudCentro}/${p.longitudCentro}?timezone=${p.zonaHoraria}`;
         const res = await fetch(url);
         const clima = await res.json(); 
 

@@ -15,66 +15,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClimaServiceController = void 0;
 const common_1 = require("@nestjs/common");
 const clima_service_service_1 = require("./clima-service.service");
-const create_clima_service_dto_1 = require("./dto/create-clima-service.dto");
-const update_clima_service_dto_1 = require("./dto/update-clima-service.dto");
+const common_2 = require("@nestjs/common");
+const passport_1 = require("@nestjs/passport");
 let ClimaServiceController = class ClimaServiceController {
     climaServiceService;
     constructor(climaServiceService) {
         this.climaServiceService = climaServiceService;
     }
-    create(createClimaServiceDto) {
-        return this.climaServiceService.create(createClimaServiceDto);
-    }
-    findAll() {
-        return this.climaServiceService.findAll();
-    }
-    findOne(id) {
-        return this.climaServiceService.findOne(+id);
-    }
-    update(id, updateClimaServiceDto) {
-        return this.climaServiceService.update(+id, updateClimaServiceDto);
-    }
-    remove(id) {
-        return this.climaServiceService.remove(+id);
+    async findOne(lat, long, timezone) {
+        return this.climaServiceService.findOne(lat, long, timezone || "auto");
     }
 };
 exports.ClimaServiceController = ClimaServiceController;
 __decorate([
-    (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.Get)(':lat/:long'),
+    __param(0, (0, common_1.Param)('lat', common_1.ParseFloatPipe)),
+    __param(1, (0, common_1.Param)('long', common_1.ParseFloatPipe)),
+    __param(2, (0, common_1.Query)('timezone')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_clima_service_dto_1.CreateClimaServiceDto]),
-    __metadata("design:returntype", void 0)
-], ClimaServiceController.prototype, "create", null);
-__decorate([
-    (0, common_1.Get)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], ClimaServiceController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number, Number, String]),
+    __metadata("design:returntype", Promise)
 ], ClimaServiceController.prototype, "findOne", null);
-__decorate([
-    (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_clima_service_dto_1.UpdateClimaServiceDto]),
-    __metadata("design:returntype", void 0)
-], ClimaServiceController.prototype, "update", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], ClimaServiceController.prototype, "remove", null);
 exports.ClimaServiceController = ClimaServiceController = __decorate([
+    (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('clima-service'),
     __metadata("design:paramtypes", [clima_service_service_1.ClimaServiceService])
 ], ClimaServiceController);

@@ -43,7 +43,7 @@ let RiegoService = RiegoService_1 = class RiegoService {
             if (!p.cultivo || !p.suelo || !p.areaM2 || !p.caudalRiegoLh)
                 continue;
             try {
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.latitudCentro}&longitude=${p.longitudCentro}&daily=et0_fao_evapotranspiration,precipitation_sum,temperature_2m_max,temperature_2m_min&timezone=${p.zonaHoraria}`;
+                const url = `http://localhost:3000/clima-service/${p.latitudCentro}/${p.longitudCentro}?timezone=${p.zonaHoraria}`;
                 const res = await fetch(url);
                 const clima = await res.json();
                 const lluviaHoy = clima.daily.precipitation_sum[0] || 0;

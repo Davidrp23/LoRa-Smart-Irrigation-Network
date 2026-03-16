@@ -1,34 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Param, ParseFloatPipe, Query } from '@nestjs/common';
 import { ClimaServiceService } from './clima-service.service';
-import { CreateClimaServiceDto } from './dto/create-clima-service.dto';
-import { UpdateClimaServiceDto } from './dto/update-clima-service.dto';
+import { UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('clima-service')
 export class ClimaServiceController {
   constructor(private readonly climaServiceService: ClimaServiceService) {}
 
-  @Post()
-  create(@Body() createClimaServiceDto: CreateClimaServiceDto) {
-    return this.climaServiceService.create(createClimaServiceDto);
+  @Get(':lat/:long')
+  async findOne(@Param('lat', ParseFloatPipe) lat: number, @Param('long', ParseFloatPipe) long: number,
+  @Query('timezone') timezone?: string){
+    
+    return this.climaServiceService.findOne(lat, long, timezone || "auto");
   }
 
-  @Get()
-  findAll() {
-    return this.climaServiceService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.climaServiceService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateClimaServiceDto: UpdateClimaServiceDto) {
-    return this.climaServiceService.update(+id, updateClimaServiceDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.climaServiceService.remove(+id);
-  }
 }
+
+
