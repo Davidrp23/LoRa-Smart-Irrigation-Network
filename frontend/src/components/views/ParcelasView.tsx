@@ -2,13 +2,13 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio, Search, Ruler } from 'lucide-react';
+import { LayoutGrid, Globe, Plus, Sprout, CheckCircle2, AlertTriangle, Droplets, Clock, BarChart3, X, Wifi, MapPin, Layers, Pencil, Trash2, Signal, Router as RouterIcon, Cpu, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Calendar, Radio, Search, Ruler, Info } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import RegistrarParcelaModal from './RegistrarParcelaModal';
 import Select from '../ui/Select'; // Importamos el componente Select
 import ConfirmarEliminarModal from './ConfirmarEliminarModal';
 import { initParcelMap, type Parcela, type Dispositivo } from '../../utils/mapUtils';
-import { createParcela, updateParcela, deleteParcela, getMediciones, getParcelaHistorico } from '../../services/dataService';
+import { createParcela, updateParcela, deleteParcela, getMediciones, getParcelaHistorico, getTurnosRiego, createTurnoRiego, updateTurnoRiego, deleteTurnoRiego } from '../../services/dataService';
 
 type HistoryItem = { type: 'parcela', data: Parcela } | { type: 'mota', data: Dispositivo };
 
@@ -117,8 +117,140 @@ const DeviceSummaryModal = ({ parcel }: { parcel: ParcelaExtended, onClose: () =
   );
 };
 
+// Componente de Input de Hora 24h Interactivo
+const TimeInput24h = ({ value, onChange, isInvalid }: { value: string, onChange: (v: string) => void, isInvalid: boolean }) => {
+  const [h, m] = value.includes(':') ? value.split(':') : ['06', '00'];
+
+  const handleHChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    // Si se escribe una 3ª cifra (ej. el input tenía "06" y tecleas "1"), nos quedamos con la última ("1")
+    if (val.length > 2) val = val.slice(-1);
+
+    onChange(`${val}:${m}`);
+    // Salto automático a los minutos al escribir 2 dígitos
+    if (val.length === 2) {
+      const parent = e.target.parentElement;
+      if (parent) {
+        const mInput = parent.querySelectorAll('input')[1];
+        if (mInput) { mInput.focus(); mInput.select(); }
+      }
+    }
+  };
+
+  const handleMChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(-1);
+
+    onChange(`${h}:${val}`);
+  };
+
+  const handleMKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Si pulsamos borrar estando vacíos los minutos, retroceder a horas y borrar la última cifra
+    if (e.key === 'Backspace' && m === '') {
+      e.preventDefault(); // Evitamos comportamiento por defecto del navegador
+      const parent = e.currentTarget.parentElement;
+      if (parent) {
+        const hInput = parent.querySelectorAll('input')[0];
+        if (hInput) { 
+          hInput.focus();
+          onChange(`${h.slice(0, -1)}:${m}`);
+        }
+      }
+    }
+  };
+
+  // Autocompletar con ceros si el usuario se sale del input
+  const blurH = (e: React.FocusEvent<HTMLInputElement>) => { 
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(-1);
+    if (val === '') val = '00'; else if (val.length === 1) val = '0' + val; 
+    onChange(`${val}:${m}`); 
+  };
+  const blurM = (e: React.FocusEvent<HTMLInputElement>) => { 
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(-1);
+    if (val === '') val = '00'; else if (val.length === 1) val = '0' + val; 
+    onChange(`${h}:${val}`); 
+  };
+
+  return (
+    <div className={`flex items-center w-full rounded-xl border bg-background transition-all h-[42px] ${isInvalid ? 'border-red-500/50 ring-2 ring-red-500/20' : 'border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'}`}>
+      <input 
+        type="text" value={h} onChange={handleHChange} onBlur={blurH} onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
+        className="w-1/2 h-full text-right bg-transparent border-none focus:ring-0 p-2 text-lg font-mono outline-none text-foreground placeholder:text-muted-foreground/30" placeholder="00"
+      />
+      <span className="text-lg font-mono font-bold text-foreground mb-[2px] opacity-50">:</span>
+      <input 
+        type="text" value={m} onChange={handleMChange} onKeyDown={handleMKeyDown} onBlur={blurM} onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
+        className="w-1/2 h-full text-left bg-transparent border-none focus:ring-0 p-2 text-lg font-mono outline-none text-foreground placeholder:text-muted-foreground/30" placeholder="00"
+      />
+    </div>
+  );
+};
+
 // Componente Modal para Decisión de Riego
 const IrrigationDecisionModal = ({ parcel }: { parcel: Parcela }) => {
+  const [turnos, setTurnos] = useState<any[]>([]);
+  const [isLoadingTurnos, setIsLoadingTurnos] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newHora, setNewHora] = useState('06:00');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editHora, setEditHora] = useState('');
+
+  const fetchTurnos = async () => {
+    setIsLoadingTurnos(true);
+    try {
+      const data = await getTurnosRiego(parcel.id);
+      setTurnos(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingTurnos(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTurnos();
+  }, [parcel.id]);
+
+  const handleAdd = async () => {
+    const isNewHoraFormatValid = /^([01]\d|2[0-3]):([0-5]\d)$/.test(newHora);
+    const isNewHoraDuplicate = turnos.some(t => t.horaConfigurada === newHora);
+    if (!isNewHoraFormatValid || isNewHoraDuplicate) return;
+
+    try {
+      await createTurnoRiego(parcel.id, newHora);
+      setIsAdding(false);
+      setNewHora('06:00');
+      fetchTurnos();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdate = async (id: number) => {
+    const isEditHoraFormatValid = /^([01]\d|2[0-3]):([0-5]\d)$/.test(editHora);
+    const isEditHoraDuplicate = turnos.some(t => t.id !== id && t.horaConfigurada === editHora);
+    if (!isEditHoraFormatValid || isEditHoraDuplicate) return;
+
+    try {
+      await updateTurnoRiego(id, editHora);
+      setEditingId(null);
+      fetchTurnos();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteTurnoRiego(id);
+      fetchTurnos();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Datos meteorológicos simulados (Mock)
   const forecast = [
     { day: 'Hoy', temp: 28, rain: 0, icon: Sun, condition: 'Soleado' },
@@ -129,6 +261,15 @@ const IrrigationDecisionModal = ({ parcel }: { parcel: Parcela }) => {
     { day: 'Sáb', temp: 25, rain: 0, icon: Sun, condition: 'Soleado' },
     { day: 'Dom', temp: 27, rain: 0, icon: Sun, condition: 'Soleado' },
   ];
+
+  // Validaciones UI en tiempo real
+  const isNewHoraFormatValid = /^([01]\d|2[0-3]):([0-5]\d)$/.test(newHora);
+  const isNewHoraDuplicate = turnos.some(t => t.horaConfigurada === newHora);
+  const canAddNew = isNewHoraFormatValid && !isNewHoraDuplicate;
+
+  const isEditHoraFormatValid = /^([01]\d|2[0-3]):([0-5]\d)$/.test(editHora);
+  const isEditHoraDuplicate = turnos.some(t => t.id !== editingId && t.horaConfigurada === editHora);
+  const canEdit = isEditHoraFormatValid && !isEditHoraDuplicate;
 
   return (
     <div className="p-6 space-y-8 overflow-y-auto max-h-[80vh]">
@@ -231,6 +372,113 @@ const IrrigationDecisionModal = ({ parcel }: { parcel: Parcela }) => {
                    </div>
                 </div>
              ))}
+          </div>
+       </div>
+
+       {/* Configuración de Riegos */}
+       <div className="space-y-4 pt-6 border-t border-border mt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Clock size={16} /> Horarios de Riego
+              </h4>
+              <div className="relative group flex items-center">
+                <Info size={16} className="text-muted-foreground hover:text-blue-500 cursor-help transition-colors" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 p-3 bg-card border border-border text-card-foreground text-xs rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                  <p className="mb-2 leading-relaxed text-muted-foreground">
+                    Introduce los horarios en los que prefieres que el sistema inicie el riego. El algoritmo inteligente determinará automáticamente los minutos y la cantidad de agua necesarios basándose en la humedad del suelo y la previsión meteorológica, pudiendo incluso <strong>cancelar el riego</strong> si las condiciones lo hacen innecesario.
+                  </p>
+                  <p className="bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800/50 text-blue-800 dark:text-blue-300 leading-relaxed">
+                    💡 <strong>Consejo:</strong> Las mejores horas para regar son al <strong>amanecer (05:00 - 07:00)</strong> o al <strong>anochecer (20:00 - 22:00)</strong>. Así se minimiza la evaporación por el sol y el calor, permitiendo que el agua penetre mejor en las raíces.
+                  </p>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] h-3 w-3 -translate-y-1/2 rotate-45 border-b border-r border-border bg-card"></div>
+                </div>
+              </div>
+            </div>
+            {!isAdding && (
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <Plus size={14} /> Añadir Horario
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-3">
+            <AnimatePresence>
+              {isAdding && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, y: -10 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -10 }}
+                  className="bg-card border border-border p-4 rounded-xl shadow-sm overflow-hidden"
+                >
+                  <div className="flex items-start gap-3 w-full">
+                    <div className="flex-1 flex flex-col">
+                      <label className="text-xs font-bold text-muted-foreground mb-1.5 block">Hora del Riego (24h)</label>
+                      <TimeInput24h 
+                        value={newHora} 
+                        onChange={setNewHora} 
+                        isInvalid={!isNewHoraFormatValid || isNewHoraDuplicate}
+                      />
+                      <div className="h-4 mt-1">
+                        {isNewHoraDuplicate && <p className="text-[10px] font-bold text-red-500 ml-1">Esta hora ya está programada</p>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-[22px]">
+                      <button onClick={() => setIsAdding(false)} className="p-2 border border-border text-muted-foreground hover:bg-muted rounded-xl transition-colors h-[42px] w-[42px] flex items-center justify-center"><X size={18} /></button>
+                      <button onClick={handleAdd} disabled={!canAddNew} className="p-2 bg-primary text-primary-foreground shadow-md hover:bg-primary/90 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[42px] w-[42px] flex items-center justify-center"><CheckCircle2 size={18} /></button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {isLoadingTurnos ? (
+              <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div></div>
+            ) : turnos.length === 0 && !isAdding ? (
+              <div className="text-center p-6 border border-dashed border-border rounded-xl text-muted-foreground text-sm">
+                No hay horarios programados. Añade uno para que el algoritmo lo gestione.
+              </div>
+            ) : (
+              turnos.map(turno => (
+                <div key={turno.id} className="bg-muted/30 border border-border p-3 rounded-xl flex items-center justify-between transition-colors hover:bg-muted/50">
+                  {editingId === turno.id ? (
+                    <div className="w-full flex flex-col">
+                      <div className="flex items-start gap-3 w-full">
+                        <div className="flex-1 flex flex-col">
+                          <TimeInput24h 
+                            value={editHora} 
+                            onChange={setEditHora} 
+                            isInvalid={!isEditHoraFormatValid || isEditHoraDuplicate} 
+                          />
+                          {isEditHoraDuplicate && <p className="text-[10px] font-bold text-red-500 mt-1 ml-1">Esta hora ya está programada</p>}
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingId(null)} className="p-2 border border-border text-muted-foreground hover:bg-muted rounded-xl transition-colors h-[42px] w-[42px] flex items-center justify-center"><X size={16} /></button>
+                          <button onClick={() => handleUpdate(turno.id)} disabled={!canEdit} className="p-2 bg-green-600 text-white hover:bg-green-700 shadow-sm rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[42px] w-[42px] flex items-center justify-center"><CheckCircle2 size={16} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 p-2.5 rounded-lg font-mono text-xl font-bold">{turno.horaConfigurada}</div>
+                        <div>
+                          <div className="text-sm font-bold text-foreground">{turno.estadoRiego}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{turno.estadoRiego === 'Programado' ? `Duración: ${turno.tiempoRiegoMin} min` : 'Esperando algoritmo...'}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => { setEditingId(turno.id); setEditHora(turno.horaConfigurada); }} className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10 rounded-lg transition-colors"><Pencil size={16} /></button>
+                        <button onClick={() => handleDelete(turno.id)} className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
           </div>
        </div>
     </div>

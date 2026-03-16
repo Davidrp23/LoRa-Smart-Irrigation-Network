@@ -116,6 +116,7 @@ model Parcela {
   id             Int      @id @default(autoincrement())
   nombre         String   // Ej: "Sector Olivos A"
   humedadMedia   Float?   // Caché de estado (Calculado automáticamente)
+  fechaActualizacionHumedad DateTime? // Caché de estado (Calculado automáticamente)
   
   // --- INFRAESTRUCTURA Y AGRONOMÍA ---
   areaM2         Float?   // Calculado desde el mapa
@@ -130,10 +131,7 @@ model Parcela {
   riegoId        Int?
   riego          TipoRiego?   @relation(fields: [riegoId], references: [id], onDelete: SetNull)
 
-  // --- CACHÉ DEL ALGORITMO DE RIEGO ---
-  proximoRiego     DateTime? // Cuándo debería regarse
-  tiempoRiegoMin   Int?      // Cuántos minutos dura el riego
-  estadoRiego      String?   // Ej: "Programado", "Suelo Óptimo", "Pausado por Lluvia"
+  zonaHoraria        String? @default("Europe/Madrid")
 
   // --- UBICACIÓN ESPACIAL ---
   latitudCentro  Float
@@ -147,6 +145,8 @@ model Parcela {
   motas          Mota[]  
   routers        Router[] 
   historico      HistoricoParcela[]
+
+  turnos         TurnoRiego[]
 }
 
 // ========================================================
@@ -249,4 +249,23 @@ model HistoricoParcela {
 
   @@index([fecha])
   @@index([parcelaId])
+}
+
+
+// ========================================================
+// 9. TURNOS DE RIEGO (PARCELAS)
+// ========================================================
+model TurnoRiego {
+  id                  Int       @id @default(autoincrement())
+  horaConfigurada     String    // Ej: "06:00", "14:00"
+
+  // El caché del algoritmo se mueve aquí, a nivel de turno
+  proximoRiego        DateTime? 
+  tiempoRiegoMin      Int?      
+  estadoRiego         String?   
+  proximaEjecucionUTC DateTime?
+
+  // Relación con la parcela
+  parcelaId           Int
+  parcela             Parcela   @relation(fields: [parcelaId], references: [id], onDelete: Cascade)
 }

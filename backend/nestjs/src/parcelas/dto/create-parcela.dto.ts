@@ -37,5 +37,9 @@ export class CreateParcelaDto {
     @IsOptional() //Puntos del poligono que forma la parcela -> json
     @IsArray()
     puntos?: any;
+
+    @IsString()
+    @IsNotEmpty()
+    zonaHoraria: string; //Ej. "Europe/Madrid"
     
 }

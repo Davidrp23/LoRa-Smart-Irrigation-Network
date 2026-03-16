@@ -4,5 +4,5 @@ export declare class RiegoService {
     private readonly logger;
     private readonly PROFUNDIDAD_RAICES_MM;
     constructor(prisma: PrismaService);
-    calcularRiegoDiario(): Promise<void>;
+    calcularTurnosPendientes(): Promise<void>;
 }

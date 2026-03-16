@@ -21,14 +21,19 @@ const auth_module_1 = require("./auth/auth.module");
 const tipo_cultivo_module_1 = require("./tipo-cultivo/tipo-cultivo.module");
 const tipo_suelo_module_1 = require("./tipo-suelo/tipo-suelo.module");
 const tipo_riego_module_1 = require("./tipo-riego/tipo-riego.module");
+const turno_riego_module_1 = require("./turno-riego/turno-riego.module");
+const schedule_1 = require("@nestjs/schedule");
+const riego_service_1 = require("./irrigationAlgorithm/riego.service");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [motas_module_1.MotasModule, usuarios_module_1.UsuariosModule, routers_module_1.RoutersModule, parcelas_module_1.ParcelasModule, mediciones_module_1.MedicionesModule, big_packet_module_1.BigPacketModule, prisma_module_1.PrismaModule, auth_module_1.AuthModule, tipo_cultivo_module_1.TipoCultivoModule, tipo_suelo_module_1.TipoSueloModule, tipo_riego_module_1.TipoRiegoModule],
+        imports: [motas_module_1.MotasModule, usuarios_module_1.UsuariosModule, routers_module_1.RoutersModule, parcelas_module_1.ParcelasModule, mediciones_module_1.MedicionesModule, big_packet_module_1.BigPacketModule, prisma_module_1.PrismaModule, auth_module_1.AuthModule, tipo_cultivo_module_1.TipoCultivoModule, tipo_suelo_module_1.TipoSueloModule, tipo_riego_module_1.TipoRiegoModule, turno_riego_module_1.TurnoRiegoModule,
+            schedule_1.ScheduleModule.forRoot()
+        ],
         controllers: [app_controller_1.AppController],
-        providers: [app_service_1.AppService],
+        providers: [app_service_1.AppService, riego_service_1.RiegoService],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

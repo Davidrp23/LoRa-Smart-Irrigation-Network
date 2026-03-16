@@ -5,6 +5,7 @@ import { Parcela, HistoricoParcela } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ObtenerHistoricoDto } from './dto/obtener-historico.dto';
 
+
 @Injectable()
 export class ParcelasService {
 
@@ -60,7 +61,7 @@ export class ParcelasService {
     await this.prisma.$transaction([
       this.prisma.parcela.update({
         where: { id: parcelaId },
-        data: { humedadMedia: media }
+        data: { humedadMedia: media, fechaActualizacionHumedad: new Date()}
       }),
       this.prisma.historicoParcela.create({
         data: {

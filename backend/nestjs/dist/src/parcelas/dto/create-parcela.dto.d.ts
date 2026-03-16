@@ -8,4 +8,5 @@ export declare class CreateParcelaDto {
     latitudCentro: number;
     longitudCentro: number;
     puntos?: any;
+    zonaHoraria: string;
 }

@@ -112,18 +112,33 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
   const [areaInput, setAreaInput] = useState(parcelaAEditar?.areaM2 ? (parcelaAEditar.areaM2 / 10000).toFixed(2) : '0'); // Mostramos Ha
   const [caudal, setCaudal] = useState(parcelaAEditar?.caudalRiegoLh?.toString() || '0');
   const [areaManual, setAreaManual] = useState(!!parcelaAEditar?.areaM2); // Si ya tenía área, asumimos que puede ser manual o calculada, por defecto dejamos editar
+  const [zonaHoraria, setZonaHoraria] = useState(parcelaAEditar?.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   const [puntos, setPuntos] = useState<[number, number][]>(parcelaAEditar?.coordenadas || []);
   
   // Errores de validación
   const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
 
+  // Obtener zonas horarias disponibles nativamente (con fallback si el navegador es muy antiguo)
+  const timeZones = useMemo(() => {
+    try {
+      return Intl.supportedValuesOf('timeZone').map(tz => ({ value: tz, label: tz }));
+    } catch (e) {
+      return [
+        { value: Intl.DateTimeFormat().resolvedOptions().timeZone, label: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        { value: 'Europe/Madrid', label: 'Europe/Madrid' }, 
+        { value: 'UTC', label: 'UTC' }
+      ];
+    }
+  }, []);
+
   // Validaciones Memoizadas
-  const isGeneralValid = useMemo(() => nombre.trim() !== '' && puntos.length >= 3, [nombre, puntos]);
+  const isGeneralValid = useMemo(() => nombre.trim() !== '' && puntos.length >= 3 && zonaHoraria.trim() !== '', [nombre, puntos, zonaHoraria]);
 
   const validateGeneral = () => {
     const newErrors: any = {};
     if (!nombre.trim()) newErrors.nombre = true;
+    if (!zonaHoraria.trim()) newErrors.zonaHoraria = true;
     if (puntos.length < 3) newErrors.puntos = true;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -181,6 +196,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       setAreaInput(parcelaAEditar.areaM2 ? (parcelaAEditar.areaM2 / 10000).toFixed(4) : '0');
       setCaudal(parcelaAEditar.caudalRiegoLh?.toString() || '0');
       setPuntos(parcelaAEditar.coordenadas);
+      setZonaHoraria(parcelaAEditar.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone);
     }
     // Nota: No reseteamos a vacío aquí para evitar parpadeos, se maneja en el onClose o al montar
 
@@ -306,6 +322,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       setRiegoId('');
       setAreaInput('0');
       setCaudal('0');
+      setZonaHoraria(Intl.DateTimeFormat().resolvedOptions().timeZone);
       setAreaManual(false);
       setActiveTab('general');
       setErrors({});
@@ -474,6 +491,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       riegoId: riegoId ? parseInt(riegoId) : null,
       cultivo: cultivoObj?.nombre, // Fallback visual frontend
       tipoSuelo: sueloObj?.nombre, // Fallback visual frontend
+      zonaHoraria,
       coordenadas: puntos,
       areaM2: parseFloat(areaInput) * 10000, // Convertir Ha a m2 para backend
       caudalRiegoLh: parseFloat(caudal),
@@ -541,6 +559,16 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                           type="text" required placeholder="Ej. Sector Olivos Norte"
                           value={nombre} onChange={e => { setNombre(e.target.value); if(errors.nombre) setErrors({...errors, nombre: false}); }}
                           className={`flora-input ${errors.nombre ? 'border-destructive ring-destructive/20' : ''}`}
+                        />
+                      </div>
+                      
+                      <div id="input-zona-horaria" className={errors.zonaHoraria ? 'rounded-xl border border-destructive/50 p-1' : ''}>
+                        <SearchableSelect
+                          label="Zona Horaria"
+                          placeholder="Seleccionar Zona Horaria"
+                          value={zonaHoraria}
+                          onChange={(v) => { setZonaHoraria(v); if(errors.zonaHoraria) setErrors({...errors, zonaHoraria: false}); }}
+                          options={timeZones}
                         />
                       </div>
 

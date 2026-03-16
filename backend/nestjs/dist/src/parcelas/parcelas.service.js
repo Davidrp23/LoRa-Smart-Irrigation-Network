@@ -54,7 +54,7 @@ let ParcelasService = class ParcelasService {
         await this.prisma.$transaction([
             this.prisma.parcela.update({
                 where: { id: parcelaId },
-                data: { humedadMedia: media }
+                data: { humedadMedia: media, fechaActualizacionHumedad: new Date() }
             }),
             this.prisma.historicoParcela.create({
                 data: {

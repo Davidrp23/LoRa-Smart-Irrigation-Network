@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { IsDate, IsInt, IsNotEmpty, IsString } from "class-validator";
 
 export class CreateMotaDto {
 

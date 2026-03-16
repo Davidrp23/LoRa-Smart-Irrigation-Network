@@ -21,6 +21,7 @@ class CreateParcelaDto {
     latitudCentro;
     longitudCentro;
     puntos;
+    zonaHoraria;
 }
 exports.CreateParcelaDto = CreateParcelaDto;
 __decorate([
@@ -68,4 +69,9 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Object)
 ], CreateParcelaDto.prototype, "puntos", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateParcelaDto.prototype, "zonaHoraria", void 0);
 //# sourceMappingURL=create-parcela.dto.js.map

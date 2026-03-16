@@ -41,6 +41,7 @@ export interface Parcela {
   sueloId?: number | null;
   riegoId?: number | null;
   tipoRiego?: string;
+  zonaHoraria?: string;
 }
 
 export interface ParcelMapOptions {

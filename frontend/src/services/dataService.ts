@@ -95,6 +95,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         dispositivos: dispositivosEnParcela,
         motas: dispositivosEnParcela.filter(d => d.tipo === 'mota').length, // Contador solo motas
         estado: 'ok', // Valor por defecto UI
+        zonaHoraria: p.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone,
         humedad: p.humedadMedia != null ? Math.round(p.humedadMedia) : null,
         proximoRiego: 'Programar' // Valor por defecto UI
       };
@@ -177,6 +178,7 @@ export const createParcela = async (parcela: any) => {
     riegoId: parcela.riegoId,     // Nuevo campo
     areaM2: parcela.areaM2,       // Nuevo campo
     caudalRiegoLh: parcela.caudalRiegoLh, // Nuevo campo
+    zonaHoraria: parcela.zonaHoraria,
     latitudCentro: latCentro || 0,
     longitudCentro: lngCentro || 0,
     puntos: parcela.coordenadas // Frontend usa 'coordenadas', Backend espera 'puntos' (mapeado en DTO)
@@ -206,7 +208,8 @@ export const updateParcela = async (id: number, parcela: any) => {
     sueloId: parcela.sueloId,
     riegoId: parcela.riegoId,
     areaM2: parcela.areaM2,
-    caudalRiegoLh: parcela.caudalRiegoLh
+    caudalRiegoLh: parcela.caudalRiegoLh,
+    zonaHoraria: parcela.zonaHoraria
   };
   
   // Si se editaron los puntos, los enviamos
@@ -364,5 +367,65 @@ export const getParcelaHistorico = async (parcelaId: number, fechaBegin: Date, f
   console.log(JSON.stringify({ parcelaId, fechaBegin, fechaEnd }));
 
   if (!response.ok) throw new Error('Error al obtener histórico de la parcela');
+  return await response.json();
+};
+
+// --- GESTIÓN DE TURNOS DE RIEGO ---
+
+export const getTurnosRiego = async (parcelaId: number) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/turno-riego/parcela/${parcelaId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (!response.ok) throw new Error('Error al obtener turnos de riego');
+  return await response.json();
+};
+
+export const createTurnoRiego = async (parcelaId: number, horaConfigurada: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const payload = {
+    horaConfigurada,
+    parcelaId
+  };
+
+  const response = await fetch(`${API_URL}/turno-riego`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) throw new Error('Error al crear turno de riego');
+  return await response.json();
+};
+
+export const updateTurnoRiego = async (id: number, horaConfigurada: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/turno-riego/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ horaConfigurada })
+  });
+
+  if (!response.ok) throw new Error('Error al actualizar turno de riego');
+  return await response.json();
+};
+
+export const deleteTurnoRiego = async (id: number) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/turno-riego/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (!response.ok) throw new Error('Error al eliminar turno de riego');
   return await response.json();
 };
