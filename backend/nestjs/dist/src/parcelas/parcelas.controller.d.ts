@@ -6,6 +6,7 @@ export declare class ParcelasController {
     private readonly parcelasService;
     constructor(parcelasService: ParcelasService);
     create(req: any, createParcelaDto: CreateParcelaDto): Promise<{
+        id: number;
         nombre: string;
         areaM2: number | null;
         riegoId: number | null;
@@ -16,12 +17,12 @@ export declare class ParcelasController {
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
         zonaHoraria: string | null;
-        id: number;
         humedadMedia: number | null;
         fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }>;
     findAll(req: any): Promise<{
+        id: number;
         nombre: string;
         areaM2: number | null;
         riegoId: number | null;
@@ -32,12 +33,12 @@ export declare class ParcelasController {
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
         zonaHoraria: string | null;
-        id: number;
         humedadMedia: number | null;
         fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }[]>;
     findOne(req: any, id: number): Promise<{
+        id: number;
         nombre: string;
         areaM2: number | null;
         riegoId: number | null;
@@ -48,12 +49,12 @@ export declare class ParcelasController {
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
         zonaHoraria: string | null;
-        id: number;
         humedadMedia: number | null;
         fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     } | null>;
     update(req: any, id: number, updateParcelaDto: UpdateParcelaDto): Promise<{
+        id: number;
         nombre: string;
         areaM2: number | null;
         riegoId: number | null;
@@ -64,12 +65,12 @@ export declare class ParcelasController {
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
         zonaHoraria: string | null;
-        id: number;
         humedadMedia: number | null;
         fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }>;
     remove(req: any, id: number): Promise<{
+        id: number;
         nombre: string;
         areaM2: number | null;
         riegoId: number | null;
@@ -80,15 +81,14 @@ export declare class ParcelasController {
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue | null;
         zonaHoraria: string | null;
-        id: number;
         humedadMedia: number | null;
         fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }>;
     getHistorico(req: any, obtenerHistoricoDto: ObtenerHistoricoDto): Promise<{
         id: number;
-        humedadMedia: number;
         parcelaId: number;
+        humedadMedia: number;
         fecha: Date;
     }[]>;
 }

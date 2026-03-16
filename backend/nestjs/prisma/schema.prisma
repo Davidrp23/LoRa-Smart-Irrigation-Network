@@ -269,3 +269,18 @@ model TurnoRiego {
   parcelaId           Int
   parcela             Parcela   @relation(fields: [parcelaId], references: [id], onDelete: Cascade)
 }
+
+// ========================================================
+// 9. TURNOS DE RIEGO (PARCELAS)
+// ========================================================
+
+model CacheClima {
+  // El ID será un string con este formato: "37.39_-5.98"
+  gridId      String   @id 
+  
+  // Guardamos el JSON crudo que nos devuelve Open-Meteo
+  datos       Json     
+  
+  // Para saber si ha caducado
+  actualizado DateTime @default(now()) @updatedAt 
+}
