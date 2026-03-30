@@ -13,7 +13,11 @@ export class ParcelasService {
   
   async create(userId: number, createParcelaDto: CreateParcelaDto): Promise<Parcela> {
     return this.prisma.parcela.create({
-      data: {usuarioId: userId, ...createParcelaDto},
+      data: {
+        usuarioId: userId, 
+        ...createParcelaDto,
+        puntos: createParcelaDto.puntos ?? [], // Asigna un array vacío si no vienen puntos
+      },
     });
   }
 

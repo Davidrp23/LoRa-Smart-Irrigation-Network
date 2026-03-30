@@ -9,11 +9,11 @@ async function main() {
   // 1. TIPOS DE RIEGO (Eficiencia de aplicación estándar)
   // =========================================================================
   const TIPOS_RIEGO = [
-    { nombre: 'Goteo', eficiencia: 0.90 },          // 90% de eficiencia (el mejor)
-    { nombre: 'Microaspersión', eficiencia: 0.85 }, // 85%
-    { nombre: 'Aspersión', eficiencia: 0.75 },      // 75%
-    { nombre: 'Gravedad / Inundación', eficiencia: 0.50 }, // 50% (muy ineficiente)
-    { nombre: 'Subterráneo', eficiencia: 0.95 },    // 95% (evaporación casi nula)
+    { nombre: 'Goteo', eficiencia: 0.90 },
+    { nombre: 'Microaspersión', eficiencia: 0.85 },
+    { nombre: 'Aspersión', eficiencia: 0.75 },
+    { nombre: 'Gravedad / Inundación', eficiencia: 0.50 },
+    { nombre: 'Subterráneo', eficiencia: 0.95 },
   ];
 
   for (const riego of TIPOS_RIEGO) {
@@ -26,23 +26,30 @@ async function main() {
   console.log(`Insertados ${TIPOS_RIEGO.length} tipos de riego.`);
 
   // =========================================================================
-  // 2. TIPOS DE SUELO (Valores volumétricos % del USDA)
+  // 2. TIPOS DE SUELO (Valores volumétricos % y Dosis Máxima FAO)
   // =========================================================================
-  // Capacidad de Campo (CC): Máxima agua retenida tras drenar.
-  // Punto de Marchitez (PM): Nivel donde la planta ya no puede extraer agua.
+  // Capacidad de Campo (CC) y Punto de Marchitez (PM) en % volumétrico.
+  // laminaMaximaRiego: Dosis máxima por evento (mm) recomendada basada en
+  // las tasas de infiltración básica (mm/h) de la FAO (Riego y Drenaje nº 24).
   const TIPOS_SUELO = [
-    { nombre: 'Arenoso', capacidadCampo: 10.0, puntoMarchitez: 5.0 },
-    { nombre: 'Franco-Arenoso', capacidadCampo: 14.0, puntoMarchitez: 6.0 },
-    { nombre: 'Franco', capacidadCampo: 24.0, puntoMarchitez: 11.0 },
-    { nombre: 'Franco-Limoso', capacidadCampo: 27.0, puntoMarchitez: 12.0 },
-    { nombre: 'Limoso', capacidadCampo: 30.0, puntoMarchitez: 13.0 },
-    { nombre: 'Franco-Arcilloso', capacidadCampo: 32.0, puntoMarchitez: 15.0 },
-    { nombre: 'Arcilloso', capacidadCampo: 40.0, puntoMarchitez: 20.0 },
-    // Casos especiales aproximados para agricultura
-    { nombre: 'Turba', capacidadCampo: 60.0, puntoMarchitez: 30.0 },     // Retiene muchísima agua
-    { nombre: 'Pedregoso', capacidadCampo: 12.0, puntoMarchitez: 4.0 },  // Drena rapidísimo
-    { nombre: 'Calcáreo', capacidadCampo: 25.0, puntoMarchitez: 10.0 },  // Similar a un franco ligero
-    { nombre: 'Salino', capacidadCampo: 28.0, puntoMarchitez: 18.0 },    // El PM es más alto por estrés osmótico
+    // Suelos gruesos (Infiltración muy rápida, retención baja)
+    { nombre: 'Arenoso', capacidadCampo: 10.0, puntoMarchitez: 5.0, laminaMaximaRiego: 30.0 }, // Traga hasta 30mm/h sin problema
+    { nombre: 'Franco-Arenoso', capacidadCampo: 14.0, puntoMarchitez: 6.0, laminaMaximaRiego: 22.0 },
+    
+    // Suelos medios (Textura equilibrada, retención e infiltración moderada)
+    { nombre: 'Franco', capacidadCampo: 24.0, puntoMarchitez: 11.0, laminaMaximaRiego: 15.0 },
+    { nombre: 'Franco-Limoso', capacidadCampo: 27.0, puntoMarchitez: 12.0, laminaMaximaRiego: 12.0 },
+    { nombre: 'Limoso', capacidadCampo: 30.0, puntoMarchitez: 13.0, laminaMaximaRiego: 10.0 },
+    
+    // Suelos finos/pesados (Infiltración lenta, alta retención)
+    { nombre: 'Franco-Arcilloso', capacidadCampo: 32.0, puntoMarchitez: 15.0, laminaMaximaRiego: 8.0 },
+    { nombre: 'Arcilloso', capacidadCampo: 40.0, puntoMarchitez: 20.0, laminaMaximaRiego: 5.0 }, // Se encharca rápido, riegos cortos (5mm)
+    
+    // Casos especiales
+    { nombre: 'Turba', capacidadCampo: 60.0, puntoMarchitez: 30.0, laminaMaximaRiego: 20.0 },     // Retiene mucho, drena bien
+    { nombre: 'Pedregoso', capacidadCampo: 12.0, puntoMarchitez: 4.0, laminaMaximaRiego: 25.0 },  // Similar al arenoso
+    { nombre: 'Calcáreo', capacidadCampo: 25.0, puntoMarchitez: 10.0, laminaMaximaRiego: 15.0 },  
+    { nombre: 'Salino', capacidadCampo: 28.0, puntoMarchitez: 18.0, laminaMaximaRiego: 10.0 },    
   ];
 
   for (const suelo of TIPOS_SUELO) {
@@ -58,7 +65,6 @@ async function main() {
   // 3. CULTIVOS (Kc basado en FAO-56 y Humedad Objetivo en base a sensibilidad)
   // =========================================================================
   // humedadObjetivo: Porcentaje orientativo de la humedad ideal respecto al volumen total. 
-  // Ej: Las hortalizas necesitan tierra más húmeda (70%) que un olivo (50%).
   const CULTIVOS = [
     // Árboles frutales y tolerantes a sequía (Kc moderado/bajo)
     { nombre: 'Aceituna (Olivo)', kcBase: 0.65, humedadObjetivo: 50.0 },
@@ -95,7 +101,7 @@ async function main() {
     { nombre: 'Plátano', kcBase: 1.10, humedadObjetivo: 75.0 },
     { nombre: 'Mango', kcBase: 0.80, humedadObjetivo: 65.0 },
     { nombre: 'Papaya', kcBase: 0.95, humedadObjetivo: 70.0 },
-    { nombre: 'Piña', kcBase: 0.30, humedadObjetivo: 50.0 }, // MAC (Metabolismo Ácido) consume poca agua
+    { nombre: 'Piña', kcBase: 0.30, humedadObjetivo: 50.0 },
     { nombre: 'Coco', kcBase: 0.85, humedadObjetivo: 70.0 },
     { nombre: 'Chirimoya', kcBase: 0.80, humedadObjetivo: 65.0 },
     { nombre: 'Cacao', kcBase: 1.05, humedadObjetivo: 75.0 },
@@ -145,7 +151,7 @@ async function main() {
     { nombre: 'Rábano', kcBase: 0.90, humedadObjetivo: 70.0 },
     { nombre: 'Nabo', kcBase: 0.95, humedadObjetivo: 70.0 },
     { nombre: 'Ñame', kcBase: 1.10, humedadObjetivo: 70.0 },
-    { nombre: 'Yuca', kcBase: 0.80, humedadObjetivo: 60.0 }, // Resistente a sequía
+    { nombre: 'Yuca', kcBase: 0.80, humedadObjetivo: 60.0 },
 
     // Leguminosas
     { nombre: 'Guisante', kcBase: 1.15, humedadObjetivo: 70.0 },
@@ -162,8 +168,8 @@ async function main() {
     { nombre: 'Avena', kcBase: 1.15, humedadObjetivo: 65.0 },
     { nombre: 'Centeno', kcBase: 1.15, humedadObjetivo: 65.0 },
     { nombre: 'Tritikale', kcBase: 1.15, humedadObjetivo: 65.0 },
-    { nombre: 'Maíz', kcBase: 1.20, humedadObjetivo: 75.0 }, // Alto consumo
-    { nombre: 'Arroz', kcBase: 1.20, humedadObjetivo: 100.0 }, // Inundado
+    { nombre: 'Maíz', kcBase: 1.20, humedadObjetivo: 75.0 },
+    { nombre: 'Arroz', kcBase: 1.20, humedadObjetivo: 100.0 },
     { nombre: 'Sorgo', kcBase: 1.10, humedadObjetivo: 60.0 },
     { nombre: 'Girasol', kcBase: 1.15, humedadObjetivo: 65.0 },
     { nombre: 'Algodón', kcBase: 1.20, humedadObjetivo: 65.0 },
@@ -181,7 +187,6 @@ async function main() {
     { nombre: 'Laurel', kcBase: 0.80, humedadObjetivo: 60.0 },
     { nombre: 'Perejil', kcBase: 1.00, humedadObjetivo: 70.0 },
   ];
-
 
   for (const cultivo of CULTIVOS) {
     await prisma.tipoCultivo.upsert({

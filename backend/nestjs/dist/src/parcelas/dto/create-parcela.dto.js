@@ -22,6 +22,7 @@ class CreateParcelaDto {
     longitudCentro;
     puntos;
     zonaHoraria;
+    laminaMaximaRiego;
 }
 exports.CreateParcelaDto = CreateParcelaDto;
 __decorate([
@@ -65,7 +66,7 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateParcelaDto.prototype, "longitudCentro", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Object)
 ], CreateParcelaDto.prototype, "puntos", void 0);
@@ -74,4 +75,9 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateParcelaDto.prototype, "zonaHoraria", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreateParcelaDto.prototype, "laminaMaximaRiego", void 0);
 //# sourceMappingURL=create-parcela.dto.js.map

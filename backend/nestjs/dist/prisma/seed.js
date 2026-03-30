@@ -20,17 +20,17 @@ async function main() {
     }
     console.log(`Insertados ${TIPOS_RIEGO.length} tipos de riego.`);
     const TIPOS_SUELO = [
-        { nombre: 'Arenoso', capacidadCampo: 10.0, puntoMarchitez: 5.0 },
-        { nombre: 'Franco-Arenoso', capacidadCampo: 14.0, puntoMarchitez: 6.0 },
-        { nombre: 'Franco', capacidadCampo: 24.0, puntoMarchitez: 11.0 },
-        { nombre: 'Franco-Limoso', capacidadCampo: 27.0, puntoMarchitez: 12.0 },
-        { nombre: 'Limoso', capacidadCampo: 30.0, puntoMarchitez: 13.0 },
-        { nombre: 'Franco-Arcilloso', capacidadCampo: 32.0, puntoMarchitez: 15.0 },
-        { nombre: 'Arcilloso', capacidadCampo: 40.0, puntoMarchitez: 20.0 },
-        { nombre: 'Turba', capacidadCampo: 60.0, puntoMarchitez: 30.0 },
-        { nombre: 'Pedregoso', capacidadCampo: 12.0, puntoMarchitez: 4.0 },
-        { nombre: 'Calcáreo', capacidadCampo: 25.0, puntoMarchitez: 10.0 },
-        { nombre: 'Salino', capacidadCampo: 28.0, puntoMarchitez: 18.0 },
+        { nombre: 'Arenoso', capacidadCampo: 10.0, puntoMarchitez: 5.0, laminaMaximaRiego: 30.0 },
+        { nombre: 'Franco-Arenoso', capacidadCampo: 14.0, puntoMarchitez: 6.0, laminaMaximaRiego: 22.0 },
+        { nombre: 'Franco', capacidadCampo: 24.0, puntoMarchitez: 11.0, laminaMaximaRiego: 15.0 },
+        { nombre: 'Franco-Limoso', capacidadCampo: 27.0, puntoMarchitez: 12.0, laminaMaximaRiego: 12.0 },
+        { nombre: 'Limoso', capacidadCampo: 30.0, puntoMarchitez: 13.0, laminaMaximaRiego: 10.0 },
+        { nombre: 'Franco-Arcilloso', capacidadCampo: 32.0, puntoMarchitez: 15.0, laminaMaximaRiego: 8.0 },
+        { nombre: 'Arcilloso', capacidadCampo: 40.0, puntoMarchitez: 20.0, laminaMaximaRiego: 5.0 },
+        { nombre: 'Turba', capacidadCampo: 60.0, puntoMarchitez: 30.0, laminaMaximaRiego: 20.0 },
+        { nombre: 'Pedregoso', capacidadCampo: 12.0, puntoMarchitez: 4.0, laminaMaximaRiego: 25.0 },
+        { nombre: 'Calcáreo', capacidadCampo: 25.0, puntoMarchitez: 10.0, laminaMaximaRiego: 15.0 },
+        { nombre: 'Salino', capacidadCampo: 28.0, puntoMarchitez: 18.0, laminaMaximaRiego: 10.0 },
     ];
     for (const suelo of TIPOS_SUELO) {
         await prisma.tipoSuelo.upsert({

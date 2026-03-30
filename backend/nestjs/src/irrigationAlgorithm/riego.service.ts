@@ -1,27 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { ClimaServiceService } from '../clima-service/clima-service.service';
 
 @Injectable()
 export class RiegoService {
   private readonly logger = new Logger(RiegoService.name);
-  private readonly PROFUNDIDAD_RAICES_MM = 300; 
+  private readonly PROFUNDIDAD_RAICES_MM = 300; // Estimamos que las raices tienen 30cm de profundidad
+  private readonly HORAS_24_MS = 24 * 60 * 60 * 1000;
+  private readonly HORAS_2_MS = 2 * 60 * 60 * 1000;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private climaService: ClimaServiceService,
+  ) {}
 
-  // Se ejecuta en el minuto 0 de cada hora (Ej: 04:00, 05:00, 06:00...)
   @Cron(CronExpression.EVERY_HOUR)
   async calcularTurnosPendientes() {
     this.logger.log('Buscando turnos de riego pendientes de cálculo...');
 
-    // 1. OBTENER SOLO LOS TURNOS CUYO "DESPERTADOR" YA SONÓ
     const turnos = await this.prisma.turnoRiego.findMany({
       where: {
-        proximaEjecucionUTC: { lte: new Date() }, // lte = Menor o igual a AHORA
+        OR: [
+          { proximaEjecucionUTC: null },
+          { proximaEjecucionUTC: { lte: new Date() } }
+        ],
         parcela: {
-          // Filtro de seguridad: ignorar si la mota lleva > 24h sin enviar datos
           fechaActualizacionHumedad: { 
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) 
+            gte: new Date(Date.now() - this.HORAS_24_MS) 
           }
         }
       },
@@ -34,13 +40,23 @@ export class RiegoService {
 
     for (const turno of turnos) {
       const p = turno.parcela;
-      if (!p.cultivo || !p.suelo || !p.areaM2 || !p.caudalRiegoLh) continue; 
+      
+      if (!p.cultivo || !p.suelo || !p.areaM2 || !p.caudalRiegoLh) {
+        this.logger.warn(`Saltando turno ${turno.id} para parcela ${p.id} por falta de datos agronómicos.`);
+        continue;
+      }
 
       try {
-        // 2. OBTENER CLIMA Y ESTADO REAL
-        const url = `http://localhost:3000/clima-service/${p.latitudCentro}/${p.longitudCentro}?timezone=${p.zonaHoraria}`;
-        const res = await fetch(url);
-        const clima = await res.json(); 
+        const clima = await this.climaService.findOne(
+          p.latitudCentro,
+          p.longitudCentro,
+          p.zonaHoraria || 'auto',
+        );
+
+        if (!clima || !clima.daily) {
+          this.logger.error(`Respuesta inválida del servicio de clima para la parcela ${p.id}. Saltando turno.`);
+          continue;
+        }
 
         const lluviaHoy = clima.daily.precipitation_sum[0] || 0; 
         const et0Hoy = clima.daily.et0_fao_evapotranspiration[0] || 0; 
@@ -54,33 +70,68 @@ export class RiegoService {
         const deficitSueloMm = (porcentajeFaltante / 100) * this.PROFUNDIDAD_RAICES_MM; 
         const etc = et0Hoy * p.cultivo.kcBase; 
         const necesidadNetaMm = deficitSueloMm + etc - lluviaHoy; 
+        
+        // --- NUEVA LÓGICA: APLICACIÓN DEL LÍMITE DE RIEGO ---
+        // 1. Buscamos el límite en la parcela. Si es null, buscamos en el catálogo de suelo.
+        // Si ambos fallan (no debería pasar), usamos Infinity para no bloquear el riego.
+        const limiteDosisMm = p.laminaMaximaRiego || p.suelo.laminaMaximaRiego || Infinity;
+        
+        // 2. Comparamos lo que falta vs lo que admite la tierra, y nos quedamos con el valor menor.
+        const laminaAAplicarMm = Math.min(necesidadNetaMm, limiteDosisMm);
+
+        this.logger.debug(
+          `Parcela ${p.id} | Necesidad Neta: ${necesidadNetaMm.toFixed(2)}mm | ` +
+          `Límite: ${limiteDosisMm}mm | Aplicando hoy: ${laminaAAplicarMm.toFixed(2)}mm`
+        );
 
         const requiereRiego = humedadActual <= p.cultivo.humedadObjetivo || humedadActual <= (pm + 5); 
 
         let tiempoMinutos = 0;
         let estado = 'Suelo Óptimo';
-        let fechaRiegoExacta: Date | null = null;
+        let proximoRiegoDate: Date | null = null; 
 
         // 4. DECISIÓN DE RIEGO
-        if (necesidadNetaMm > 0 && requiereRiego) { 
+        // ATENCIÓN: Usamos 'laminaAAplicarMm' en lugar de 'necesidadNetaMm' para decidir y calcular
+        if (laminaAAplicarMm > 0 && requiereRiego) { 
           const eficiencia = p.riego?.eficiencia || 1; 
-          const volumenRealLitros = (necesidadNetaMm * p.areaM2) / eficiencia; 
+          
+          // Calculamos los litros basándonos en la lámina topeada
+          const volumenRealLitros = (laminaAAplicarMm * p.areaM2) / eficiencia; 
           const tiempoHoras = volumenRealLitros / p.caudalRiegoLh; 
           tiempoMinutos = Math.round(tiempoHoras * 60); 
           estado = 'Programado';
+          
+          const getNextIrrigationTime = (horaConfigurada: string): Date => {
+            const [horas, minutos] = horaConfigurada.split(':').map(Number);
+            const proximoRiego = new Date();
+            proximoRiego.setHours(horas, minutos, 0, 0);
 
-          // Montar la hora exacta del riego para HOY usando la horaConfigurada (Ej: "06:00")
-          const [horas, minutos] = turno.horaConfigurada.split(':').map(Number);
-          fechaRiegoExacta = new Date(); 
-          fechaRiegoExacta.setHours(horas, minutos, 0, 0); 
-        } else if (necesidadNetaMm <= 0 && requiereRiego) {
+            if (proximoRiego.getTime() < Date.now()) {
+              proximoRiego.setTime(proximoRiego.getTime() + this.HORAS_24_MS);
+            }
+            return proximoRiego;
+          };
+          proximoRiegoDate = getNextIrrigationTime(turno.horaConfigurada);
+
+        } else if (laminaAAplicarMm <= 0 && requiereRiego) {
           estado = 'Pausado por Lluvia';
         }
 
-        // 5. REARMAR EL DESPERTADOR PARA MAÑANA
-        // Sumamos 24 horas a la próxima ejecución actual para que se evalúe mañana
-        const nuevaProximaEjecucion = new Date(turno.proximaEjecucionUTC as Date);
-        nuevaProximaEjecucion.setDate(nuevaProximaEjecucion.getDate() + 1);
+        // 5. REARMAR LA PRÓXIMA EJECUCIÓN
+        const getNextExecutionTime = (horaConfigurada: string): Date => {
+          const [horas, minutos] = turno.horaConfigurada.split(':').map(Number);
+          const proximoRiegoBase = new Date(); 
+          proximoRiegoBase.setHours(horas, minutos, 0, 0);
+
+          const proximaEjecucion = new Date(proximoRiegoBase.getTime() - this.HORAS_2_MS);
+
+          if (proximaEjecucion.getTime() < Date.now()) {
+            proximaEjecucion.setTime(proximaEjecucion.getTime() + this.HORAS_24_MS);
+          }
+          return proximaEjecucion;
+        };
+        
+        const nuevaProximaEjecucion = getNextExecutionTime(turno.horaConfigurada);
 
         // 6. GUARDAR TODO EN BASE DE DATOS
         await this.prisma.turnoRiego.update({
@@ -88,8 +139,8 @@ export class RiegoService {
           data: {
             estadoRiego: estado,
             tiempoRiegoMin: tiempoMinutos, 
-            proximoRiego: fechaRiegoExacta, 
-            proximaEjecucionUTC: nuevaProximaEjecucion // Rearmado del gatillo
+            proximoRiego: proximoRiegoDate, 
+            proximaEjecucionUTC: nuevaProximaEjecucion 
           }
         });
 

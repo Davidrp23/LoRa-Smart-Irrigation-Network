@@ -7,6 +7,7 @@ export declare class CreateParcelaDto {
     cultivoId: number;
     latitudCentro: number;
     longitudCentro: number;
-    puntos?: any;
+    puntos: any;
     zonaHoraria: string;
+    laminaMaximaRiego: number;
 }

@@ -14,21 +14,29 @@ exports.RiegoService = void 0;
 const common_1 = require("@nestjs/common");
 const schedule_1 = require("@nestjs/schedule");
 const prisma_service_1 = require("../prisma/prisma.service");
+const clima_service_service_1 = require("../clima-service/clima-service.service");
 let RiegoService = RiegoService_1 = class RiegoService {
     prisma;
+    climaService;
     logger = new common_1.Logger(RiegoService_1.name);
     PROFUNDIDAD_RAICES_MM = 300;
-    constructor(prisma) {
+    HORAS_24_MS = 24 * 60 * 60 * 1000;
+    HORAS_2_MS = 2 * 60 * 60 * 1000;
+    constructor(prisma, climaService) {
         this.prisma = prisma;
+        this.climaService = climaService;
     }
     async calcularTurnosPendientes() {
         this.logger.log('Buscando turnos de riego pendientes de cálculo...');
         const turnos = await this.prisma.turnoRiego.findMany({
             where: {
-                proximaEjecucionUTC: { lte: new Date() },
+                OR: [
+                    { proximaEjecucionUTC: null },
+                    { proximaEjecucionUTC: { lte: new Date() } }
+                ],
                 parcela: {
                     fechaActualizacionHumedad: {
-                        gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+                        gte: new Date(Date.now() - this.HORAS_24_MS)
                     }
                 }
             },
@@ -40,12 +48,16 @@ let RiegoService = RiegoService_1 = class RiegoService {
         });
         for (const turno of turnos) {
             const p = turno.parcela;
-            if (!p.cultivo || !p.suelo || !p.areaM2 || !p.caudalRiegoLh)
+            if (!p.cultivo || !p.suelo || !p.areaM2 || !p.caudalRiegoLh) {
+                this.logger.warn(`Saltando turno ${turno.id} para parcela ${p.id} por falta de datos agronómicos.`);
                 continue;
+            }
             try {
-                const url = `http://localhost:3000/clima-service/${p.latitudCentro}/${p.longitudCentro}?timezone=${p.zonaHoraria}`;
-                const res = await fetch(url);
-                const clima = await res.json();
+                const clima = await this.climaService.findOne(p.latitudCentro, p.longitudCentro, p.zonaHoraria || 'auto');
+                if (!clima || !clima.daily) {
+                    this.logger.error(`Respuesta inválida del servicio de clima para la parcela ${p.id}. Saltando turno.`);
+                    continue;
+                }
                 const lluviaHoy = clima.daily.precipitation_sum[0] || 0;
                 const et0Hoy = clima.daily.et0_fao_evapotranspiration[0] || 0;
                 const humedadActual = p.humedadMedia || 0;
@@ -55,31 +67,51 @@ let RiegoService = RiegoService_1 = class RiegoService {
                 const deficitSueloMm = (porcentajeFaltante / 100) * this.PROFUNDIDAD_RAICES_MM;
                 const etc = et0Hoy * p.cultivo.kcBase;
                 const necesidadNetaMm = deficitSueloMm + etc - lluviaHoy;
+                const limiteDosisMm = p.laminaMaximaRiego || p.suelo.laminaMaximaRiego || Infinity;
+                const laminaAAplicarMm = Math.min(necesidadNetaMm, limiteDosisMm);
+                this.logger.debug(`Parcela ${p.id} | Necesidad Neta: ${necesidadNetaMm.toFixed(2)}mm | ` +
+                    `Límite: ${limiteDosisMm}mm | Aplicando hoy: ${laminaAAplicarMm.toFixed(2)}mm`);
                 const requiereRiego = humedadActual <= p.cultivo.humedadObjetivo || humedadActual <= (pm + 5);
                 let tiempoMinutos = 0;
                 let estado = 'Suelo Óptimo';
-                let fechaRiegoExacta = null;
-                if (necesidadNetaMm > 0 && requiereRiego) {
+                let proximoRiegoDate = null;
+                if (laminaAAplicarMm > 0 && requiereRiego) {
                     const eficiencia = p.riego?.eficiencia || 1;
-                    const volumenRealLitros = (necesidadNetaMm * p.areaM2) / eficiencia;
+                    const volumenRealLitros = (laminaAAplicarMm * p.areaM2) / eficiencia;
                     const tiempoHoras = volumenRealLitros / p.caudalRiegoLh;
                     tiempoMinutos = Math.round(tiempoHoras * 60);
                     estado = 'Programado';
-                    const [horas, minutos] = turno.horaConfigurada.split(':').map(Number);
-                    fechaRiegoExacta = new Date();
-                    fechaRiegoExacta.setHours(horas, minutos, 0, 0);
+                    const getNextIrrigationTime = (horaConfigurada) => {
+                        const [horas, minutos] = horaConfigurada.split(':').map(Number);
+                        const proximoRiego = new Date();
+                        proximoRiego.setHours(horas, minutos, 0, 0);
+                        if (proximoRiego.getTime() < Date.now()) {
+                            proximoRiego.setTime(proximoRiego.getTime() + this.HORAS_24_MS);
+                        }
+                        return proximoRiego;
+                    };
+                    proximoRiegoDate = getNextIrrigationTime(turno.horaConfigurada);
                 }
-                else if (necesidadNetaMm <= 0 && requiereRiego) {
+                else if (laminaAAplicarMm <= 0 && requiereRiego) {
                     estado = 'Pausado por Lluvia';
                 }
-                const nuevaProximaEjecucion = new Date(turno.proximaEjecucionUTC);
-                nuevaProximaEjecucion.setDate(nuevaProximaEjecucion.getDate() + 1);
+                const getNextExecutionTime = (horaConfigurada) => {
+                    const [horas, minutos] = turno.horaConfigurada.split(':').map(Number);
+                    const proximoRiegoBase = new Date();
+                    proximoRiegoBase.setHours(horas, minutos, 0, 0);
+                    const proximaEjecucion = new Date(proximoRiegoBase.getTime() - this.HORAS_2_MS);
+                    if (proximaEjecucion.getTime() < Date.now()) {
+                        proximaEjecucion.setTime(proximaEjecucion.getTime() + this.HORAS_24_MS);
+                    }
+                    return proximaEjecucion;
+                };
+                const nuevaProximaEjecucion = getNextExecutionTime(turno.horaConfigurada);
                 await this.prisma.turnoRiego.update({
                     where: { id: turno.id },
                     data: {
                         estadoRiego: estado,
                         tiempoRiegoMin: tiempoMinutos,
-                        proximoRiego: fechaRiegoExacta,
+                        proximoRiego: proximoRiegoDate,
                         proximaEjecucionUTC: nuevaProximaEjecucion
                     }
                 });
@@ -99,6 +131,7 @@ __decorate([
 ], RiegoService.prototype, "calcularTurnosPendientes", null);
 exports.RiegoService = RiegoService = RiegoService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        clima_service_service_1.ClimaServiceService])
 ], RiegoService);
 //# sourceMappingURL=riego.service.js.map

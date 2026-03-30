@@ -34,12 +34,16 @@ export class CreateParcelaDto {
     @IsNotEmpty()
     longitudCentro: number;
 
-    @IsOptional() //Puntos del poligono que forma la parcela -> json
+    @IsNotEmpty() //Puntos del poligono que forma la parcela -> json
     @IsArray()
-    puntos?: any;
+    puntos: any;
 
     @IsString()
     @IsNotEmpty()
     zonaHoraria: string; //Ej. "Europe/Madrid"
+
+    @IsNumber()
+    @IsNotEmpty()
+    laminaMaximaRiego: number;
     
 }

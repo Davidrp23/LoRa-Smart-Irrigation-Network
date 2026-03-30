@@ -19,7 +19,11 @@ let ParcelasService = class ParcelasService {
     }
     async create(userId, createParcelaDto) {
         return this.prisma.parcela.create({
-            data: { usuarioId: userId, ...createParcelaDto },
+            data: {
+                usuarioId: userId,
+                ...createParcelaDto,
+                puntos: createParcelaDto.puntos ?? [],
+            },
         });
     }
     async findAll(usuarioId) {

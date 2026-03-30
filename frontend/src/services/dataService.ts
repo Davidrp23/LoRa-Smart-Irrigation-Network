@@ -97,6 +97,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         estado: 'ok', // Valor por defecto UI
         zonaHoraria: p.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone,
         humedad: p.humedadMedia != null ? Math.round(p.humedadMedia) : null,
+        laminaMaximaRiego: p.laminaMaximaRiego,
         proximoRiego: 'Programar' // Valor por defecto UI
       };
     });
@@ -179,6 +180,7 @@ export const createParcela = async (parcela: any) => {
     areaM2: parcela.areaM2,       // Nuevo campo
     caudalRiegoLh: parcela.caudalRiegoLh, // Nuevo campo
     zonaHoraria: parcela.zonaHoraria,
+    laminaMaximaRiego: parcela.laminaMaximaRiego,
     latitudCentro: latCentro || 0,
     longitudCentro: lngCentro || 0,
     puntos: parcela.coordenadas // Frontend usa 'coordenadas', Backend espera 'puntos' (mapeado en DTO)
@@ -208,6 +210,7 @@ export const updateParcela = async (id: number, parcela: any) => {
     sueloId: parcela.sueloId,
     riegoId: parcela.riegoId,
     areaM2: parcela.areaM2,
+    laminaMaximaRiego: parcela.laminaMaximaRiego,
     caudalRiegoLh: parcela.caudalRiegoLh,
     zonaHoraria: parcela.zonaHoraria
   };

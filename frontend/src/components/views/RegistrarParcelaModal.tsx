@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Map, Undo2, Check, ChevronDown, Ruler, Droplets, Sprout, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
+import { X, Map, Undo2, Check, ChevronDown, Ruler, Droplets, Sprout, CheckCircle, ArrowRight, AlertCircle, Info, Calculator } from 'lucide-react';
 import { initParcelMap, type Parcela, type ParcelMapManager } from '../../utils/mapUtils';
 import { useTheme } from '../../context/ThemeContext';
 import { getTiposCultivo, getTiposSuelo, getTiposRiego } from '../../services/dataService';
@@ -113,6 +113,9 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
   const [caudal, setCaudal] = useState(parcelaAEditar?.caudalRiegoLh?.toString() || '0');
   const [areaManual, setAreaManual] = useState(!!parcelaAEditar?.areaM2); // Si ya tenía área, asumimos que puede ser manual o calculada, por defecto dejamos editar
   const [zonaHoraria, setZonaHoraria] = useState(parcelaAEditar?.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [laminaMaximaRiego, setLaminaMaximaRiego] = useState((parcelaAEditar as any)?.laminaMaximaRiego?.toString() || '');
+  const [tiempoRiego, setTiempoRiego] = useState('');
+  const [usarCalculadoraLamina, setUsarCalculadoraLamina] = useState(false);
 
   const [puntos, setPuntos] = useState<[number, number][]>(parcelaAEditar?.coordenadas || []);
   
@@ -196,6 +199,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       setAreaInput(parcelaAEditar.areaM2 ? (parcelaAEditar.areaM2 / 10000).toFixed(4) : '0');
       setCaudal(parcelaAEditar.caudalRiegoLh?.toString() || '0');
       setPuntos(parcelaAEditar.coordenadas);
+      setLaminaMaximaRiego((parcelaAEditar as any).laminaMaximaRiego?.toString() || '');
       setZonaHoraria(parcelaAEditar.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone);
     }
     // Nota: No reseteamos a vacío aquí para evitar parpadeos, se maneja en el onClose o al montar
@@ -334,6 +338,25 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
     actualizarMapa(puntos);
   }, [nombre, puntos]);
 
+  // Efecto para la calculadora de lámina en tiempo real
+  useEffect(() => {
+    if (usarCalculadoraLamina) {
+      const c = parseFloat(caudal) || 0;
+      const a = parseFloat(areaInput) * 10000 || 0;
+      const t = parseFloat(tiempoRiego) || 0;
+
+      // Solo calculamos si tenemos todos los datos positivos
+      if (c > 0 && a > 0 && t > 0) {
+        const lamina = (c * t) / a;
+        setLaminaMaximaRiego(lamina.toFixed(2));
+        setErrors(prev => ({...prev, lamina: false}));
+      } else {
+        // Si faltan datos dejamos el valor vacío obligando a que se den cuenta
+        setLaminaMaximaRiego('');
+      }
+    }
+  }, [caudal, areaInput, tiempoRiego, usarCalculadoraLamina]);
+
   const actualizarVisibilidadPorZoom = () => {
     if (!mapRef.current) return;
     // Protección crítica: No intentar proyectar si el mapa no tiene centro/zoom
@@ -467,6 +490,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
     if (!sueloId) newAgroErrors.suelo = true;
     if (!riegoId) newAgroErrors.riego = true;
     if (!caudal || parseFloat(caudal) <= 0) newAgroErrors.caudal = true;
+    if (!laminaMaximaRiego || parseFloat(laminaMaximaRiego) <= 0) newAgroErrors.lamina = true;
 
     if (Object.keys(newAgroErrors).length > 0) {
       setErrors(prev => ({ ...prev, ...newAgroErrors }));
@@ -475,6 +499,10 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       else if (newAgroErrors.suelo) (document.querySelector('#input-tipo-suelo button') as HTMLElement)?.focus();
       else if (newAgroErrors.riego) (document.querySelector('#input-metodo-riego button') as HTMLElement)?.focus();
       else if (newAgroErrors.caudal) (document.querySelector('#input-caudal-sistema') as HTMLElement)?.focus();
+      else if (newAgroErrors.lamina) {
+        const inputLamina = document.getElementById('input-lamina');
+        if (inputLamina) inputLamina.focus();
+      }
       return;
     }
 
@@ -483,7 +511,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
     const cultivoObj = listaCultivos.find(c => c.id.toString() === cultivoId);
     const sueloObj = listaSuelos.find(s => s.id.toString() === sueloId);
 
-    const nuevaParcela: Parcela = {
+    const nuevaParcela = {
       id: parcelaAEditar ? parcelaAEditar.id : Date.now(), // ID temporal si es nuevo
       nombre,
       cultivoId: cultivoId ? parseInt(cultivoId) : null,
@@ -495,12 +523,13 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       coordenadas: puntos,
       areaM2: parseFloat(areaInput) * 10000, // Convertir Ha a m2 para backend
       caudalRiegoLh: parseFloat(caudal),
+      laminaMaximaRiego: parseFloat(laminaMaximaRiego),
       humedad: parcelaAEditar?.humedad ?? null,
       proximoRiego: parcelaAEditar?.proximoRiego ?? 'N/A',
       estado: parcelaAEditar?.estado ?? 'ok',
       motas: parcelaAEditar?.motas ?? 0,
       dispositivos: parcelaAEditar?.dispositivos ?? []
-    };
+    } as unknown as Parcela;
 
     onGuardar(nuevaParcela);
     onClose();
@@ -620,7 +649,19 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                           label="Tipo de Suelo"
                           placeholder="Seleccionar Suelo"
                           value={sueloId}
-                          onChange={(v) => { setSueloId(v); if(errors.suelo) setErrors({...errors, suelo: false}); }}
+                          onChange={(v) => { 
+                            setSueloId(v); 
+                            if(errors.suelo) setErrors({...errors, suelo: false});
+                            
+                            // Si no estamos usando la calculadora y seleccionamos un suelo, auto-asignamos la lámina
+                            if (!usarCalculadoraLamina) {
+                              const sueloObj = listaSuelos.find(s => s.id.toString() === v);
+                              if (sueloObj && sueloObj.laminaMaximaRiego) {
+                                setLaminaMaximaRiego(sueloObj.laminaMaximaRiego.toString());
+                                if(errors.lamina) setErrors({...errors, lamina: false});
+                              }
+                            }
+                          }}
                           options={listaSuelos.map(s => ({ value: s.id.toString(), label: s.nombre }))}
                         />
                       </div>
@@ -659,17 +700,68 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                               <input 
                                 type="range" 
                                 min="0" 
-                                max="5000" 
-                                step="10" 
+                                max="100000" 
+                                step="1000" 
                                 value={caudal} 
                                 onChange={(e) => { setCaudal(e.target.value); if(errors.caudal) setErrors({...errors, caudal: false}); }} 
                                 className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-muted"
                                 style={{
-                                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(parseInt(caudal) || 0) / 50}%, ${theme === 'dark' ? '#334155' : '#e2e8f0'} ${(parseInt(caudal) || 0) / 50}%, ${theme === 'dark' ? '#334155' : '#e2e8f0'} 100%)`
+                                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(parseInt(caudal) || 0) / 1000}%, ${theme === 'dark' ? '#334155' : '#e2e8f0'} ${(parseInt(caudal) || 0) / 1000}%, ${theme === 'dark' ? '#334155' : '#e2e8f0'} 100%)`
                                 }}
                               />
                             </div>
                           </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-border mt-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Droplets size={16} className="text-blue-500"/> Dosis Máxima (Lámina)</h4>
+                          <button
+                            type="button"
+                            onClick={() => setUsarCalculadoraLamina(!usarCalculadoraLamina)}
+                            className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg transition-colors ${usarCalculadoraLamina ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-foreground hover:text-background'}`}
+                          >
+                            <Calculator size={14} /> Calcular por tiempo
+                          </button>
+                        </div>
+
+                        <div className="bg-blue-50 dark:bg-blue-900/10 p-3.5 rounded-xl border border-blue-100 dark:border-blue-800/30 mb-4">
+                          <p className="text-xs text-blue-800 dark:text-blue-300 flex gap-2 items-start leading-relaxed">
+                            <Info size={16} className="shrink-0 mt-0.5" />
+                            <span>La <strong>lámina máxima de riego (mm)</strong> es la cantidad de agua que tu suelo puede absorber por m² sin encharcarse. Si no la conoces, usa el valor por defecto del suelo o calcúlala mediante tu tiempo habitual.</span>
+                          </p>
+                        </div>
+
+                        <div className={errors.lamina ? 'rounded-xl border border-destructive/50 p-1' : ''}>
+                          {usarCalculadoraLamina ? (
+                            <div className="space-y-3 p-4 border border-border rounded-xl bg-muted/20">
+                              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tiempo habitual de riego</label>
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="number" step="0.5" min="0" placeholder="Ej. 2.5"
+                                  value={tiempoRiego}
+                                  onChange={(e) => setTiempoRiego(e.target.value)}
+                                  className="flora-input w-full font-bold"
+                                />
+                                <span className="text-sm font-bold text-muted-foreground whitespace-nowrap">Horas</span>
+                              </div>
+                              {(!parseFloat(caudal) || parseFloat(caudal) <= 0 || !parseFloat(areaInput) || parseFloat(areaInput) <= 0) ? (
+                                <p className="text-xs text-destructive mt-2 flex gap-1 items-center"><AlertCircle size={14}/> Faltan datos de área o caudal para calcular.</p>
+                              ) : (
+                                <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
+                                  <span className="text-xs font-bold text-muted-foreground">Lámina Resultante:</span>
+                                  <span className="text-lg font-bold text-foreground">{laminaMaximaRiego || '0'} <span className="text-sm text-muted-foreground">mm</span></span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${errors.lamina ? 'text-destructive' : 'text-muted-foreground'}`}>Lámina Manual</label>
+                              <input id="input-lamina" type="number" step="0.1" min="0" value={laminaMaximaRiego} onChange={(e) => { setLaminaMaximaRiego(e.target.value); if(errors.lamina) setErrors({...errors, lamina: false}); }} className={`flora-input pr-12 w-full font-bold text-lg ${errors.lamina ? 'border-destructive ring-destructive/20' : ''}`} placeholder="Ej. 22" />
+                              <span className="absolute right-4 bottom-3 text-sm font-bold text-muted-foreground">mm</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>

@@ -17,6 +17,7 @@ exports.ClimaServiceModule = ClimaServiceModule = __decorate([
     (0, common_1.Module)({
         controllers: [clima_service_controller_1.ClimaServiceController],
         providers: [clima_service_service_1.ClimaServiceService],
+        exports: [clima_service_service_1.ClimaServiceService],
     })
 ], ClimaServiceModule);
 //# sourceMappingURL=clima-service.module.js.map

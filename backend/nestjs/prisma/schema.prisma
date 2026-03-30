@@ -39,6 +39,7 @@ model TipoSuelo {
   nombre           String    @unique // Ej: "Franco-Arenoso", "Arcilloso"
   capacidadCampo   Float     // % máximo de agua útil que retiene
   puntoMarchitez   Float     // % mínimo antes de que la planta sufra
+  laminaMaximaRiego Float? //Dosis maxima en mm por metro cuadrado adecuada para la parcela
   
   parcelas         Parcela[] 
 }
@@ -119,24 +120,25 @@ model Parcela {
   fechaActualizacionHumedad DateTime? // Caché de estado (Calculado automáticamente)
   
   // --- INFRAESTRUCTURA Y AGRONOMÍA ---
-  areaM2         Float?   // Calculado desde el mapa
-  caudalRiegoLh  Float?   // Litros/hora del sistema del usuario
+  areaM2         Float   // Calculado desde el mapa
+  caudalRiegoLh  Float   // Litros/hora del sistema del usuario
+  laminaMaximaRiego Float? //Dosis maxima en mm por metro cuadrado adecuada para la parcela
 
-  sueloId        Int?
-  suelo          TipoSuelo?   @relation(fields: [sueloId], references: [id], onDelete: SetNull)
+  sueloId        Int
+  suelo          TipoSuelo   @relation(fields: [sueloId], references: [id], onDelete: SetNull)
 
-  cultivoId      Int?
-  cultivo        TipoCultivo? @relation(fields: [cultivoId], references: [id], onDelete: SetNull)
+  cultivoId      Int
+  cultivo        TipoCultivo @relation(fields: [cultivoId], references: [id], onDelete: SetNull)
 
-  riegoId        Int?
-  riego          TipoRiego?   @relation(fields: [riegoId], references: [id], onDelete: SetNull)
+  riegoId        Int
+  riego          TipoRiego   @relation(fields: [riegoId], references: [id], onDelete: SetNull)
 
   zonaHoraria        String? @default("Europe/Madrid")
 
   // --- UBICACIÓN ESPACIAL ---
   latitudCentro  Float
   longitudCentro Float
-  puntos         Json?    // Array de coordenadas del polígono: [[lat,lng], [lat,lng]...]
+  puntos         Json    // Array de coordenadas del polígono: [[lat,lng], [lat,lng]...]
   
   // Relaciones
   usuarioId      Int
