@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@tremor/react": "^3.18.0",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.34.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.300.0",
     "react": "^18.2.0",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.13.1",
@@ -22,6 +24,7 @@
   "devDependencies": {
     "@types/leaflet": "^1.9.21",
     "@types/react": "^18.2.43",
+    "@types/react-datepicker": "^6.2.0",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",

@@ -71,7 +71,7 @@ let RiegoService = RiegoService_1 = class RiegoService {
                 const laminaAAplicarMm = Math.min(necesidadNetaMm, limiteDosisMm);
                 this.logger.debug(`Parcela ${p.id} | Necesidad Neta: ${necesidadNetaMm.toFixed(2)}mm | ` +
                     `Límite: ${limiteDosisMm}mm | Aplicando hoy: ${laminaAAplicarMm.toFixed(2)}mm`);
-                const requiereRiego = humedadActual <= p.cultivo.humedadObjetivo || humedadActual <= (pm + 5);
+                const requiereRiego = humedadActual <= (p.humedadObjetivo || p.cultivo.humedadObjetivo) || humedadActual <= (pm + 5);
                 let tiempoMinutos = 0;
                 let estado = 'Suelo Óptimo';
                 let proximoRiegoDate = null;

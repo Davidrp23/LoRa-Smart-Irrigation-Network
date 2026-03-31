@@ -45,6 +45,7 @@
   }
   
   .dark {
+    color-scheme: dark;
     /* 1. Fondo: Un "Off-Black". Casi negro (4% luminosidad) con un toque muy sutil de azul (10% saturación). */
     --background: 220 10% 4%;
     --foreground: 210 40% 98%;
@@ -99,6 +100,7 @@
 
   .flora-input {
     @apply w-full rounded-xl border border-input bg-slate-50 dark:bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20 transition-colors;
+    accent-color: hsl(var(--primary));
   }
 
   /* --- Nuevas clases para elementos coloreados intensificados --- */
@@ -336,6 +338,21 @@
     @apply bg-blue-900/30 text-blue-400 border-blue-900/50;
   }
   
+  /* --- Fix para modales con sidebar --- */
+  .history-modal-container {
+    /* Por defecto en móvil, el sidebar es w-20 (5rem) */
+    left: 5rem;
+    transition: left 0.3s ease-in-out;
+  }
+
+  @media (min-width: 768px) { /* md breakpoint */
+    .sidebar-expanded .history-modal-container {
+      left: 16rem; /* w-64 */
+    }
+    .sidebar-collapsed .history-modal-container {
+      left: 5rem; /* w-20 */
+    }
+  }
 }
 
 @font-face {
@@ -353,4 +370,112 @@
 @keyframes pulse-ring {
   0% { transform: scale(0.5); opacity: 0.6; }
   100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* =========================================================
+   CUSTOM REACT DATEPICKER (TEMA FLORA - CLARO & OSCURO)
+   ========================================================= */
+
+/* 1. Ajuste del contenedor para que los inputs no se encojan */
+.react-datepicker-wrapper {
+  @apply w-full;
+}
+
+/* -----------------------------------------
+   MODO CLARO (Por defecto)
+   ----------------------------------------- */
+.react-datepicker {
+  @apply font-sans border border-slate-200 bg-white shadow-xl rounded-xl overflow-hidden !important;
+}
+
+.react-datepicker__header {
+  @apply bg-slate-50 border-b border-slate-200 pt-3 pb-2 !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker__day-name {
+  @apply text-slate-700 font-bold !important;
+}
+
+/* Ajuste del color de las flechitas del mes */
+.react-datepicker__navigation-icon::before {
+  border-color: #64748b !important; /* slate-500 */
+}
+
+.react-datepicker__day,
+.react-datepicker__time-name {
+  @apply text-slate-700 rounded-md transition-colors duration-200 !important;
+}
+
+/* Efecto Hover en los días y las horas */
+.react-datepicker__day:hover,
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item:hover {
+  @apply bg-emerald-100 text-emerald-900 !important;
+}
+
+/* EL VERDE FLORA PARA ELEMENTOS SELECCIONADOS */
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected,
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item--selected {
+  @apply bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-md shadow-emerald-500/30 !important;
+}
+
+/* Línea divisoria entre calendario y horas */
+.react-datepicker__time-container {
+  @apply border-l border-slate-200 !important;
+}
+.react-datepicker__time {
+  @apply bg-white rounded-r-xl !important;
+}
+
+
+/* -----------------------------------------
+   MODO OSCURO (Clases Tailwind .dark)
+   ----------------------------------------- */
+.dark .react-datepicker {
+  @apply bg-zinc-900 border-zinc-700/80 shadow-2xl !important;
+}
+
+.dark .react-datepicker__header {
+  @apply bg-zinc-900/50 border-zinc-800 !important;
+}
+
+.dark .react-datepicker__current-month,
+.dark .react-datepicker-time__header,
+.dark .react-datepicker__day-name {
+  @apply text-zinc-300 !important;
+}
+
+.dark .react-datepicker__navigation-icon::before {
+  border-color: #a1a1aa !important; /* zinc-400 */
+}
+
+.dark .react-datepicker__day {
+  @apply text-zinc-300 !important;
+}
+
+.dark .react-datepicker__day:hover,
+.dark .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item:hover {
+  @apply bg-zinc-800 text-zinc-100 !important;
+}
+
+/* Verde FLoRa para seleccionados en Dark Mode */
+.dark .react-datepicker__day--selected,
+.dark .react-datepicker__day--keyboard-selected,
+.dark .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item--selected {
+  @apply bg-emerald-500 text-white font-bold hover:bg-emerald-400 shadow-md shadow-emerald-500/20 !important;
+}
+
+/* Días de otros meses atenuados */
+.dark .react-datepicker__day--outside-month {
+  @apply text-zinc-600 !important;
+}
+
+/* Panel de horas en Dark Mode */
+.dark .react-datepicker__time-container {
+  @apply border-zinc-800 !important;
+}
+.dark .react-datepicker__time {
+  @apply bg-zinc-900 text-zinc-300 !important;
 }

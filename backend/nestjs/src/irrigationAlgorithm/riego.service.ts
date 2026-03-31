@@ -84,7 +84,7 @@ export class RiegoService {
           `Límite: ${limiteDosisMm}mm | Aplicando hoy: ${laminaAAplicarMm.toFixed(2)}mm`
         );
 
-        const requiereRiego = humedadActual <= p.cultivo.humedadObjetivo || humedadActual <= (pm + 5); 
+        const requiereRiego = humedadActual <= ((p as any).humedadObjetivo || p.cultivo.humedadObjetivo) || humedadActual <= (pm + 5); 
 
         let tiempoMinutos = 0;
         let estado = 'Suelo Óptimo';

@@ -10,4 +10,5 @@ export declare class CreateParcelaDto {
     puntos: any;
     zonaHoraria: string;
     laminaMaximaRiego: number;
+    humedadObjetivo: number;
 }

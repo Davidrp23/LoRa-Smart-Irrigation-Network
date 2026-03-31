@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sprout, Cpu, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SidebarProps {
@@ -9,6 +9,21 @@ interface SidebarProps {
 
 export default function Sidebar({ menuActivo, setMenuActivo, handleLogout }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    const body = document.body;
+    if (isCollapsed) {
+      body.classList.add('sidebar-collapsed');
+      body.classList.remove('sidebar-expanded');
+    } else {
+      body.classList.add('sidebar-expanded');
+      body.classList.remove('sidebar-collapsed');
+    }
+
+    return () => {
+      body.classList.remove('sidebar-collapsed', 'sidebar-expanded');
+    };
+  }, [isCollapsed]);
 
   return (
     <aside className={`relative z-20 flex flex-col border-r border-border bg-card py-6 shadow-xl transition-all duration-300 ${isCollapsed ? 'w-20 items-center' : 'w-20 items-center md:w-64 md:items-start md:px-6'}`}>

@@ -114,6 +114,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
   const [areaManual, setAreaManual] = useState(!!parcelaAEditar?.areaM2); // Si ya tenía área, asumimos que puede ser manual o calculada, por defecto dejamos editar
   const [zonaHoraria, setZonaHoraria] = useState(parcelaAEditar?.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [laminaMaximaRiego, setLaminaMaximaRiego] = useState((parcelaAEditar as any)?.laminaMaximaRiego?.toString() || '');
+  const [humedadObjetivo, setHumedadObjetivo] = useState((parcelaAEditar as any)?.humedadObjetivo?.toString() || '');
   const [tiempoRiego, setTiempoRiego] = useState('');
   const [usarCalculadoraLamina, setUsarCalculadoraLamina] = useState(false);
 
@@ -151,7 +152,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
   const [listaCultivos, setListaCultivos] = useState<any[]>([]);
   const [listaSuelos, setListaSuelos] = useState<any[]>([]);
   const [listaRiegos, setListaRiegos] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'general' | 'agronomia'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'entorno' | 'riego'>('general');
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -200,6 +201,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       setCaudal(parcelaAEditar.caudalRiegoLh?.toString() || '0');
       setPuntos(parcelaAEditar.coordenadas);
       setLaminaMaximaRiego((parcelaAEditar as any).laminaMaximaRiego?.toString() || '');
+      setHumedadObjetivo((parcelaAEditar as any).humedadObjetivo?.toString() || '');
       setZonaHoraria(parcelaAEditar.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone);
     }
     // Nota: No reseteamos a vacío aquí para evitar parpadeos, se maneja en el onClose o al montar
@@ -465,44 +467,46 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
 
   // Manejador del botón "Siguiente"
   const handleNextStep = () => {
-    if (validateGeneral()) {
-      setActiveTab('agronomia');
-    } else {
-      // Feedback visual si falla
-      const inputNombre = document.getElementById('input-nombre-parcela');
-      if (inputNombre && !nombre.trim()) inputNombre.focus();
+    if (activeTab === 'general') {
+      if (validateGeneral()) setActiveTab('entorno');
+      else {
+        const inputNombre = document.getElementById('input-nombre-parcela');
+        if (inputNombre && !nombre.trim()) inputNombre.focus();
+      }
+    } else if (activeTab === 'entorno') {
+      if (validateEntorno()) setActiveTab('riego');
     }
+  };
+
+  const validateEntorno = () => {
+    const newErrors: any = {};
+    if (!cultivoId) newErrors.cultivo = true;
+    if (!sueloId) newErrors.suelo = true;
+    if (!humedadObjetivo || parseFloat(humedadObjetivo) <= 0 || parseFloat(humedadObjetivo) > 100) newErrors.humedadObjetivo = true;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...newErrors }));
+      if (newErrors.cultivo) (document.querySelector('#input-cultivo-principal button') as HTMLElement)?.focus();
+      else if (newErrors.humedadObjetivo) (document.querySelector('#input-humedad-objetivo') as HTMLElement)?.focus();
+      else if (newErrors.suelo) (document.querySelector('#input-tipo-suelo button') as HTMLElement)?.focus();
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validación completa antes de guardar
-    if (!validateGeneral()) {
-      setActiveTab('general');
-      const inputNombre = document.getElementById('input-nombre-parcela');
-      if (inputNombre && !nombre.trim()) inputNombre.focus();
-      return;
-    }
 
-    const newAgroErrors: any = {};
-    if (!cultivoId) newAgroErrors.cultivo = true;
-    if (!sueloId) newAgroErrors.suelo = true;
-    if (!riegoId) newAgroErrors.riego = true;
-    if (!caudal || parseFloat(caudal) <= 0) newAgroErrors.caudal = true;
-    if (!laminaMaximaRiego || parseFloat(laminaMaximaRiego) <= 0) newAgroErrors.lamina = true;
+    const newErrors: any = {};
+    if (!riegoId) newErrors.riego = true;
+    if (!caudal || parseFloat(caudal) <= 0) newErrors.caudal = true;
+    if (!laminaMaximaRiego || parseFloat(laminaMaximaRiego) <= 0) newErrors.lamina = true;
 
-    if (Object.keys(newAgroErrors).length > 0) {
-      setErrors(prev => ({ ...prev, ...newAgroErrors }));
-      // Enfocar el primer error de agronomía si existe
-      if (newAgroErrors.cultivo) (document.querySelector('#input-cultivo-principal button') as HTMLElement)?.focus();
-      else if (newAgroErrors.suelo) (document.querySelector('#input-tipo-suelo button') as HTMLElement)?.focus();
-      else if (newAgroErrors.riego) (document.querySelector('#input-metodo-riego button') as HTMLElement)?.focus();
-      else if (newAgroErrors.caudal) (document.querySelector('#input-caudal-sistema') as HTMLElement)?.focus();
-      else if (newAgroErrors.lamina) {
-        const inputLamina = document.getElementById('input-lamina');
-        if (inputLamina) inputLamina.focus();
-      }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...newErrors }));
+      if (newErrors.riego) (document.querySelector('#input-metodo-riego button') as HTMLElement)?.focus();
+      else if (newErrors.caudal) (document.querySelector('#input-caudal-sistema') as HTMLElement)?.focus();
+      else if (newErrors.lamina) (document.querySelector('#input-lamina') as HTMLElement)?.focus();
       return;
     }
 
@@ -524,6 +528,7 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
       areaM2: parseFloat(areaInput) * 10000, // Convertir Ha a m2 para backend
       caudalRiegoLh: parseFloat(caudal),
       laminaMaximaRiego: parseFloat(laminaMaximaRiego),
+      humedadObjetivo: parseFloat(humedadObjetivo),
       humedad: parcelaAEditar?.humedad ?? null,
       proximoRiego: parcelaAEditar?.proximoRiego ?? 'N/A',
       estado: parcelaAEditar?.estado ?? 'ok',
@@ -568,9 +573,15 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                   </button>
                   <button 
                     disabled // Deshabilitado el click directo, forzamos usar "Siguiente"
-                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'agronomia' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground/50 cursor-not-allowed'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'entorno' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground/50 cursor-not-allowed'}`}
                   >
-                    <Sprout size={14}/> Agronomía
+                    <Sprout size={14}/> Entorno
+                  </button>
+                  <button 
+                    disabled 
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'riego' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground/50 cursor-not-allowed'}`}
+                  >
+                    <Droplets size={14}/> Riego
                   </button>
                 </div>
               </div>
@@ -632,16 +643,47 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                     </motion.div>
                   )}
 
-                  {activeTab === 'agronomia' && (
+                  {activeTab === 'entorno' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
                       <div id="input-cultivo-principal" className={errors.cultivo ? 'rounded-xl border border-destructive/50 p-1' : ''}>
                         <SearchableSelect
                           label="Cultivo Principal"
                           placeholder="Seleccionar Cultivo"
                           value={cultivoId}
-                          onChange={(v) => { setCultivoId(v); if(errors.cultivo) setErrors({...errors, cultivo: false}); }}
+                          onChange={(v) => { 
+                            setCultivoId(v); 
+                            if(errors.cultivo) setErrors({...errors, cultivo: false}); 
+                            // Autocompletar la humedad objetivo al cambiar el cultivo
+                            const cultivoObj = listaCultivos.find(c => c.id.toString() === v);
+                            if (cultivoObj && cultivoObj.humedadObjetivo) {
+                              setHumedadObjetivo(cultivoObj.humedadObjetivo.toString());
+                              if(errors.humedadObjetivo) setErrors({...errors, humedadObjetivo: false});
+                            }
+                          }}
                           options={listaCultivos.map(c => ({ value: c.id.toString(), label: c.nombre }))}
                         />
+                      </div>
+
+                      <div>
+                        <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${errors.humedadObjetivo ? 'text-destructive' : 'text-muted-foreground'}`}>Humedad Objetivo (Suelo)</label>
+                        <div className={`flex items-center h-14 px-4 rounded-xl border bg-card transition-colors ${errors.humedadObjetivo ? 'border-destructive ring-1 ring-destructive' : 'border-border'}`}>
+                           <input 
+                            id="input-humedad-objetivo"
+                            type="number" 
+                            min="0" max="100"
+                            value={humedadObjetivo}
+                            onChange={(e) => { setHumedadObjetivo(e.target.value); if(errors.humedadObjetivo) setErrors({...errors, humedadObjetivo: false}); }}
+                            className="w-full h-full p-0 text-xl font-bold tracking-tight text-right bg-transparent border-none appearance-none focus:ring-0 text-foreground"
+                            placeholder="0"
+                          />
+                          <span className="ml-3 text-sm font-bold text-muted-foreground">%</span>
+                        </div>
+                        <div className="bg-emerald-50 dark:bg-emerald-900/10 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30 mt-3">
+                          <p className="text-[11px] text-emerald-800 dark:text-emerald-300 flex gap-1.5 items-start leading-tight">
+                            <Info size={14} className="shrink-0 mt-0.5" />
+                            <span>El porcentaje de humedad óptimo en la tierra que el algoritmo mantendrá para esta parcela. <strong>Se ajusta por defecto al cultivo seleccionado.</strong></span>
+                          </p>
+                        </div>
                       </div>
                       
                       <div id="input-tipo-suelo" className={errors.suelo ? 'rounded-xl border border-destructive/50 p-1' : ''}>
@@ -665,10 +707,12 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                           options={listaSuelos.map(s => ({ value: s.id.toString(), label: s.nombre }))}
                         />
                       </div>
+                    </motion.div>
+                  )}
 
-                      <div className="pt-4 border-t border-border mt-4">
-                        <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2"><Droplets size={16} className="text-blue-500"/> Sistema de Riego</h4>
-                        
+                  {activeTab === 'riego' && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
+
                         <div className="space-y-4">
                           <div id="input-metodo-riego" className={errors.riego ? 'rounded-xl border border-destructive/50 p-1' : ''}>
                             <SearchableSelect
@@ -712,7 +756,6 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
                             </div>
                           </div>
                         </div>
-                      </div>
 
                       <div className="pt-4 border-t border-border mt-4">
                         <div className="flex items-center justify-between mb-4">
@@ -772,19 +815,23 @@ export default function RegistrarParcelaModal({ isOpen, onClose, parcelasExisten
               <div className="p-6 border-t border-border bg-muted/20 flex gap-3">
                 <button 
                   type="button" 
-                  onClick={() => activeTab === 'agronomia' ? setActiveTab('general') : onClose()} 
+                  onClick={() => {
+                    if (activeTab === 'riego') setActiveTab('entorno');
+                    else if (activeTab === 'entorno') setActiveTab('general');
+                    else onClose();
+                  }} 
                   className="flex-1 rounded-xl border-border px-4 py-3 text-sm font-bold text-card-foreground hover:bg-muted transition-colors"
                 >
-                  {activeTab === 'agronomia' ? 'Atrás' : 'Cancelar'}
+                  {activeTab === 'general' ? 'Cancelar' : 'Atrás'}
                 </button>
                 
-                {activeTab === 'general' ? (
+                {activeTab !== 'riego' ? (
                   <button 
                     type="button" 
                     onClick={handleNextStep} 
-                    disabled={!isGeneralValid}
+                    disabled={activeTab === 'general' && !isGeneralValid}
                     className={`group relative flex-[1.5] flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold shadow-lg transition-all duration-300 overflow-hidden ${
-                      isGeneralValid 
+                      (activeTab === 'general' ? isGeneralValid : true)
                         ? 'bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90' 
                         : 'bg-muted text-muted-foreground cursor-not-allowed'
                     }`}

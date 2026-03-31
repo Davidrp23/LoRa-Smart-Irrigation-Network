@@ -31,6 +31,16 @@ export const getDashboardData = async (): Promise<AppData> => {
     const motasRaw = await motasRes.json();
     const routersRaw = await routersRes.json();
 
+    // 1.5 Obtenemos los turnos de riego en paralelo para mostrar el estado real en el Dashboard
+    await Promise.all(parcelasRaw.map(async (p: any) => {
+      try {
+        const turnosRes = await fetch(`${API_URL}/turno-riego/parcela/${p.id}`, { headers });
+        if (turnosRes.ok) {
+          p.turnosRiego = await turnosRes.json();
+        }
+      } catch (e) {}
+    }));
+
     // Helper para calcular estado basado en Deep Sleep (24h)
     const getEstado = (fecha: string | null) => {
       if (!fecha) return 'offline';
@@ -85,6 +95,28 @@ export const getDashboardData = async (): Promise<AppData> => {
       const dispositivosEnParcela = dispositivos
         .filter(d => d.parcelaId === p.id);
       
+      // Adaptador: Calculamos el texto del Próximo Riego basado en los turnos
+      let proximoRiegoStr = 'Sin programar';
+      const turnos = p.turnosRiego || [];
+      if (turnos.length > 0) {
+        // Buscamos el turno programado, o si no hay, el último registrado
+        const turnoActivo = turnos.find((t: any) => t.estadoRiego === 'Programado') || turnos[0];
+        
+        let timeStr = '';
+        if (turnoActivo.tiempoRiegoMin) {
+          const h = Math.floor(turnoActivo.tiempoRiegoMin / 60);
+          const m = turnoActivo.tiempoRiegoMin % 60;
+          timeStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+        }
+
+        if (turnoActivo.estadoRiego === 'Programado') {
+          proximoRiegoStr = `${turnoActivo.horaConfigurada} (${timeStr})`;
+        } else {
+          proximoRiegoStr = turnoActivo.estadoRiego || 'Esperando';
+          if (timeStr) proximoRiegoStr += ` | Próx: ${timeStr}`;
+        }
+      }
+
       return {
         ...p,
         // Adaptador: Aplanamos los objetos de relación a strings para el frontend
@@ -98,7 +130,8 @@ export const getDashboardData = async (): Promise<AppData> => {
         zonaHoraria: p.zonaHoraria || Intl.DateTimeFormat().resolvedOptions().timeZone,
         humedad: p.humedadMedia != null ? Math.round(p.humedadMedia) : null,
         laminaMaximaRiego: p.laminaMaximaRiego,
-        proximoRiego: 'Programar' // Valor por defecto UI
+        humedadObjetivo: p.humedadObjetivo,
+        proximoRiego: proximoRiegoStr
       };
     });
 
@@ -181,6 +214,7 @@ export const createParcela = async (parcela: any) => {
     caudalRiegoLh: parcela.caudalRiegoLh, // Nuevo campo
     zonaHoraria: parcela.zonaHoraria,
     laminaMaximaRiego: parcela.laminaMaximaRiego,
+    humedadObjetivo: parcela.humedadObjetivo,
     latitudCentro: latCentro || 0,
     longitudCentro: lngCentro || 0,
     puntos: parcela.coordenadas // Frontend usa 'coordenadas', Backend espera 'puntos' (mapeado en DTO)
@@ -211,6 +245,7 @@ export const updateParcela = async (id: number, parcela: any) => {
     riegoId: parcela.riegoId,
     areaM2: parcela.areaM2,
     laminaMaximaRiego: parcela.laminaMaximaRiego,
+    humedadObjetivo: parcela.humedadObjetivo,
     caudalRiegoLh: parcela.caudalRiegoLh,
     zonaHoraria: parcela.zonaHoraria
   };
@@ -430,5 +465,18 @@ export const deleteTurnoRiego = async (id: number) => {
   });
 
   if (!response.ok) throw new Error('Error al eliminar turno de riego');
+  return await response.json();
+};
+
+// --- SERVICIO CLIMÁTICO ---
+export const getWeatherData = async (lat: number, lng: number, timezone: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/clima-service/${lat}/${lng}?timezone=${encodeURIComponent(timezone)}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (!response.ok) throw new Error('Error al obtener datos meteorológicos');
   return await response.json();
 };

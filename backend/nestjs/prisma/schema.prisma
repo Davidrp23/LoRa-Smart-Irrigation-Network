@@ -123,6 +123,7 @@ model Parcela {
   areaM2         Float   // Calculado desde el mapa
   caudalRiegoLh  Float   // Litros/hora del sistema del usuario
   laminaMaximaRiego Float? //Dosis maxima en mm por metro cuadrado adecuada para la parcela
+  humedadObjetivo   Float? // % de humedad objetivo específica de esta parcela
 
   sueloId        Int
   suelo          TipoSuelo   @relation(fields: [sueloId], references: [id], onDelete: SetNull)

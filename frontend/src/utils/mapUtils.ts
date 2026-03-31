@@ -75,8 +75,8 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
   });
 
   const layers = parcelas.map(p => {
-    const color = p.estado === 'alerta' ? '#ef4444' : '#22c55e';
-    const fillColor = p.estado === 'alerta' ? '#f87171' : '#4ade80';
+    const color = p.estado === 'alert' ? '#ef4444' : '#22c55e';
+    const fillColor = p.estado === 'alert' ? '#f87171' : '#4ade80';
 
     const poly = L.polygon(p.coordenadas, {
       color: color, fillColor: fillColor, fillOpacity: 0.3, weight: 3
@@ -89,8 +89,8 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
              <div class="map-popup-title">${p.nombre}</div>
              <div class="map-popup-subtitle">${p.cultivo}</div>
            </div>
-           <div class="map-popup-badge ${p.estado === 'alerta' ? 'alert' : 'ok'}">
-             ${p.estado === 'alerta' ? 'ALERTA' : 'OK'}
+           <div class="map-popup-badge ${p.estado === 'alert' ? 'alert' : 'ok'}">
+             ${p.estado === 'alert' ? 'ALERTA' : 'OK'}
            </div>
         </div>
         <div class="map-popup-body">

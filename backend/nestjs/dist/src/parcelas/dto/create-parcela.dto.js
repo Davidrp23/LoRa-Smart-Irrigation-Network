@@ -23,6 +23,7 @@ class CreateParcelaDto {
     puntos;
     zonaHoraria;
     laminaMaximaRiego;
+    humedadObjetivo;
 }
 exports.CreateParcelaDto = CreateParcelaDto;
 __decorate([
@@ -80,4 +81,9 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Number)
 ], CreateParcelaDto.prototype, "laminaMaximaRiego", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreateParcelaDto.prototype, "humedadObjetivo", void 0);
 //# sourceMappingURL=create-parcela.dto.js.map

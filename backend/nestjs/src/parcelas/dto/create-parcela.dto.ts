@@ -45,5 +45,9 @@ export class CreateParcelaDto {
     @IsNumber()
     @IsNotEmpty()
     laminaMaximaRiego: number;
+
+    @IsNumber()
+    @IsNotEmpty()
+    humedadObjetivo: number;
     
 }
