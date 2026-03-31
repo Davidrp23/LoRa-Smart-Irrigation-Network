@@ -151,6 +151,8 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
   const [filtroCultivo, setFiltroCultivo] = useState('todos');
   const [filtroTipoSuelo, setFiltroTipoSuelo] = useState('todos');
   const [filtroRiego, setFiltroRiego] = useState('todos');
+  const [orden, setOrden] = useState('nombre_asc');
+  const [itemsVisibles, setItemsVisibles] = useState(5); // 11 parcelas + 1 botón de añadir = 12
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [parcelaParaEliminar, setParcelaParaEliminar] = useState<Parcela | null>(null);
@@ -344,16 +346,55 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
     ];
   }, [parcelasSeguras]);
 
-  // Filtrado de parcelas para la galería
-  const parcelasFiltradas = useMemo(() => {
-    const terminoBusqueda = busqueda.toLowerCase();
-    return parcelasSeguras.filter(p => 
-      ((p.nombre || '').toLowerCase().includes(terminoBusqueda)) &&
-      (filtroCultivo === 'todos' || p.cultivo === filtroCultivo) &&
-      (filtroTipoSuelo === 'todos' || p.tipoSuelo === filtroTipoSuelo) &&
-      (filtroRiego === 'todos' || p.tipoRiego === filtroRiego)
-    );
-  }, [parcelasSeguras, busqueda, filtroCultivo, filtroTipoSuelo, filtroRiego]);
+  const opcionesOrden = [
+    { value: 'nombre_asc', label: 'Nombre (A-Z)' },
+    { value: 'nombre_desc', label: 'Nombre (Z-A)' },
+    { value: 'area_desc', label: 'Mayor Superficie' },
+    { value: 'area_asc', label: 'Menor Superficie' },
+    { value: 'dispositivos_desc', label: 'Más Dispositivos' },
+    { value: 'dispositivos_asc', label: 'Menos Dispositivos' },
+    { value: 'humedad_desc', label: 'Más Húmedas' },
+    { value: 'humedad_asc', label: 'Menos Húmedas' },
+  ];
+
+  // Filtrado y Ordenación de parcelas para la galería
+  const parcelasProcesadas = useMemo(() => {
+      const terminoBusqueda = busqueda.toLowerCase();
+      const filtradas = parcelasSeguras.filter(p => 
+        ((p.nombre || '').toLowerCase().includes(terminoBusqueda)) &&
+        (filtroCultivo === 'todos' || p.cultivo === filtroCultivo) &&
+        (filtroTipoSuelo === 'todos' || p.tipoSuelo === filtroTipoSuelo) &&
+        (filtroRiego === 'todos' || p.tipoRiego === filtroRiego)
+      );
+
+      // Lógica de ordenación
+      return filtradas.sort((a, b) => {
+          switch (orden) {
+              case 'nombre_desc':
+                  return b.nombre.localeCompare(a.nombre);
+              case 'area_desc':
+                  return (b.areaM2 || 0) - (a.areaM2 || 0);
+              case 'area_asc':
+                  return (a.areaM2 || 0) - (b.areaM2 || 0);
+              case 'dispositivos_desc':
+                  return (b.dispositivosTodos?.length || 0) - (a.dispositivosTodos?.length || 0);
+              case 'dispositivos_asc':
+                  return (a.dispositivosTodos?.length || 0) - (b.dispositivosTodos?.length || 0);
+              case 'humedad_desc':
+                  return (b.humedad || -1) - (a.humedad || -1);
+              case 'humedad_asc':
+                  return (a.humedad || -1) - (b.humedad || -1);
+              case 'nombre_asc':
+              default:
+                  return a.nombre.localeCompare(b.nombre);
+          }
+      });
+  }, [parcelasSeguras, busqueda, filtroCultivo, filtroTipoSuelo, filtroRiego, orden]);
+
+  // Paginación
+  const parcelasVisibles = useMemo(() => {
+      return parcelasProcesadas.slice(0, itemsVisibles);
+  }, [parcelasProcesadas, itemsVisibles]);
 
   useEffect(() => {
     // Usamos 'as string' para evitar el error de TS que infiere erróneamente que los tipos no se solapan
@@ -604,38 +645,47 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
 
             {/* Barra de Búsqueda (Solo visible si hay parcelas) */}
             {parcelasSeguras.length > 0 && (
-              <div className="flex flex-col sm:flex-row gap-3 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar por nombre..." 
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="flora-input pl-10 w-full"
-                />
-              </div>
-              <div className="w-full sm:w-48">
-                <Select
-                  value={filtroCultivo}
-                  onChange={(val) => setFiltroCultivo(val)}
-                  options={opcionesCultivo}
-                />
-              </div>
-              <div className="w-full sm:w-48">
-                <Select
-                  value={filtroTipoSuelo}
-                  onChange={(val) => setFiltroTipoSuelo(val)}
-                  options={opcionesTipoSuelo}
-                />
-              </div>
-              <div className="w-full sm:w-48">
-                <Select
-                  value={filtroRiego}
-                  onChange={(val) => setFiltroRiego(val)}
-                  options={opcionesRiego}
-                />
-              </div>
+              <div className="mb-6 space-y-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar por nombre..." 
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="flora-input pl-10 w-full"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="w-full sm:w-44">
+                    <Select
+                      value={filtroCultivo}
+                      onChange={(val) => setFiltroCultivo(val)}
+                      options={opcionesCultivo}
+                    />
+                  </div>
+                  <div className="w-full sm:w-44">
+                    <Select
+                      value={filtroTipoSuelo}
+                      onChange={(val) => setFiltroTipoSuelo(val)}
+                      options={opcionesTipoSuelo}
+                    />
+                  </div>
+                  <div className="w-full sm:w-44">
+                    <Select
+                      value={filtroRiego}
+                      onChange={(val) => setFiltroRiego(val)}
+                      options={opcionesRiego}
+                    />
+                  </div>
+                  <div className="flex-1 sm:w-auto sm:min-w-[180px]">
+                    <Select
+                      value={orden}
+                      onChange={(val) => setOrden(val)}
+                      options={opcionesOrden}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </>
@@ -660,15 +710,16 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
           parcelasSeguras.length === 0 ? (
             <EmptyParcelState onAction={() => { setEditingParcel(null); setIsModalOpen(true); }} />
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <button 
-              onClick={() => { setEditingParcel(null); setIsModalOpen(true); }} 
-              className="group flex h-40 hover:h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-green-200 dark:hover:bg-primary/10 transition-all duration-500 overflow-hidden"
-            >
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-green-200 group-hover:text-green-600"><Plus size={28} /></div>
-              <span className="font-semibold text-card-foreground">Registrar Parcela</span>
-            </button>
-            {parcelasFiltradas.map(p => (
+            <>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <button 
+                onClick={() => { setEditingParcel(null); setIsModalOpen(true); }} 
+                className="group flex h-40 hover:h-64 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-green-200 dark:hover:bg-primary/10 transition-all duration-500 overflow-hidden"
+              >
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-green-200 group-hover:text-green-600"><Plus size={28} /></div>
+                <span className="font-semibold text-card-foreground">Registrar Parcela</span>
+              </button>
+              {parcelasVisibles.map(p => (
               <div key={p.id} className="flora-card group">
                 {/* Header */}
                 <div className="p-5">
@@ -789,8 +840,19 @@ export default function ParcelasView({ datosParcelas, onRefresh, mapTarget, onMa
                    </button>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            {itemsVisibles < parcelasProcesadas.length && (
+                <div className="mt-8 flex justify-center">
+                    <button 
+                        onClick={() => setItemsVisibles(prev => prev + 8)}
+                        className="flex items-center gap-2 rounded-xl bg-card px-6 py-3 text-base font-bold text-card-foreground border border-border shadow-sm hover:bg-muted transition-all hover:scale-105"
+                    >
+                        <Plus size={20} /> Cargar Más Parcelas
+                    </button>
+                </div>
+            )}
+            </>
           )
         )}
       </motion.div>

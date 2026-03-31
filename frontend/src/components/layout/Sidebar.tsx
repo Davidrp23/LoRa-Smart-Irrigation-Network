@@ -37,7 +37,7 @@ export default function Sidebar({ menuActivo, setMenuActivo, handleLogout }: Sid
       </button>
 
       <div className={`mb-10 flex w-full items-center ${isCollapsed ? 'justify-center' : 'justify-center md:justify-start'}`}>
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-green-200 to-green-300 p-4 shadow-sm backdrop-blur-md transition-all hover:shadow-md dark:border-primary/30 dark:from-primary/10 dark:to-primary/5">
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-green-100 to-green-200 p-4 shadow-sm backdrop-blur-md transition-all hover:shadow-md dark:border-primary/30 dark:from-primary/10 dark:to-primary/5">
           <img src="/media/FLoRa_logo.png" alt="FLoRa" className={`object-contain drop-shadow-sm transition-all ${isCollapsed ? 'h-8 w-8' : 'h-10 w-10'}`} />
           {!isCollapsed && <span className="hidden text-2xl font-extrabold tracking-tight text-primary md:block">FLoRa</span>}
         </div>

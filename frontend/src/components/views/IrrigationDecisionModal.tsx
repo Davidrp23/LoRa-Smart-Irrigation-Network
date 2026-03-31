@@ -280,7 +280,7 @@ export default function IrrigationDecisionModal({
                         <span className="text-sm font-bold uppercase tracking-widest">Estado del Riego</span>
                       </div>
                       <div className="text-4xl font-extrabold">{bannerState}</div>
-                      {activeTurno?.tiempoRiegoMin && (
+                      {activeTurno?.tiempoRiegoMin > 0 && (
                         <div className="text-sm font-medium mt-1.5 opacity-90">Tiempo de riego: <strong>{formatDuration(activeTurno.tiempoRiegoMin)}</strong></div>
                       )}
                       <div className="mt-3 inline-flex items-center bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-xl text-sm font-medium border border-white/10 shadow-sm">
@@ -414,7 +414,7 @@ export default function IrrigationDecisionModal({
                   </div>
 
                   <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs text-blue-800 dark:text-blue-300 leading-relaxed mb-6">
-                    Añade horas en las que prefieres regar. El sistema ajustará la duración y podrá <strong>cancelar</strong> el turno si ha llovido o la humedad ya es la adecuada.
+                    Añade horas en las que prefieres regar. El sistema ajustará la duración y podrá <strong>cancelar</strong> el turno si no es necesario. La evaluación final se realiza 1h antes para usar los datos más recientes.
                   </div>
 
                   <div className="flex-1 overflow-y-auto pr-1 space-y-3">

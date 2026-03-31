@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save, Check, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import Select from '../ui/Select';
 import { getProfile, updateProfile } from '../../services/authService';
 
@@ -225,14 +225,19 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
         );
       case 'notificaciones':
         return (
-          <motion.div key="notificaciones" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl font-bold text-card-foreground mb-6">Preferencias de Notificaciones</h2>
-            <div className="space-y-4">
-              <ToggleSwitch label="Alertas de Humedad Crítica" description="Recibir un aviso cuando la humedad de una parcela sea inferior al 20%." defaultChecked />
-              <ToggleSwitch label="Alertas de Batería Baja" description="Aviso cuando un dispositivo tenga menos del 15% de batería." defaultChecked />
-              <ToggleSwitch label="Alertas de Conexión" description="Notificar si un dispositivo se desconecta de la red." defaultChecked />
-              <ToggleSwitch label="Resumen Semanal" description="Recibir un informe del estado de los cultivos cada lunes." />
+          <motion.div
+            key="notificaciones"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center text-center h-full min-h-[300px] p-8"
+          >
+            <div className="p-5 bg-primary/10 rounded-full mb-6">
+              <Sparkles className="text-primary" size={40} strokeWidth={1.5} />
             </div>
+            <h2 className="text-2xl font-bold text-card-foreground mb-2">Nueva Funcionalidad en Camino</h2>
+            <p className="text-muted-foreground max-w-md">
+              Estamos trabajando en un sistema de notificaciones personalizable para que no te pierdas nada importante. ¡Pronto podrás configurar tus alertas aquí!
+            </p>
           </motion.div>
         );
       case 'red':
@@ -293,32 +298,35 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
           </AnimatePresence>
         </div>
         
-        <div className="mt-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-4 shadow-sm backdrop-blur-xl">
-          {/* Área de Notificaciones de Estado */}
-          <div className="flex-1 px-4">
-            <AnimatePresence mode="wait">
-              {status === 'success' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm">
-                  <Check size={18} /> {statusMessage}
-                </motion.div>
-              )}
-              {status === 'error' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium text-sm">
-                  <AlertCircle size={18} /> {statusMessage}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+        {/* El footer con el botón de guardar solo se muestra si la pestaña activa no es 'notificaciones' */}
+        {activeTab !== 'notificaciones' && (
+          <div className="mt-6 flex items-center justify-between rounded-3xl border border-border/50 bg-card/60 p-4 shadow-sm backdrop-blur-xl">
+            {/* Área de Notificaciones de Estado */}
+            <div className="flex-1 px-4">
+              <AnimatePresence mode="wait">
+                {status === 'success' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-sm">
+                    <Check size={18} /> {statusMessage}
+                  </motion.div>
+                )}
+                {status === 'error' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium text-sm">
+                    <AlertCircle size={18} /> {statusMessage}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-          <button 
-            onClick={handleSave}
-            disabled={status === 'loading' || (activeTab === 'seguridad' && (!isNewPasswordValid || !passwordsMatch))}
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {status === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-            {status === 'loading' ? 'Guardando...' : 'Guardar Cambios'}
-          </button>
-        </div>
+            <button
+              onClick={handleSave}
+              disabled={status === 'loading' || (activeTab === 'seguridad' && (!isNewPasswordValid || !passwordsMatch))}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {status === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {status === 'loading' ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
+        )}
       </main>
     </motion.div>
   );

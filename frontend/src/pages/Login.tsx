@@ -146,7 +146,7 @@ export default function Login() {
               >
                 <motion.div 
                   initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 10 }}
-                  className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-500/20 text-green-500"
+                  className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground dark:bg-green-500/20 dark:text-green-500"
                 >
                   <CheckCircle2 size={48} strokeWidth={3} />
                 </motion.div>

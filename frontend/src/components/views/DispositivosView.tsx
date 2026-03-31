@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Router as RouterIcon, 
@@ -27,6 +27,9 @@ import {
   Info
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { es } from 'date-fns/locale';
 import ConnectionHistoryModal from './ConnectionHistoryModal';
 import Select from '../ui/Select';
 import { createDevice, updateDevice, deleteDevice, getMediciones, getRouterReportes } from '../../services/dataService';
@@ -37,6 +40,8 @@ const CHANNEL_FREQUENCIES: Record<number, string> = {
   2: '868.5 MHz',
   3: '869.525 MHz'
 };
+
+registerLocale('es', es);
 
 // Tipos basados en schema.prisma + campos de UI solicitados
 interface DispositivoBase {
@@ -222,23 +227,23 @@ const DetailedHistoryChart = ({ data }: { data: { label: string, value: number, 
 
   return (
     <div className="w-full">
-       <div className="flex justify-end mb-2">
-          {(canPrev || canNext) && (
-             <div className="flex items-center bg-secondary rounded-md border border-border shadow-sm">
-               <button onClick={handlePrev} disabled={!canPrev} className="p-1.5 hover:bg-background text-foreground disabled:opacity-30 rounded-l-md transition-colors"><ChevronLeft size={16} /></button>
-               <div className="w-[1px] h-4 bg-border"></div>
-               <button onClick={handleNext} disabled={!canNext} className="p-1.5 hover:bg-background text-foreground disabled:opacity-30 rounded-r-md transition-colors"><ChevronRight size={16} /></button>
-             </div>
-           )}
-       </div>
+      <div className="flex justify-end mb-2">
+        {(canPrev || canNext) && (
+          <div className="flex items-center bg-slate-200/50 dark:bg-zinc-800/50 rounded-md border border-slate-300/70 dark:border-zinc-700/50 shadow-sm">
+            <button onClick={handlePrev} disabled={!canPrev} className="p-1.5 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 disabled:opacity-30 transition-colors"><ChevronLeft size={16} /></button>
+            <div className="w-[1px] h-4 bg-slate-300 dark:bg-zinc-700"></div>
+            <button onClick={handleNext} disabled={!canNext} className="p-1.5 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 disabled:opacity-30 transition-colors"><ChevronRight size={16} /></button>
+          </div>
+        )}
+      </div>
        <div className="h-96 w-full flex items-end gap-2 px-4 pb-8">
           {displayData.map((d, i) => (
             <div key={startIndex + i} className="flex-1 flex flex-col justify-end group relative h-full">
-              <div className="w-full bg-green-500/70 dark:bg-green-500/20 rounded-t-sm border-t-2 border-green-500 relative transition-all group-hover:bg-green-600 dark:group-hover:bg-green-500/40" style={{ height: `${d.value}%` }}>
+              <div className="w-full bg-emerald-500/70 dark:bg-emerald-500/20 rounded-t-sm border-t-2 border-emerald-500 relative transition-all group-hover:bg-emerald-600 dark:group-hover:bg-emerald-500/40" style={{ height: `${d.value}%` }}>
                 {/* Tooltip Mejorado: Valor + Fecha completa al hacer hover */}
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-md border border-border pointer-events-none flex flex-col items-center">
-                  <span className="font-bold">{d.value}%</span>
-                  <span className="text-[10px] opacity-80 font-normal">{d.label}</span>
+                <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center bg-white dark:bg-zinc-900 shadow-lg dark:shadow-xl border border-slate-200 dark:border-zinc-700/50 rounded-lg px-3 py-2 min-w-[85px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none">
+                  <span className="font-bold text-[17px] text-emerald-600 dark:text-emerald-500 leading-none">{d.value}%</span>
+                  <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium mt-1.5 leading-none">{d.label}</span>
                 </div>
               </div>
               
@@ -295,14 +300,22 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
   const [bindingCode, setBindingCode] = useState('');
   const [selectedHistoryDevice, setSelectedHistoryDevice] = useState<Dispositivo | null>(null);
   const [viewingConnectionDevice, setViewingConnectionDevice] = useState<Dispositivo | null>(null); // Nuevo estado para modal de conexión
-  const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
+  const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d' | 'custom'>('24h');
   const [historyData, setHistoryData] = useState<{ label: string, value: number, date: string }[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false); // Sirve para ambos modales de historial
+
+  const [customStartDate, setCustomStartDate] = useState<Date>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d;
+  });
+  const [customEndDate, setCustomEndDate] = useState<Date>(new Date());
 
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false); // Estado para el modal de desvinculación
   // State para filtros
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'mota' | 'router'>('todos');
   const [filtroParcela, setFiltroParcela] = useState<string>('todas');
+  const [orden, setOrden] = useState('nombre_asc');
+  const [itemsVisibles, setItemsVisibles] = useState(5);
 
   // Sincronizar props con estado local
   useEffect(() => {
@@ -330,25 +343,67 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
     return router?.nombre || `Router #${id}`;
   };
 
-  // Filtrado
-  const dispositivosFiltrados = dispositivos.filter(d => {
-    // Filtro por búsqueda de texto
-    const termino = busqueda.toLowerCase();
-    const busquedaMatch = busqueda === '' ||
-      (d.nombre || '').toLowerCase().includes(termino) ||
-      (d.modelo || '').toLowerCase().includes(termino) ||
-      d.codigoVinculacion.toLowerCase().includes(termino);
+  const opcionesOrden = [
+    { value: 'nombre_asc', label: 'Nombre (A-Z)' },
+    { value: 'nombre_desc', label: 'Nombre (Z-A)' },
+    { value: 'conexion_desc', label: 'Conexión Reciente' },
+    { value: 'conexion_asc', label: 'Conexión Antigua' },
+    { value: 'bateria_desc', label: 'Mayor Batería' },
+    { value: 'bateria_asc', label: 'Menor Batería' },
+    { value: 'rssi_desc', label: 'Mejor Señal (RSSI)' },
+    { value: 'rssi_asc', label: 'Peor Señal (RSSI)' },
+  ];
 
-    // Filtro por tipo
-    const tipoMatch = filtroTipo === 'todos' || d.tipo === filtroTipo;
+  // Filtrado y ordenación
+  const dispositivosProcesados = useMemo(() => {
+    const filtrados = dispositivos.filter(d => {
+      const termino = busqueda.toLowerCase();
+      const busquedaMatch = busqueda === '' ||
+        (d.nombre || '').toLowerCase().includes(termino) ||
+        (d.modelo || '').toLowerCase().includes(termino) ||
+        d.codigoVinculacion.toLowerCase().includes(termino);
 
-    // Filtro por parcela
-    const parcelaMatch = filtroParcela === 'todas' || 
-                         (filtroParcela === 'sin_asignar' && !d.parcelaId) ||
-                         (d.parcelaId && d.parcelaId.toString() === filtroParcela);
+      const tipoMatch = filtroTipo === 'todos' || d.tipo === filtroTipo;
 
-    return busquedaMatch && tipoMatch && parcelaMatch;
-  });
+      const parcelaMatch = filtroParcela === 'todas' || 
+                           (filtroParcela === 'sin_asignar' && !d.parcelaId) ||
+                           (d.parcelaId && d.parcelaId.toString() === filtroParcela);
+
+      return busquedaMatch && tipoMatch && parcelaMatch;
+    });
+
+    // Lógica de ordenación
+    return filtrados.sort((a, b) => {
+      switch (orden) {
+        case 'nombre_desc':
+          return (b.nombre || '').localeCompare(a.nombre || '');
+        case 'conexion_desc':
+          return new Date(b.fechaUltimaConexion).getTime() - new Date(a.fechaUltimaConexion).getTime();
+        case 'conexion_asc':
+          return new Date(a.fechaUltimaConexion).getTime() - new Date(b.fechaUltimaConexion).getTime();
+        case 'bateria_desc':
+          const batB = b.tipo === 'mota' ? b.bateriaUltima : b.bateria;
+          const batA = a.tipo === 'mota' ? a.bateriaUltima : a.bateria;
+          return (batB ?? -1) - (batA ?? -1);
+        case 'bateria_asc':
+          const batB_asc = b.tipo === 'mota' ? b.bateriaUltima : b.bateria;
+          const batA_asc = a.tipo === 'mota' ? a.bateriaUltima : a.bateria;
+          return (batA_asc ?? -1) - (batB_asc ?? -1);
+        case 'rssi_desc': // Mejor señal (más cerca de 0)
+          return (b.tipo === 'mota' ? b.rssi ?? -999 : -999) - (a.tipo === 'mota' ? a.rssi ?? -999 : -999);
+        case 'rssi_asc': // Peor señal (más negativo)
+          return (a.tipo === 'mota' ? a.rssi ?? -999 : -999) - (b.tipo === 'mota' ? b.rssi ?? -999 : -999);
+        case 'nombre_asc':
+        default:
+          return (a.nombre || '').localeCompare(b.nombre || '');
+      }
+    });
+  }, [dispositivos, busqueda, filtroTipo, filtroParcela, orden]);
+
+  // Paginación
+  const dispositivosVisibles = useMemo(() => {
+    return dispositivosProcesados.slice(0, itemsVisibles);
+  }, [dispositivosProcesados, itemsVisibles]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,51 +495,68 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
     }
   };
 
-  // Efecto para cargar historial real cuando se abre el modal o cambia el rango
-  useEffect(() => {
+  const fetchHistory = async (range: typeof historyRange, customStart?: Date, customEnd?: Date) => {
     if (!selectedHistoryDevice) return;
 
-    const fetchHistory = async () => {
-      setIsLoadingHistory(true);
-      try {
-        const end = new Date();
-        const start = new Date();
+    setIsLoadingHistory(true);
+    try {
+      let start: Date, end: Date;
 
-        if (historyRange === '24h') start.setHours(start.getHours() - 24);
-        else if (historyRange === '7d') start.setDate(start.getDate() - 7);
-        else if (historyRange === '30d') start.setDate(start.getDate() - 30);
-
-        let formattedData: { label: string, value: number, date: string }[] = [];
-
-        if (selectedHistoryDevice.tipo === 'mota') {
-          const mediciones = await getMediciones(selectedHistoryDevice.id, start, end);
-          formattedData = mediciones.map((m: any) => ({
-            label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            value: m.bateria,
-            date: m.fecha
-          }));
-
-        } else if (selectedHistoryDevice.tipo === 'router') {
-          const reportes = await getRouterReportes(selectedHistoryDevice.id, start, end);
-          formattedData = reportes
-            .filter((r: any) => r.bateria !== null && r.bateria !== undefined)
-            .map((r: any) => ({
-              label: new Date(r.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-              value: r.bateria,
-              date: r.fecha
-            }));
-        }
-        setHistoryData(formattedData);
-      } catch (error) {
-        console.error("Error cargando historial:", error);
-        setNotification({ type: 'error', message: (error as Error).message || 'No se pudo cargar el historial' });
-      } finally {
-        setIsLoadingHistory(false);
+      if (range === 'custom' && customStart && customEnd) {
+        start = customStart;
+        end = customEnd;
+      } else {
+        end = new Date();
+        start = new Date();
+        if (range === '24h') start.setHours(start.getHours() - 24);
+        else if (range === '7d') start.setDate(start.getDate() - 7);
+        else if (range === '30d') start.setDate(start.getDate() - 30);
       }
-    };
 
-    fetchHistory();
+      let formattedData: { label: string, value: number, date: string }[] = [];
+
+      if (selectedHistoryDevice.tipo === 'mota') {
+        const mediciones = await getMediciones(selectedHistoryDevice.id, start, end);
+        formattedData = mediciones.map((m: any) => ({
+          label: new Date(m.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          value: m.bateria,
+          date: m.fecha
+        }));
+
+      } else if (selectedHistoryDevice.tipo === 'router') {
+        const reportes = await getRouterReportes(selectedHistoryDevice.id, start, end);
+        formattedData = reportes
+          .filter((r: any) => r.bateria !== null && r.bateria !== undefined)
+          .map((r: any) => ({
+            label: new Date(r.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            value: r.bateria,
+            date: r.fecha
+          }));
+      }
+      setHistoryData(formattedData);
+    } catch (error) {
+      console.error("Error cargando historial:", error);
+      setNotification({ type: 'error', message: (error as Error).message || 'No se pudo cargar el historial' });
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Efecto para cargar historial real cuando se abre el modal o cambia el rango
+  useEffect(() => {
+    if (selectedHistoryDevice && historyRange !== 'custom') {
+      fetchHistory(historyRange);
+    }
   }, [selectedHistoryDevice, historyRange]);
+
+  // Resetear al abrir/cerrar
+  useEffect(() => {
+    if (selectedHistoryDevice) {
+      setHistoryRange('24h');
+    } else {
+      setHistoryData([]);
+    }
+  }, [selectedHistoryDevice]);
 
   const getBateriaColor = (nivel: number | null | undefined) => {
     if (nivel === null || nivel === undefined) return 'text-muted-foreground'; // Gris si es null
@@ -514,39 +586,48 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
 
       {/* Barra de Filtros (Solo visible si hay dispositivos) */}
       {dispositivos.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, código o parcela..." 
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="flora-input pl-10"
-          />
-        </div>
-        <div className="w-full sm:w-48">
-        <Select
-          value={filtroTipo}
-          onChange={(val) => setFiltroTipo(val as any)}
-          options={[
-            { value: 'todos', label: 'Todos los Tipos' },
-            { value: 'mota', label: 'Mota / Sensor' },
-            { value: 'router', label: 'Router / Gateway' }
-          ]}
-        />
-        </div>
-        <div className="w-full sm:w-48">
-        <Select
-          value={filtroParcela}
-          onChange={(val) => setFiltroParcela(val)}
-          options={[
-            { value: 'todas', label: 'Todas las Parcelas' },
-            { value: 'sin_asignar', label: 'Sin Asignar' },
-            ...parcelasDisponibles.map(p => ({ value: p.id.toString(), label: p.nombre }))
-          ]}
-        />
-        </div>
+        <div className="mb-6 space-y-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar por nombre, código o modelo..." 
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="flora-input pl-10 w-full"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="w-full sm:w-44">
+              <Select
+                value={filtroTipo}
+                onChange={(val) => setFiltroTipo(val as any)}
+                options={[
+                  { value: 'todos', label: 'Todos los Tipos' },
+                  { value: 'mota', label: 'Mota / Sensor' },
+                  { value: 'router', label: 'Router / Gateway' }
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-44">
+              <Select
+                value={filtroParcela}
+                onChange={(val) => setFiltroParcela(val)}
+                options={[
+                  { value: 'todas', label: 'Todas las Parcelas' },
+                  { value: 'sin_asignar', label: 'Sin Asignar' },
+                  ...parcelasDisponibles.map(p => ({ value: p.id.toString(), label: p.nombre }))
+                ]}
+              />
+            </div>
+            <div className="flex-1 sm:w-auto sm:min-w-[180px]">
+              <Select
+                value={orden}
+                onChange={(val) => setOrden(val)}
+                options={opcionesOrden}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -554,14 +635,15 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {dispositivos.length === 0 ? (
         <EmptyDeviceState onAction={() => setIsLinkModalOpen(true)} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 pb-10">
-          {dispositivosFiltrados.length === 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 pb-10">
+            {dispositivosVisibles.length === 0 ? (
             <div className="col-span-full flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
               <Search size={48} className="mb-4" />
               <p className="font-medium">No se encontraron dispositivos con esos filtros</p>
             </div>
           ) : (
-            dispositivosFiltrados.map((disp) => (
+            dispositivosVisibles.map((disp) => (
           <motion.div 
             layout
             key={`${disp.tipo}-${disp.id}`} 
@@ -757,6 +839,17 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
             ))
           )}
         </div>
+        {itemsVisibles < dispositivosProcesados.length && (
+            <div className="mt-2 mb-8 flex justify-center">
+                <button 
+                    onClick={() => setItemsVisibles(prev => prev + 8)}
+                    className="flex items-center gap-2 rounded-xl bg-card px-6 py-3 text-base font-bold text-card-foreground border border-border shadow-sm hover:bg-muted transition-all hover:scale-105"
+                >
+                    <Plus size={20} /> Cargar Más Dispositivos
+                </button>
+            </div>
+        )}
+        </>
       )}
 
       {/* Modal de Edición */}
@@ -968,45 +1061,76 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {/* Modal de Historial Detallado */}
       <AnimatePresence>
         {selectedHistoryDevice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 md:p-6">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-5xl overflow-hidden rounded-3xl bg-card shadow-2xl"
+              className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-white/10"
             >
-              <div className="flex items-center justify-between border-b border-border p-6">
+              <div className="flex items-center justify-between p-6">
                 <div>
-                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <Activity className="text-blue-500"/> Historial de Consumo
+                  <h3 className="text-xl font-semibold text-slate-800 dark:text-zinc-100 flex items-center gap-3">
+                    <Activity className="text-emerald-500"/> Historial de Batería
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedHistoryDevice.tipo === 'mota' ? selectedHistoryDevice.nombre : selectedHistoryDevice.modelo}
+                  <p className="text-sm text-slate-500 dark:text-zinc-400">
+                    {selectedHistoryDevice.nombre || (selectedHistoryDevice.tipo === 'mota' ? 'Sensor sin nombre' : 'Router genérico')}
                   </p>
                 </div>
-                <button onClick={() => setSelectedHistoryDevice(null)} className="rounded-full bg-muted p-2 text-muted-foreground hover:bg-accent">
-                  <X size={20} />
-                </button>
+                <button onClick={() => setSelectedHistoryDevice(null)} className="rounded-full p-2 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"><X size={20} /></button>
               </div>
               
-              <div className="p-6">
+              <div className="p-6 md:p-8">
                 {/* Selector de Rango */}
-                <div className="flex justify-center mb-8">
-                  <div className="flex bg-muted p-1 rounded-xl">
-                    {(['24h', '7d', '30d'] as const).map((r) => (
+                <div className="flex flex-col items-center justify-center mb-8 gap-4">
+                  <div className="relative flex bg-gray-100 dark:bg-zinc-800/50 p-1 rounded-full w-max overflow-x-auto">
+                    {(['24h', '7d', '30d', 'custom'] as const).map((r) => (
                       <button
                         key={r}
                         onClick={() => setHistoryRange(r)}
-                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                          historyRange === r 
-                            ? 'bg-background text-blue-600 shadow-sm' 
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                        className={`relative px-5 py-1.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap z-10 ${historyRange !== r ? 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' : 'text-gray-900 dark:text-white'}`}
                       >
-                        {r === '24h' ? 'Últimas 24h' : r === '7d' ? '7 Días' : '30 Días'}
+                        {r === '24h' ? '24 Horas' : r === '7d' ? '7 Días' : r === '30d' ? '30 Días' : 'Personalizado'}
+                        {historyRange === r && <motion.div layoutId="active-pill-battery" className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-sm rounded-full -z-10" />}
                       </button>
                     ))}
                   </div>
+
+                  <AnimatePresence>
+                    {historyRange === 'custom' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex flex-wrap items-end justify-center gap-4 overflow-hidden">
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase mb-1 block">Desde</label>
+                          <DatePicker
+                            selected={customStartDate}
+                            onChange={(date: Date | null) => { if (date) setCustomStartDate(date) }}
+                            showTimeSelect
+                            timeFormat="HH:mm"
+                            timeIntervals={15}
+                            dateFormat="dd/MM/yyyy HH:mm"
+                            locale="es"
+                            className="flora-input !h-9 !py-1.5 !text-xs w-full cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase mb-1 block">Hasta</label>
+                          <DatePicker
+                            selected={customEndDate}
+                            onChange={(date: Date | null) => { if (date) setCustomEndDate(date) }}
+                            showTimeSelect
+                            timeFormat="HH:mm"
+                            timeIntervals={15}
+                            dateFormat="dd/MM/yyyy HH:mm"
+                            locale="es"
+                            className="flora-input !h-9 !py-1.5 !text-xs w-full cursor-pointer"
+                          />
+                        </div>
+                        <button onClick={() => fetchHistory('custom', customStartDate, customEndDate)} className="bg-emerald-500 hover:bg-emerald-600 text-white h-9 px-5 rounded-lg text-xs font-bold shadow-sm transition-colors">
+                          Aplicar
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Gráfica Grande */}
@@ -1014,8 +1138,14 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                   <div className="h-96 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                   </div>
-                ) : (
+                ) : historyData.length > 0 ? (
                   <DetailedHistoryChart data={historyData} />
+                ) : (
+                  <div className="h-96 flex flex-col items-center justify-center text-center text-slate-500 dark:text-zinc-500 bg-slate-100/50 dark:bg-zinc-900/50 rounded-xl">
+                    <BarChart2 size={48} className="mb-4 opacity-40" />
+                    <span className="font-bold text-lg text-slate-700 dark:text-zinc-300">No hay datos de batería</span>
+                    <span className="text-sm max-w-xs mt-1">No se han registrado mediciones para este dispositivo en el período seleccionado.</span>
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -1029,6 +1159,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
           <ConnectionHistoryModal
             device={viewingConnectionDevice} 
             onClose={() => setViewingConnectionDevice(null)}
+            onError={(message) => setNotification({ type: 'error', message })}
           />
         )}
       </AnimatePresence>

@@ -1,265 +1,305 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { X, Signal, Radio, BarChart3, Wifi } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Activity, BarChart3, ChevronLeft, ChevronRight, Rss, Wifi, X } from 'lucide-react';
 import { getMediciones, getRouterReportes } from '../../services/dataService';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { es } from 'date-fns/locale';
 
-// Tipos duplicados de DispositivosView para que el componente sea autocontenido
-interface DispositivoBase { id: number; tipo: 'router' | 'mota'; canal?: number | null; nombre?: string | null; modelo?: string | null; }
-interface Router extends DispositivoBase { tipo: 'router'; paquetesEnviados: number; paquetesRecibidos: number; erroresTx: number; erroresRx: number; erroresCrc: number; }
-interface Mota extends DispositivoBase { tipo: 'mota'; rssi: number | null; snr: number | null; erroresRx: number; }
+registerLocale('es', es);
+
+// Tipos (copiados de DispositivosView para evitar dependencias circulares o exportaciones complejas)
+interface DispositivoBase { id: number; tipo: 'router' | 'mota'; nombre?: string | null; }
+interface Router extends DispositivoBase { tipo: 'router'; }
+interface Mota extends DispositivoBase { tipo: 'mota'; }
 type Dispositivo = Router | Mota;
 
-type ChartSeries = {
+interface LineConfig {
+  key: string;
   name: string;
   color: string;
-  data: { date: string; value: number }[];
-};
+}
 
-// Componente de Gráfico Multi-Línea para comparar métricas
-const MultiLineChart = ({ series, title }: { series: ChartSeries[], title: string }) => {
-  if (!series.some(s => s.data.length > 0)) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center text-muted-foreground bg-muted/30 rounded-xl border">
-        <BarChart3 size={32} className="mb-2 opacity-50" />
-        <span className="font-bold">No hay datos históricos para</span>
-        <span className="text-sm">"{title}" en este período.</span>
-      </div>
-    );
-  }
+interface MultiLineChartProps {
+  data: (Record<string, any> & { label: string })[];
+  lines: LineConfig[];
+  title: string;
+  unit: string;
+}
 
-  const allValues = series.flatMap(s => s.data.map(d => d.value));
-  const minValue = Math.min(...allValues);
-  const maxValue = Math.max(...allValues);
-  const valueRange = maxValue - minValue === 0 ? 1 : maxValue - minValue;
-
-  return (
-    <div className="p-4 border rounded-xl bg-muted/20">
-      <h4 className="font-bold text-sm text-foreground mb-4">{title}</h4>
-      <div className="h-64 w-full relative">
-        <svg width="100%" height="100%" viewBox="0 0 500 200" preserveAspectRatio="none">
-          {/* Eje Y y líneas de guía */}
-          {[0, 0.25, 0.5, 0.75, 1].map(tick => {
-            const y = 190 - (tick * 180);
-            const value = minValue + (tick * valueRange);
-            return (
-              <g key={tick}>
-                <line x1="30" y1={y} x2="500" y2={y} className="stroke-border" strokeWidth="1" />
-                <text x="25" y={y + 4} textAnchor="end" className="text-[10px] fill-muted-foreground">{value.toFixed(1)}</text>
-              </g>
-            );
-          })}
-
-          {/* Paths de las series */}
-          {series.map(s => {
-            if (s.data.length === 0) return null;
-            const pathD = "M " + s.data.map((d, i) => {
-              const x = 30 + (i / (s.data.length - 1 || 1)) * 470;
-              const y = 190 - ((d.value - minValue) / valueRange) * 180;
-              return `${x},${y}`;
-            }).join(" L ");
-            return <path key={s.name} d={pathD} fill="none" stroke={s.color} strokeWidth="2" />;
-          })}
-        </svg>
-      </div>
-      {/* Leyenda */}
-      <div className="flex justify-center gap-4 mt-2">
-        {series.map(s => (
-          <div key={s.name} className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: s.color }} />
-            <span className="font-medium text-muted-foreground">{s.name}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// Contenido del modal original, ahora un sub-componente
-const CurrentStats = ({ device }: { device: Dispositivo }) => {
-  const isRouter = device.tipo === 'router';
-  return (
-    <div className="p-5 space-y-4">
-      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl border border-border/50">
-        <span className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Radio size={16} /> Canal LoRaWAN</span>
-        <span className="text-lg font-bold text-foreground">CH {device.canal ?? '-'}</span>
-      </div>
-
-      {isRouter ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-border/50">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Enviados</div>
-            <div className="text-xl font-mono font-bold text-foreground">{device.paquetesEnviados}</div>
-          </div>
-          <div className="bg-slate-100 dark:bg-slate-800/50 p-3 rounded-xl border border-border/50">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Recibidos</div>
-            <div className="text-xl font-mono font-bold text-foreground">{device.paquetesRecibidos}</div>
-          </div>
-          <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-200 dark:border-red-900/30">
-            <div className="text-[10px] font-bold text-red-600/70 dark:text-red-400/70 uppercase tracking-wider mb-1">Err. TX/RX</div>
-            <div className="text-lg font-mono font-bold text-red-700 dark:text-red-400">{device.erroresTx} / {device.erroresRx}</div>
-          </div>
-          <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-xl border border-amber-200 dark:border-amber-900/30">
-            <div className="text-[10px] font-bold text-amber-600/70 dark:text-amber-400/70 uppercase tracking-wider mb-1">Err. CRC</div>
-            <div className="text-lg font-mono font-bold text-amber-700 dark:text-amber-400">{device.erroresCrc}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex justify-between items-center pb-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Intensidad (RSSI)</span>
-            <span className={`font-mono font-bold ${(device.rssi || -999) > -100 ? 'text-green-600' : 'text-amber-600'}`}>{device.rssi ?? '--'} dBm</span>
-          </div>
-          <div className="flex justify-between items-center pb-2 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Calidad (SNR)</span>
-            <span className="font-mono font-bold text-foreground">{device.snr ?? '--'} dB</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Paquetes Perdidos</span>
-            <span className="font-mono font-bold text-red-500">{device.erroresRx}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const calculateDeltas = (data: any[], key: string) => {
-  if (!data || data.length < 2) return [];
-  const deltas = [];
-  for (let i = 1; i < data.length; i++) {
-    const current = data[i][key] ?? 0;
-    const prev = data[i - 1][key] ?? 0;
-    const delta = current >= prev ? current - prev : current; // Handle counter reset
-    deltas.push({ date: data[i].fecha, value: delta });
-  }
-  return deltas;
-};
-
-export default function ConnectionHistoryModal({ device, onClose }: { device: Dispositivo, onClose: () => void }) {
-  const [tab, setTab] = useState<'stats' | 'history'>('stats');
-  const [range, setRange] = useState<'24h' | '7d' | '30d'>('24h');
-  const [chartData, setChartData] = useState<ChartSeries[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+const MultiLineChart = ({ data, lines, title, unit }: MultiLineChartProps) => {
+  const ITEMS_PER_PAGE = 48;
+  const [startIndex, setStartIndex] = useState(Math.max(0, data.length - ITEMS_PER_PAGE));
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (tab !== 'history' || !device) return;
+    setStartIndex(Math.max(0, data.length - ITEMS_PER_PAGE));
+  }, [data]);
 
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      const end = new Date();
-      const start = new Date();
-      if (range === '24h') start.setHours(start.getHours() - 24);
-      else if (range === '7d') start.setDate(start.getDate() - 7);
-      else if (range === '30d') start.setDate(start.getDate() - 30);
+  const displayData = data.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const handlePrev = () => setStartIndex(prev => Math.max(0, prev - ITEMS_PER_PAGE));
+  const handleNext = () => setStartIndex(prev => Math.min(data.length - ITEMS_PER_PAGE, prev + ITEMS_PER_PAGE));
+  const canPrev = startIndex > 0;
+  const canNext = startIndex + ITEMS_PER_PAGE < data.length;
 
-      try {
-        if (device.tipo === 'mota') {
-          const data = await getMediciones(device.id, start, end);
-          setChartData([
-            { name: 'RSSI', color: '#22c55e', data: data.map((d: any) => ({ date: d.fecha, value: d.rssi })).filter((d: { value: number | null }) => d.value !== null) },
-            { name: 'SNR', color: '#3b82f6', data: data.map((d: any) => ({ date: d.fecha, value: d.snr })).filter((d: { value: number | null }) => d.value !== null) },
-            { name: 'Pérdidas', color: '#ef4444', data: calculateDeltas(data, 'erroresRxMota') }
-          ]);
-        } else if (device.tipo === 'router') {
-          const data = await getRouterReportes(device.id, start, end);
-          setChartData([
-            { name: 'Enviados', color: '#3b82f6', data: calculateDeltas(data, 'paquetesEnviados') },
-            { name: 'Recibidos', color: '#14b8a6', data: calculateDeltas(data, 'paquetesRecibidos') },
-            { name: 'Err. TX/RX', color: '#ef4444', data: calculateDeltas(data, 'erroresTx').map((d, i) => ({ ...d, value: d.value + calculateDeltas(data, 'erroresRx')[i]?.value || 0 })) },
-            { name: 'Err. CRC', color: '#f97316', data: calculateDeltas(data, 'erroresCrc') }
-          ]);
-        }
-      } catch (error) {
-        console.error("Error fetching history:", error);
-        setChartData([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const allValues = displayData.flatMap(d => lines.map(l => d[l.key] as number).filter(v => v !== null && v !== undefined));
+  const yMax = allValues.length > 0 ? Math.max(...allValues) : 0;
+  const yMin = allValues.length > 0 ? Math.min(...allValues) : 0;
 
-    fetchHistory();
-  }, [tab, range, device]);
+  const getPath = (lineKey: string) => {
+    const points = displayData.map((d, i) => {
+      const value = d[lineKey];
+      if (value === null || value === undefined) return null;
+      const x = (i / Math.max(1, displayData.length - 1)) * 100;
+      const y = 100 - ((value - yMin) / Math.max(1, yMax - yMin)) * 100;
+      return { x, y };
+    }).filter(p => p !== null) as {x: number, y: number}[];
 
-  const isRouter = device.tipo === 'router';
-  const title = isRouter ? 'Análisis de Tráfico' : 'Calidad de Señal';
-  const Icon = isRouter ? Wifi : Signal;
-
-  const motaCharts = [
-    { title: "Calidad de Señal", series: chartData.filter(s => s.name === 'RSSI' || s.name === 'SNR') },
-    { title: "Pérdida de Paquetes", series: chartData.filter(s => s.name === 'Pérdidas') }
-  ];
-  const routerCharts = [
-    { title: "Tráfico de Paquetes", series: chartData.filter(s => s.name === 'Enviados' || s.name === 'Recibidos') },
-    { title: "Conteo de Errores", series: chartData.filter(s => s.name === 'Err. TX/RX' || s.name === 'Err. CRC') }
-  ];
-  const chartsToDisplay = isRouter ? routerCharts : motaCharts;
+    if (points.length === 0) return "";
+    return points.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x} ${p.y}`).join(' ');
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="w-full max-w-3xl overflow-hidden rounded-3xl bg-card shadow-2xl border border-border"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-border p-5">
-          <div>
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Icon className="text-blue-500" size={20} /> {title}
-            </h3>
-            <p className="text-sm text-muted-foreground">{device.nombre || device.modelo}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Pestañas */}
-            <div className="flex bg-muted p-1 rounded-xl">
-              <button onClick={() => setTab('stats')} className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${tab === 'stats' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                Estado Actual
-              </button>
-              <button onClick={() => setTab('history')} className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${tab === 'history' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                Historial
-              </button>
-            </div>
-            <button onClick={onClose} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:bg-accent transition-colors">
-              <X size={18} />
-            </button>
-          </div>
-        </div>
+    <div className="border border-slate-200 dark:border-zinc-800 rounded-xl p-4">
+      <h4 className="font-bold text-sm text-slate-700 dark:text-zinc-300">{title}</h4>
+      <div className="relative h-48 w-full mt-4" onMouseLeave={() => setHoveredIndex(null)}>
+        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
+          {/* Grid lines, paths, etc. */}
+          {lines.map(line => (
+            <path key={line.key} d={getPath(line.key)} stroke={line.color} strokeWidth="0.5" fill="none" />
+          ))}
 
-        {/* Contenido */}
-        {tab === 'stats' ? (
-          <CurrentStats device={device} />
-        ) : (
-          <div className="p-5 space-y-6">
-            {/* Selector de Rango */}
-            <div className="flex justify-center">
-              <div className="flex bg-muted p-1 rounded-xl">
-                {(['24h', '7d', '30d'] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${range === r ? 'bg-background text-blue-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {r === '24h' ? 'Últimas 24h' : r === '7d' ? '7 Días' : '30 Días'}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Interaction layer */}
+          {displayData.map((_, i) => (
+            <rect key={i} x={(i / Math.max(1, displayData.length - 1)) * 100 - (100 / Math.max(1, displayData.length -1) / 2)} y="0" width={100 / Math.max(1, displayData.length - 1)} height="100" fill="transparent" onMouseEnter={() => setHoveredIndex(i)} />
+          ))}
 
-            {/* Gráficas */}
-            {isLoading ? (
-              <div className="h-72 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {chartsToDisplay.map(chart => (
-                  <MultiLineChart key={chart.title} title={chart.title} series={chart.series} />
-                ))}
-              </div>
-            )}
-          </div>
+          {hoveredIndex !== null && (
+             <line x1={(hoveredIndex / Math.max(1, displayData.length - 1)) * 100} y1="0" x2={(hoveredIndex / Math.max(1, displayData.length - 1)) * 100} y2="100" strokeDasharray="2 2" className="stroke-slate-400 dark:stroke-zinc-600" strokeWidth="0.3" />
+          )}
+        </svg>
+        
+        <AnimatePresence>
+        {hoveredIndex !== null && displayData[hoveredIndex] && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              left: `${(hoveredIndex / Math.max(1, displayData.length - 1)) * 100}%`,
+              x: hoveredIndex > (displayData.length - 1) / 2 ? 'calc(-100% - 1rem)' : '1rem',
+            }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{
+              // Aplicamos una animación de muelle por defecto (a 'left') para el seguimiento suave.
+              stiffness: 500,
+              damping: 35,
+              // Forzamos que el cambio de lado (eje 'x') sea instantáneo para evitar el "vuelo"
+              // al cruzar el centro de la gráfica.
+              x: { type: 'tween', duration: 0 }
+            }}
+            className="absolute top-0 pointer-events-none z-10 p-2.5 rounded-lg shadow-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700/50 min-w-[120px]"
+          >
+            <p className="text-xs font-bold text-slate-600 dark:text-zinc-300 mb-2">{displayData[hoveredIndex].label}</p>
+            {lines.map(line => {
+              const value = displayData[hoveredIndex][line.key];
+              return (
+                <div key={line.key} className="flex justify-between items-center text-xs gap-4">
+                  <span className="flex items-center gap-1.5 font-medium text-slate-500 dark:text-zinc-400">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: line.color }} />
+                    {line.name}
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-zinc-100">
+                    {value !== null && value !== undefined ? `${value} ${unit}` : 'N/A'}
+                  </span>
+                </div>
+              );
+            })}
+          </motion.div>
         )}
+        </AnimatePresence>
+      </div>
+       <div className="flex justify-between items-center mt-2">
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+            Min: {yMin.toFixed(1)} {unit} / Max: {yMax.toFixed(1)} {unit}
+          </p>
+          {(canPrev || canNext) && (
+            <div className="flex items-center bg-slate-200/50 dark:bg-zinc-800/50 rounded-md border border-slate-300/70 dark:border-zinc-700/50 shadow-sm">
+              <button onClick={handlePrev} disabled={!canPrev} className="p-1 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 disabled:opacity-30 transition-colors"><ChevronLeft size={12} /></button>
+              <div className="w-[1px] h-3 bg-slate-300 dark:bg-zinc-700"></div>
+              <button onClick={handleNext} disabled={!canNext} className="p-1 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 disabled:opacity-30 transition-colors"><ChevronRight size={12} /></button>
+            </div>
+          )}
+       </div>
+    </div>
+  );
+};
+
+interface ConnectionHistoryModalProps {
+  device: Dispositivo;
+  onClose: () => void;
+  onError: (message: string) => void;
+}
+
+export default function ConnectionHistoryModal({ device, onClose, onError }: ConnectionHistoryModalProps) {
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'custom'>('24h');
+  const [customStartDate, setCustomStartDate] = useState<Date>(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; });
+  const [customEndDate, setCustomEndDate] = useState<Date>(new Date());
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  const fetchHistory = async (range: typeof timeRange, customStart?: Date, customEnd?: Date) => {
+    setIsLoadingHistory(true);
+    try {
+      let start: Date, end: Date;
+      if (range === 'custom' && customStart && customEnd) {
+        start = customStart;
+        end = customEnd;
+      } else {
+        end = new Date();
+        start = new Date();
+        if (range === '24h') start.setHours(start.getHours() - 24);
+        else if (range === '7d') start.setDate(start.getDate() - 7);
+        else if (range === '30d') start.setDate(start.getDate() - 30);
+      }
+
+      let rawData;
+      if (device.tipo === 'mota') {
+        rawData = await getMediciones(device.id, start, end);
+      } else {
+        rawData = await getRouterReportes(device.id, start, end);
+      }
+      setHistoryData(rawData);
+    } catch (error) {
+      console.error("Error cargando historial de conexión:", error);
+      onError((error as Error).message || 'No se pudo cargar el historial');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (timeRange !== 'custom') {
+      fetchHistory(timeRange);
+    }
+  }, [timeRange, device]);
+
+  useEffect(() => {
+    setTimeRange('24h');
+  }, [device]);
+
+  const formattedData = historyData.map(d => ({
+    ...d,
+    label: new Date(d.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+  }));
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 md:p-6">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+        animate={{ opacity: 1, scale: 1, y: 0 }} 
+        exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+        className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-white/10"
+      >
+        <div className="flex items-center justify-between p-6">
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-zinc-100 flex items-center gap-3">
+              {device.tipo === 'mota' ? <Rss className="text-emerald-500"/> : <Wifi className="text-emerald-500"/>}
+              {device.tipo === 'mota' ? 'Historial de Señal' : 'Historial de Tráfico'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-zinc-400">
+              {device.nombre || (device.tipo === 'mota' ? 'Sensor sin nombre' : 'Router genérico')}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"><X size={20} /></button>
+        </div>
+        
+        <div className="p-6 md:p-8 max-h-[80vh] overflow-y-auto">
+          <div className="flex flex-col items-center justify-center mb-8 gap-4">
+            <div className="relative flex bg-gray-100 dark:bg-zinc-800/50 p-1 rounded-full w-max overflow-x-auto">
+              {(['24h', '7d', '30d', 'custom'] as const).map((r) => (
+                <button key={r} onClick={() => setTimeRange(r)} className={`relative px-5 py-1.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap z-10 ${timeRange !== r ? 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' : 'text-gray-900 dark:text-white'}`}>
+                  {r === '24h' ? '24 Horas' : r === '7d' ? '7 Días' : r === '30d' ? '30 Días' : 'Personalizado'}
+                  {timeRange === r && <motion.div layoutId="active-pill-connection" className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-sm rounded-full -z-10" />}
+                </button>
+              ))}
+            </div>
+
+            <AnimatePresence>
+              {timeRange === 'custom' && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex flex-wrap items-end justify-center gap-4 overflow-hidden">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase mb-1 block">Desde</label>
+                    <DatePicker selected={customStartDate} onChange={(date: Date | null) => { if (date) setCustomStartDate(date) }} showTimeSelect timeFormat="HH:mm" timeIntervals={15} dateFormat="dd/MM/yyyy HH:mm" locale="es" className="flora-input !h-9 !py-1.5 !text-xs w-full cursor-pointer" />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase mb-1 block">Hasta</label>
+                    <DatePicker selected={customEndDate} onChange={(date: Date | null) => { if (date) setCustomEndDate(date) }} showTimeSelect timeFormat="HH:mm" timeIntervals={15} dateFormat="dd/MM/yyyy HH:mm" locale="es" className="flora-input !h-9 !py-1.5 !text-xs w-full cursor-pointer" />
+                  </div>
+                  <button onClick={() => fetchHistory('custom', customStartDate, customEndDate)} className="bg-emerald-500 hover:bg-emerald-600 text-white h-9 px-5 rounded-lg text-xs font-bold shadow-sm transition-colors">Aplicar</button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {isLoadingHistory ? (
+            <div className="h-96 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>
+          ) : historyData.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {device.tipo === 'mota' && (
+                <>
+                  <MultiLineChart 
+                    data={formattedData}
+                    lines={[{ key: 'rssi', name: 'RSSI', color: '#3b82f6' }]}
+                    title="Potencia de Señal Recibida"
+                    unit="dBm"
+                  />
+                  <MultiLineChart 
+                    data={formattedData}
+                    lines={[{ key: 'snr', name: 'SNR', color: '#10b981' }]}
+                    title="Relación Señal/Ruido"
+                    unit="dB"
+                  />
+                   <MultiLineChart 
+                    data={formattedData}
+                    lines={[{ key: 'erroresRxMota', name: 'Errores', color: '#ef4444' }]}
+                    title="Errores de Recepción (Mota)"
+                    unit=""
+                  />
+                </>
+              )}
+              {device.tipo === 'router' && (
+                <>
+                  <MultiLineChart 
+                    data={formattedData}
+                    lines={[
+                      { key: 'paquetesEnviados', name: 'Enviados', color: '#3b82f6' },
+                      { key: 'paquetesRecibidos', name: 'Recibidos', color: '#10b981' }
+                    ]}
+                    title="Volumen de Paquetes"
+                    unit=""
+                  />
+                  <MultiLineChart 
+                    data={formattedData}
+                    lines={[
+                      { key: 'erroresTx', name: 'Errores TX', color: '#f97316' },
+                      { key: 'erroresRx', name: 'Errores RX', color: '#ef4444' },
+                      { key: 'erroresCrc', name: 'Errores CRC', color: '#a855f7' }
+                    ]}
+                    title="Errores de Comunicación"
+                    unit=""
+                  />
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="h-96 flex flex-col items-center justify-center text-center text-slate-500 dark:text-zinc-500 bg-slate-100/50 dark:bg-zinc-900/50 rounded-xl">
+              <Activity size={48} className="mb-4 opacity-40" />
+              <span className="font-bold text-lg text-slate-700 dark:text-zinc-300">No hay datos de conexión</span>
+              <span className="text-sm max-w-xs mt-1">No se han registrado reportes para este dispositivo en el período seleccionado.</span>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   );
