@@ -414,7 +414,20 @@ export default function IrrigationDecisionModal({
                   </div>
 
                   <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs text-blue-800 dark:text-blue-300 leading-relaxed mb-6">
-                    Añade horas en las que prefieres regar. El sistema ajustará la duración y podrá <strong>cancelar</strong> el turno si no es necesario. La evaluación final se realiza 1h antes para usar los datos más recientes.
+                    <p className="mb-2">
+                      Añade tus horas preferidas de riego. El sistema inteligente de FLoRa se encargará del resto:
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1.5 marker:text-blue-500 dark:marker:text-blue-600">
+                      <li>
+                        <strong className="font-semibold">Ajuste dinámico:</strong> Modifica la duración o cancela el turno si la tierra no lo necesita.
+                      </li>
+                      <li>
+                        <strong className="font-semibold">Máxima precisión:</strong> Toma la decisión final 1h antes usando el pronóstico más reciente.
+                      </li>
+                      <li>
+                        <strong className="font-semibold">Protección anti-fallos:</strong> Ignora la programación si las motas llevan más de 24h desconectadas para no regar con datos obsoletos.
+                      </li>
+                    </ul>
                   </div>
 
                   <div className="flex-1 overflow-y-auto pr-1 space-y-3">
