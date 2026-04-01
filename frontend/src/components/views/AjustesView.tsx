@@ -29,9 +29,10 @@ const ToggleSwitch = ({ label, description, checked = false, onChange, actionBut
 // Definimos qué props recibe este componente
 interface AjustesViewProps {
   onProfileUpdate: () => void; // Función que nos pasa el padre (Dashboard)
+  onRefresh?: () => void; // Función para recargar los datos (del padre)
 }
 
-export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
+export default function AjustesView({ onProfileUpdate, onRefresh }: AjustesViewProps) {
   const [activeTab, setActiveTab] = useState('perfil');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -150,6 +151,7 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
       const res = await updateMotasBulk({ motaIds, frecuencia: parseInt(telemetria) });
       setStatusMessage(`Frecuencia aplicada a ${res.motasActualizadas} motas`);
       setStatus('success');
+      if (onRefresh) onRefresh();
       setTimeout(() => setStatus('idle'), 4000);
     } catch (error: any) {
       setStatus('error');
@@ -172,6 +174,7 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
       const res = await updateMotasBulk({ motaIds, conexionPublica: roaming });
       setStatusMessage(`Roaming aplicado a ${res.motasActualizadas} motas`);
       setStatus('success');
+      if (onRefresh) onRefresh();
       setTimeout(() => setStatus('idle'), 4000);
     } catch (error: any) {
       setStatus('error');

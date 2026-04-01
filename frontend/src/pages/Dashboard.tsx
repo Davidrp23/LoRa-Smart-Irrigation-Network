@@ -126,7 +126,7 @@ export default function Dashboard() {
                 }}
               />
             )}
-            {menuActivo === 'ajustes' && <AjustesView key="a" onProfileUpdate={cargarDatosUsuario} />}
+            {menuActivo === 'ajustes' && <AjustesView key="a" onProfileUpdate={cargarDatosUsuario} onRefresh={cargarDatosSistema} />}
           </AnimatePresence>
         </div>
         
