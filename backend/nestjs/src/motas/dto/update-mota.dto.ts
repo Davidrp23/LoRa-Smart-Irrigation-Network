@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateMotaDto } from './create-mota.dto';
-import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDate, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateMotaDto{
@@ -56,4 +56,8 @@ export class UpdateMotaDto{
     @Type(() => Date)
     @IsOptional()
     fechaUltimaConexion: Date;
+
+    @IsBoolean()
+    @IsOptional()
+    conexionPublica: boolean;
 }

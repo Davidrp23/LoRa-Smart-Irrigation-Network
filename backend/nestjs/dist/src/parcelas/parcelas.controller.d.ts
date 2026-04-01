@@ -10,17 +10,17 @@ export declare class ParcelasController {
         nombre: string;
         laminaMaximaRiego: number | null;
         humedadObjetivo: number | null;
+        humedadMedia: number | null;
+        fechaActualizacionHumedad: Date | null;
         areaM2: number;
-        riegoId: number;
         caudalRiegoLh: number;
         sueloId: number;
         cultivoId: number;
+        riegoId: number;
+        zonaHoraria: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue;
-        zonaHoraria: string | null;
-        humedadMedia: number | null;
-        fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }>;
     findAll(req: any): Promise<{
@@ -28,17 +28,17 @@ export declare class ParcelasController {
         nombre: string;
         laminaMaximaRiego: number | null;
         humedadObjetivo: number | null;
+        humedadMedia: number | null;
+        fechaActualizacionHumedad: Date | null;
         areaM2: number;
-        riegoId: number;
         caudalRiegoLh: number;
         sueloId: number;
         cultivoId: number;
+        riegoId: number;
+        zonaHoraria: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue;
-        zonaHoraria: string | null;
-        humedadMedia: number | null;
-        fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }[]>;
     findOne(req: any, id: number): Promise<{
@@ -46,17 +46,17 @@ export declare class ParcelasController {
         nombre: string;
         laminaMaximaRiego: number | null;
         humedadObjetivo: number | null;
+        humedadMedia: number | null;
+        fechaActualizacionHumedad: Date | null;
         areaM2: number;
-        riegoId: number;
         caudalRiegoLh: number;
         sueloId: number;
         cultivoId: number;
+        riegoId: number;
+        zonaHoraria: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue;
-        zonaHoraria: string | null;
-        humedadMedia: number | null;
-        fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     } | null>;
     update(req: any, id: number, updateParcelaDto: UpdateParcelaDto): Promise<{
@@ -64,17 +64,17 @@ export declare class ParcelasController {
         nombre: string;
         laminaMaximaRiego: number | null;
         humedadObjetivo: number | null;
+        humedadMedia: number | null;
+        fechaActualizacionHumedad: Date | null;
         areaM2: number;
-        riegoId: number;
         caudalRiegoLh: number;
         sueloId: number;
         cultivoId: number;
+        riegoId: number;
+        zonaHoraria: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue;
-        zonaHoraria: string | null;
-        humedadMedia: number | null;
-        fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }>;
     remove(req: any, id: number): Promise<{
@@ -82,23 +82,23 @@ export declare class ParcelasController {
         nombre: string;
         laminaMaximaRiego: number | null;
         humedadObjetivo: number | null;
+        humedadMedia: number | null;
+        fechaActualizacionHumedad: Date | null;
         areaM2: number;
-        riegoId: number;
         caudalRiegoLh: number;
         sueloId: number;
         cultivoId: number;
+        riegoId: number;
+        zonaHoraria: string | null;
         latitudCentro: number;
         longitudCentro: number;
         puntos: import("@prisma/client/runtime/library").JsonValue;
-        zonaHoraria: string | null;
-        humedadMedia: number | null;
-        fechaActualizacionHumedad: Date | null;
         usuarioId: number;
     }>;
     getHistorico(req: any, obtenerHistoricoDto: ObtenerHistoricoDto): Promise<{
         id: number;
-        parcelaId: number;
         humedadMedia: number;
+        parcelaId: number;
         fecha: Date;
     }[]>;
 }

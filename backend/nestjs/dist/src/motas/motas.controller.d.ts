@@ -3,6 +3,7 @@ import { CreateMotaDto } from './dto/create-mota.dto';
 import { UpdateMotaDto } from './dto/update-mota.dto';
 import { Mota } from '@prisma/client';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
+import { UpdateMotasBulkDto } from './dto/update-motas-bulk.dto';
 export declare class MotasController {
     private readonly motasService;
     constructor(motasService: MotasService);
@@ -12,4 +13,13 @@ export declare class MotasController {
     findAll(req: any): Promise<Mota[]>;
     findOne(req: any, id: number): Promise<Mota | null>;
     update(req: any, id: number, updateMotaDto: UpdateMotaDto): Promise<Mota>;
+    updateMotas(req: any, updateMotasBulkDto: UpdateMotasBulkDto): Promise<{
+        ok: boolean;
+        mensaje: string;
+        motasActualizadas?: undefined;
+    } | {
+        ok: boolean;
+        motasActualizadas: number;
+        mensaje?: undefined;
+    }>;
 }

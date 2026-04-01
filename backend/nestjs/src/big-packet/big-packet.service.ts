@@ -7,7 +7,6 @@ import { ParcelasService } from '../parcelas/parcelas.service';
 @Injectable()
 export class BigPacketService {
 
-  // Un Logger es más profesional que usar console.log()
   private readonly logger = new Logger(BigPacketService.name);
 
   constructor(private prisma: PrismaService, private parcelasService: ParcelasService) {}

@@ -3,18 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Shield, Bell, Radio, Camera, Eye, EyeOff, Save, Check, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import Select from '../ui/Select';
 import { getProfile, updateProfile } from '../../services/authService';
+import { getMotas, updateMotasBulk } from '../../services/dataService';
 
 // Componente para el interruptor (toggle switch)
-const ToggleSwitch = ({ label, description, defaultChecked = false }: { label: string, description: string, defaultChecked?: boolean }) => (
-  <div className="flex items-center justify-between rounded-xl bg-background p-4 border border-border">
-    <div>
+const ToggleSwitch = ({ label, description, checked = false, onChange, actionButton }: { label: string, description: string, checked?: boolean, onChange?: (checked: boolean) => void, actionButton?: React.ReactNode }) => (
+  <div className="flex items-center justify-between rounded-xl bg-background p-4 border border-border gap-4">
+    <div className="flex-1">
       <p className="font-semibold text-card-foreground">{label}</p>
       <p className="text-xs text-muted-foreground">{description}</p>
     </div>
-    <label className="relative inline-flex cursor-pointer items-center">
-      <input type="checkbox" defaultChecked={defaultChecked} className="peer sr-only" />
-      <div className="peer h-6 w-11 rounded-full bg-muted/70 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-600 peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-    </label>
+    <div className="flex items-center gap-4">
+      <label className="relative inline-flex cursor-pointer items-center">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange && onChange(e.target.checked)} className="peer sr-only" />
+        <div className="peer h-6 w-11 rounded-full bg-muted/70 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-600 peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+      </label>
+      {actionButton && (
+        <div className="pl-4 border-l border-border">
+          {actionButton}
+        </div>
+      )}
+    </div>
   </div>
 );
 
@@ -35,7 +43,8 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
   const [profileImage, setProfileImage] = useState('');
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
-  const [telemetria, setTelemetria] = useState('15');
+  const [telemetria, setTelemetria] = useState('240');
+  const [roaming, setRoaming] = useState(true);
 
   // ESTADOS DE SEGURIDAD
   const [currentPassword, setCurrentPassword] = useState('');
@@ -123,6 +132,50 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
     } catch (error: any) {
       setStatus('error');
       setStatusMessage(error.message || 'Error al guardar cambios');
+      setTimeout(() => setStatus('idle'), 4000);
+    }
+  };
+
+  const handleSaveTelemetria = async () => {
+    setStatus('loading');
+    setStatusMessage('');
+    try {
+      const motas = await getMotas();
+      const motaIds = motas.map((m: any) => m.id);
+      
+      if (motaIds.length === 0) {
+        throw new Error('No hay motas registradas para actualizar');
+      }
+
+      const res = await updateMotasBulk({ motaIds, frecuencia: parseInt(telemetria) });
+      setStatusMessage(`Frecuencia aplicada a ${res.motasActualizadas} motas`);
+      setStatus('success');
+      setTimeout(() => setStatus('idle'), 4000);
+    } catch (error: any) {
+      setStatus('error');
+      setStatusMessage(error.message || 'Error al actualizar telemetría');
+      setTimeout(() => setStatus('idle'), 4000);
+    }
+  };
+
+  const handleSaveRoaming = async () => {
+    setStatus('loading');
+    setStatusMessage('');
+    try {
+      const motas = await getMotas();
+      const motaIds = motas.map((m: any) => m.id);
+
+      if (motaIds.length === 0) {
+        throw new Error('No hay motas registradas para actualizar');
+      }
+
+      const res = await updateMotasBulk({ motaIds, conexionPublica: roaming });
+      setStatusMessage(`Roaming aplicado a ${res.motasActualizadas} motas`);
+      setStatus('success');
+      setTimeout(() => setStatus('idle'), 4000);
+    } catch (error: any) {
+      setStatus('error');
+      setStatusMessage(error.message || 'Error al actualizar roaming');
       setTimeout(() => setStatus('idle'), 4000);
     }
   };
@@ -245,20 +298,54 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
           <motion.div key="red" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
             <h2 className="text-2xl font-bold text-card-foreground mb-6">Red LoRaWAN</h2>
             <div className="space-y-6">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Intervalo de Telemetría Global</label>
-                <p className="text-xs text-muted-foreground/80 mb-2">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
+              <div className="rounded-xl border border-border bg-background p-4">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <label className="text-base font-semibold text-card-foreground">Intervalo de Telemetría Global</label>
+                    <p className="text-xs text-muted-foreground mt-1">Frecuencia con la que los dispositivos envían datos. Puede ser anulado por un dispositivo individual.</p>
+                  </div>
+                  <button 
+                    onClick={handleSaveTelemetria}
+                    disabled={status === 'loading'}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all shrink-0 ml-4"
+                  >
+                    <Save size={16} /> Aplicar
+                  </button>
+                </div>
                 <Select
                   value={telemetria}
                   onChange={setTelemetria}
                   options={[
-                    { value: '15', label: 'Cada 15 minutos (Estándar)' },
-                    { value: '30', label: 'Cada 30 minutos (Ahorro)' },
-                    { value: '60', label: 'Cada 1 hora (Eco)' },
+                  { value: '15', label: '15 Minutos (Modo Instalación / Pruebas)' },
+                  { value: '60', label: '1 Hora (Alta Precisión)' },
+                  { value: '240', label: '4 Horas (Recomendado FLoRa)' },
+                  { value: '480', label: '8 Horas (Modo Ahorro)' },
+                  { value: '720', label: '12 Horas (Ultra Eco)' }
                   ]}
                 />
+              <div className="mt-2 text-xs leading-relaxed text-muted-foreground bg-muted/50 p-3 rounded-xl border border-border">
+                {telemetria === '15' && <span><strong>Advertencia:</strong> Ideal solo para el día de instalación. La batería durará semanas.</span>}
+                {telemetria === '60' && <span><strong>Impacto:</strong> Batería estimada de 6 a 8 meses. Útil para invernaderos o picos de calor.</span>}
+                {telemetria === '240' && <span><strong>Impacto:</strong> Batería garantizada de más de 1 año. Mejor equilibrio.</span>}
+                {telemetria === '480' && <span><strong>Impacto:</strong> Batería de 1.5 a 2 años. Excelente para otoño/invierno.</span>}
+                {telemetria === '720' && <span><strong>Impacto:</strong> Batería de más de 3 años. Ideal para secano profundo o árboles maduros.</span>}
               </div>
-              <ToggleSwitch label="Roaming de Red" description="Permitir que tus motas usen gateways públicos si pierden la señal con los tuyos." defaultChecked />
+              </div>
+              <ToggleSwitch 
+                label="Roaming de Red" 
+                description="Permitir que tus motas usen gateways públicos si pierden la señal con los tuyos." 
+                checked={roaming}
+                onChange={setRoaming}
+                actionButton={
+                  <button 
+                    onClick={handleSaveRoaming}
+                    disabled={status === 'loading'}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all shrink-0"
+                  >
+                    <Save size={16} /> Aplicar
+                  </button>
+                }
+              />
             </div>
           </motion.div>
         );
@@ -317,14 +404,16 @@ export default function AjustesView({ onProfileUpdate }: AjustesViewProps) {
               </AnimatePresence>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={status === 'loading' || (activeTab === 'seguridad' && (!isNewPasswordValid || !passwordsMatch))}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {status === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-              {status === 'loading' ? 'Guardando...' : 'Guardar Cambios'}
-            </button>
+            {(activeTab === 'perfil' || activeTab === 'seguridad') && (
+              <button
+                onClick={handleSave}
+                disabled={status === 'loading' || (activeTab === 'seguridad' && (!isNewPasswordValid || !passwordsMatch))}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {status === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {status === 'loading' ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            )}
           </div>
         )}
       </main>

@@ -78,6 +78,7 @@ interface Mota extends DispositivoBase {
   rssi: number | null; // Señal puede ser null
   snr: number | null;
   erroresRx: number; // Pérdidas
+  conexionPublica: boolean;
 }
 
 type Dispositivo = Router | Mota;
@@ -479,6 +480,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       rssi: null,
       snr: null,
       erroresRx: 0,
+      conexionPublica: false,
       frecuencia: 15,
       estado: 'online',
       historialConsumo: []
@@ -950,20 +952,43 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                     />
                   </div>
                 ) : (
-                  <div>
-                    <Select 
-                      label="Frecuencia de Actualización"
-                      value={editingDevice.frecuencia?.toString() || '15'}
-                      onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: parseInt(val) } : null)}
-                      options={[
-                        { value: '5', label: '5 min (Alto Consumo)' },
-                        { value: '15', label: '15 min (Estándar)' },
-                        { value: '30', label: '30 min (Ahorro)' },
-                        { value: '60', label: '1 hora (Eco)' },
-                        { value: '360', label: '6 horas (Extremo)' }
-                      ]}
-                    />
-                  </div>
+            <div className="space-y-4">
+              <div>
+                <Select 
+                  label="Frecuencia de Actualización"
+                  value={editingDevice.frecuencia?.toString() || '240'}
+                  onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: parseInt(val) } : null)}
+                  options={[
+                    { value: '15', label: '15 Minutos (Modo Instalación / Pruebas)' },
+                    { value: '60', label: '1 Hora (Alta Precisión)' },
+                    { value: '240', label: '4 Horas (Recomendado FLoRa)' },
+                    { value: '480', label: '8 Horas (Modo Ahorro)' },
+                    { value: '720', label: '12 Horas (Ultra Eco)' }
+                  ]}
+                />
+                {editingDevice.frecuencia === 15 && <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2 leading-tight"><strong>Advertencia:</strong> Ideal solo para el día de instalación. La batería durará semanas.</p>}
+                {editingDevice.frecuencia === 60 && <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería estimada de 6 a 8 meses. Útil para invernaderos o picos de calor.</p>}
+                {editingDevice.frecuencia === 240 && <p className="text-[11px] text-green-600 dark:text-green-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería garantizada de más de 1 año. Mejor equilibrio.</p>}
+                {editingDevice.frecuencia === 480 && <p className="text-[11px] text-green-600 dark:text-green-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería de 1.5 a 2 años. Excelente para otoño/invierno.</p>}
+                {editingDevice.frecuencia === 720 && <p className="text-[11px] text-green-600 dark:text-green-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería de más de 3 años. Ideal para secano profundo o árboles maduros.</p>}
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border">
+                <div className="flex flex-col">
+                  <span className="font-bold text-foreground text-sm">Conexión Pública (Roaming)</span>
+                  <span className="text-xs text-muted-foreground">Conectar a routers públicos cercanos si el propio falla.</span>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setEditingDevice(prev => {
+                    if (!prev || prev.tipo !== 'mota') return prev;
+                    return { ...prev, conexionPublica: !prev.conexionPublica };
+                  })}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${editingDevice.conexionPublica ? 'bg-primary' : 'bg-secondary'}`}
+                >
+                  <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-primary-foreground transition-transform ${editingDevice.conexionPublica ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+            </div>
                 )}
 
                 <div className="pt-4 mt-4 border-t border-border space-y-3">

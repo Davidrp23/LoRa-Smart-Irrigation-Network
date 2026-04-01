@@ -7,6 +7,7 @@ import { Mota } from '@prisma/client';
 import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
+import { UpdateMotasBulkDto } from './dto/update-motas-bulk.dto';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('motas')
@@ -51,4 +52,11 @@ export class MotasController {
   //   const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
   //   return this.motasService.remove(miPropioId, id);
   // }
+
+  @Patch('update/all')
+  async updateMotas(@Request() req, @Body() updateMotasBulkDto: UpdateMotasBulkDto) {
+    const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
+    return this.motasService.actualizarMotas(miPropioId,updateMotasBulkDto);
+  }
+
 }

@@ -20,6 +20,7 @@ const update_mota_dto_1 = require("./dto/update-mota.dto");
 const common_2 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const vincular_mota_dto_1 = require("./dto/vincular-mota.dto");
+const update_motas_bulk_dto_1 = require("./dto/update-motas-bulk.dto");
 let MotasController = class MotasController {
     motasService;
     constructor(motasService) {
@@ -45,6 +46,10 @@ let MotasController = class MotasController {
     async update(req, id, updateMotaDto) {
         const miPropioId = req.user.id;
         return this.motasService.update(miPropioId, id, updateMotaDto);
+    }
+    async updateMotas(req, updateMotasBulkDto) {
+        const miPropioId = req.user.id;
+        return this.motasService.actualizarMotas(miPropioId, updateMotasBulkDto);
     }
 };
 exports.MotasController = MotasController;
@@ -95,6 +100,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, update_mota_dto_1.UpdateMotaDto]),
     __metadata("design:returntype", Promise)
 ], MotasController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)('update/all'),
+    __param(0, (0, common_2.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_motas_bulk_dto_1.UpdateMotasBulkDto]),
+    __metadata("design:returntype", Promise)
+], MotasController.prototype, "updateMotas", null);
 exports.MotasController = MotasController = __decorate([
     (0, common_2.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Controller)('motas'),

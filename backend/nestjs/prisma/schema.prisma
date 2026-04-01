@@ -161,7 +161,9 @@ model Mota {
   codigoVinculacion String   @unique 
   nombre            String?  // Ej: "FLoRa Seed #4"
   modelo            String?  // Ej: "FLoRa Seed v1.0"
-  frecuencia        Int?     // Ej: "15 min -- siempre en minutos"
+  frecuencia        Int? @default(240)  // Ej: "15 min -- siempre en minutos, 4h por defecto"
+
+  conexionPublica   Boolean? @default(false) 
 
   // --- PROPIEDAD ---
   usuarioId         Int?       

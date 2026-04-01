@@ -12,4 +12,5 @@ export declare class UpdateMotaDto {
     snr: number;
     erroresRxMota: number;
     fechaUltimaConexion: Date;
+    conexionPublica: boolean;
 }

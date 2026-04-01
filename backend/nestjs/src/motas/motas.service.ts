@@ -1,15 +1,18 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { CreateMotaDto } from './dto/create-mota.dto';
 import { UpdateMotaDto } from './dto/update-mota.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { Mota } from '@prisma/client';
+import { Mota, PrismaPromise } from '@prisma/client';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { ParcelasService } from 'src/parcelas/parcelas.service';
 import { randomBytes } from 'crypto';
+import { UpdateMotasBulkDto } from './dto/update-motas-bulk.dto';
 
 @Injectable()
 export class MotasService {
+
+  private readonly logger = new Logger(MotasService.name);
 
   constructor(private prisma: PrismaService, private parcelasService: ParcelasService) {}
 
@@ -179,4 +182,45 @@ export class MotasService {
       throw error; 
     }
   }
+
+  async actualizarMotas(usuarioId: number, updateMotasBulkDto: UpdateMotasBulkDto){
+    
+    const dataAActualizar: any = {};
+    
+    if (updateMotasBulkDto.frecuencia !== undefined) {
+      dataAActualizar.frecuencia = updateMotasBulkDto.frecuencia;
+    }
+    
+    if (updateMotasBulkDto.conexionPublica !== undefined) {
+      dataAActualizar.conexionPublica = updateMotasBulkDto.conexionPublica;
+    }
+
+    if (Object.keys(dataAActualizar).length === 0) {
+       return { ok: true, mensaje: "Ningún dato modificado" };
+    }
+
+    const operaciones: PrismaPromise<any>[] = [];
+
+    let motasID: number[] = Array.from(new Set(updateMotasBulkDto.motaIds));
+
+
+    for (const id of motasID) {
+      operaciones.push(
+        this.prisma.mota.update({
+          where: { id, usuarioId }, 
+          data: dataAActualizar, 
+        })
+      );
+    }
+
+    try {
+      const resultados = await this.prisma.$transaction(operaciones);
+      this.logger.log(`BulkUpdate procesado con éxito. Motas actualizadas: ${operaciones.length}`);
+      return { ok: true, motasActualizadas: operaciones.length }; 
+    } catch (error) {
+      this.logger.error(`Error crítico procesando la actualización de las motas:`, error);
+      throw new InternalServerErrorException('Fallo al procesar el lote de actualización de las motas');
+    }
+}
+  
 }

@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var MotasService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MotasService = void 0;
 const common_1 = require("@nestjs/common");
@@ -15,9 +16,10 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const common_2 = require("@nestjs/common");
 const parcelas_service_1 = require("../parcelas/parcelas.service");
 const crypto_1 = require("crypto");
-let MotasService = class MotasService {
+let MotasService = MotasService_1 = class MotasService {
     prisma;
     parcelasService;
+    logger = new common_1.Logger(MotasService_1.name);
     constructor(prisma, parcelasService) {
         this.prisma = prisma;
         this.parcelasService = parcelasService;
@@ -137,9 +139,38 @@ let MotasService = class MotasService {
             throw error;
         }
     }
+    async actualizarMotas(usuarioId, updateMotasBulkDto) {
+        const dataAActualizar = {};
+        if (updateMotasBulkDto.frecuencia !== undefined) {
+            dataAActualizar.frecuencia = updateMotasBulkDto.frecuencia;
+        }
+        if (updateMotasBulkDto.conexionPublica !== undefined) {
+            dataAActualizar.conexionPublica = updateMotasBulkDto.conexionPublica;
+        }
+        if (Object.keys(dataAActualizar).length === 0) {
+            return { ok: true, mensaje: "Ningún dato modificado" };
+        }
+        const operaciones = [];
+        let motasID = Array.from(new Set(updateMotasBulkDto.motaIds));
+        for (const id of motasID) {
+            operaciones.push(this.prisma.mota.update({
+                where: { id, usuarioId },
+                data: dataAActualizar,
+            }));
+        }
+        try {
+            const resultados = await this.prisma.$transaction(operaciones);
+            this.logger.log(`BulkUpdate procesado con éxito. Motas actualizadas: ${operaciones.length}`);
+            return { ok: true, motasActualizadas: operaciones.length };
+        }
+        catch (error) {
+            this.logger.error(`Error crítico procesando la actualización de las motas:`, error);
+            throw new common_1.InternalServerErrorException('Fallo al procesar el lote de actualización de las motas');
+        }
+    }
 };
 exports.MotasService = MotasService;
-exports.MotasService = MotasService = __decorate([
+exports.MotasService = MotasService = MotasService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService, parcelas_service_1.ParcelasService])
 ], MotasService);

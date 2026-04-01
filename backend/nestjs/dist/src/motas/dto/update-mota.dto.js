@@ -26,6 +26,7 @@ class UpdateMotaDto {
     snr;
     erroresRxMota;
     fechaUltimaConexion;
+    conexionPublica;
 }
 exports.UpdateMotaDto = UpdateMotaDto;
 __decorate([
@@ -93,4 +94,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Date)
 ], UpdateMotaDto.prototype, "fechaUltimaConexion", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], UpdateMotaDto.prototype, "conexionPublica", void 0);
 //# sourceMappingURL=update-mota.dto.js.map

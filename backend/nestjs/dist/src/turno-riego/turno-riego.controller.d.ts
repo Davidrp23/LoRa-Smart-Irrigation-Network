@@ -8,45 +8,45 @@ export declare class TurnoRiegoController {
         id: number;
         parcelaId: number;
         horaConfigurada: string;
-        proximaEjecucionUTC: Date | null;
         proximoRiego: Date | null;
         tiempoRiegoMin: number | null;
         estadoRiego: string | null;
+        proximaEjecucionUTC: Date | null;
     }>;
     findAll(req: any, parcelaId: number): Promise<{
         id: number;
         parcelaId: number;
         horaConfigurada: string;
-        proximaEjecucionUTC: Date | null;
         proximoRiego: Date | null;
         tiempoRiegoMin: number | null;
         estadoRiego: string | null;
+        proximaEjecucionUTC: Date | null;
     }[]>;
     findOne(req: any, id: number): Promise<{
         id: number;
         parcelaId: number;
         horaConfigurada: string;
-        proximaEjecucionUTC: Date | null;
         proximoRiego: Date | null;
         tiempoRiegoMin: number | null;
         estadoRiego: string | null;
+        proximaEjecucionUTC: Date | null;
     } | null>;
     update(req: any, id: number, updateTurnoRiegoDto: UpdateTurnoRiegoDto): Promise<{
         id: number;
         parcelaId: number;
         horaConfigurada: string;
-        proximaEjecucionUTC: Date | null;
         proximoRiego: Date | null;
         tiempoRiegoMin: number | null;
         estadoRiego: string | null;
+        proximaEjecucionUTC: Date | null;
     }>;
     remove(req: any, id: number): Promise<{
         id: number;
         parcelaId: number;
         horaConfigurada: string;
-        proximaEjecucionUTC: Date | null;
         proximoRiego: Date | null;
         tiempoRiegoMin: number | null;
         estadoRiego: string | null;
+        proximaEjecucionUTC: Date | null;
     }>;
 }

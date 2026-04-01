@@ -71,6 +71,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         snr: m.snr,
         humedad: m.humedad,
         erroresRx: m.erroresRxMota, // Mapeamos al nombre que usa el frontend
+        conexionPublica: m.conexionPublica,
         // Precarga para la tarjeta: Mapeamos las mediciones a objetos con valor y fecha
         // Usamos .reverse() porque vienen DESC (más nueva primero) y la gráfica pinta de izq a der (antigua a nueva)
         historialConsumo: m.mediciones ? m.mediciones.map((med: any) => ({ value: med.bateria, date: med.fecha })).reverse() : [],
@@ -322,6 +323,7 @@ export const updateDevice = async (id: number, device: any, type: 'router' | 'mo
     payload.canal = device.canal; // Enviamos el canal numérico
   } else {
     payload.frecuencia = device.frecuencia; // Solo las motas tienen frecuencia de actualización
+    payload.conexionPublica = device.conexionPublica; // Enviamos la configuración de roaming
   }
 
   //console.log(payload);
@@ -348,6 +350,36 @@ export const deleteDevice = async (id: number, type: 'router' | 'mota') => {
   });
 
   if (!response.ok) throw new Error(`Error al desvincular ${type}`);
+  return await response.json();
+};
+
+// --- CONFIGURACIÓN MASIVA DE DISPOSITIVOS ---
+
+export const getMotas = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const headers = { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}` 
+  };
+
+  const response = await fetch(`${API_URL}/motas`, { headers });
+  if (!response.ok) throw new Error('Error al cargar motas');
+  return await response.json();
+};
+
+export const updateMotasBulk = async (payload: { motaIds: number[], frecuencia?: number, conexionPublica?: boolean }) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No hay sesión activa');
+
+  const response = await fetch(`${API_URL}/motas/update/all`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) throw new Error('Error al actualizar la configuración de las motas');
   return await response.json();
 };
 
