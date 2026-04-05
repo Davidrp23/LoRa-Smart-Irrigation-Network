@@ -8,5 +8,6 @@ export declare class BigPacketService {
     constructor(prisma: PrismaService, parcelasService: ParcelasService);
     create(routerID: number, createBigPacketDto: BigPacketDto): Promise<{
         ok: boolean;
+        conf: any[];
     }>;
 }

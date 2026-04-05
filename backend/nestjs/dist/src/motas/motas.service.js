@@ -56,7 +56,10 @@ let MotasService = MotasService_1 = class MotasService {
                 mediciones: {
                     select: { bateria: true, fecha: true },
                     orderBy: { fecha: 'desc' },
-                    take: 24
+                    take: 10
+                },
+                configPendiente: {
+                    select: { version: true }
                 }
             }
         });
@@ -78,6 +81,27 @@ let MotasService = MotasService_1 = class MotasService {
             if (await this.prisma.router.findUnique({ where: { id: routerId } }) == null) {
                 throw new common_2.NotFoundException(`El router con ID ${routerId} no existe.`);
             }
+        }
+        if (updateMotaDto.frecuencia !== undefined || updateMotaDto.conexionPublica !== undefined) {
+            const currentConfig = await this.prisma.configuracionPendiente.findUnique({ where: { motaId: id } });
+            const motaDb = await this.prisma.mota.findUnique({ where: { id }, select: { versionAplicada: true } });
+            const newPayload = {
+                ...(currentConfig ? currentConfig.payload : {}),
+                ...(updateMotaDto.frecuencia !== undefined ? { f: updateMotaDto.frecuencia } : {}),
+                ...(updateMotaDto.conexionPublica !== undefined ? { cP: updateMotaDto.conexionPublica } : {})
+            };
+            await this.prisma.configuracionPendiente.upsert({
+                where: { motaId: id },
+                create: {
+                    motaId: id,
+                    version: (motaDb?.versionAplicada || 0) + 1,
+                    payload: newPayload,
+                },
+                update: {
+                    version: (currentConfig?.version || 0) + 1,
+                    payload: newPayload,
+                }
+            });
         }
         return this.prisma.mota.update({
             where: { id, usuarioId },
@@ -141,21 +165,49 @@ let MotasService = MotasService_1 = class MotasService {
     }
     async actualizarMotas(usuarioId, updateMotasBulkDto) {
         const dataAActualizar = {};
+        const shortPayload = {};
         if (updateMotasBulkDto.frecuencia !== undefined) {
             dataAActualizar.frecuencia = updateMotasBulkDto.frecuencia;
+            shortPayload.f = updateMotasBulkDto.frecuencia;
         }
         if (updateMotasBulkDto.conexionPublica !== undefined) {
             dataAActualizar.conexionPublica = updateMotasBulkDto.conexionPublica;
+            shortPayload.cP = updateMotasBulkDto.conexionPublica;
         }
         if (Object.keys(dataAActualizar).length === 0) {
             return { ok: true, mensaje: "Ningún dato modificado" };
         }
         const operaciones = [];
         let motasID = Array.from(new Set(updateMotasBulkDto.motaIds));
+        const configsActuales = await this.prisma.configuracionPendiente.findMany({
+            where: { motaId: { in: motasID } }
+        });
+        const motasDb = await this.prisma.mota.findMany({
+            where: { id: { in: motasID } },
+            select: { id: true, versionAplicada: true }
+        });
         for (const id of motasID) {
             operaciones.push(this.prisma.mota.update({
                 where: { id, usuarioId },
                 data: dataAActualizar,
+            }));
+            const currentConfig = configsActuales.find(c => c.motaId === id);
+            const motaDb = motasDb.find(m => m.id === id);
+            const newPayload = {
+                ...(currentConfig ? currentConfig.payload : {}),
+                ...shortPayload
+            };
+            operaciones.push(this.prisma.configuracionPendiente.upsert({
+                where: { motaId: id },
+                create: {
+                    motaId: id,
+                    version: (motaDb?.versionAplicada || 0) + 1,
+                    payload: newPayload
+                },
+                update: {
+                    version: (currentConfig?.version || 0) + 1,
+                    payload: newPayload
+                }
             }));
         }
         try {

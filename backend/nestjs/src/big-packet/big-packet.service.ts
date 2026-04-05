@@ -25,6 +25,38 @@ export class BigPacketService {
     });
     const canal = router?.canal;
 
+    // ==========================================
+    // 1.5 LÓGICA DE ACTUALIZACIONES OTA (DEVICE SHADOWING)
+    // ==========================================
+    const motasIds = createBigPacketDto.motas.map(m => m.motaId);
+    const configsPendientes = await this.prisma.configuracionPendiente.findMany({
+      where: {
+        OR: [
+          { routerId: routerID },
+          { motaId: { in: motasIds } }
+        ]
+      }
+    });
+
+    const configRouter = configsPendientes.find(c => c.routerId === routerID);
+    const conf: any[] = []; // Array que devolveremos con configuraciones a aplicar
+
+    if (configRouter) {
+      if (createBigPacketDto.router && createBigPacketDto.router.versionAplicada !== undefined && createBigPacketDto.router.versionAplicada === configRouter.version) {
+        // El router ya aplicó la configuración deseada
+        operaciones.push(
+          this.prisma.configuracionPendiente.delete({ where: { id: configRouter.id } })
+        );
+      } else {
+        // El router necesita actualizarse
+        conf.push({
+          tg: 'r', // target: router -> r
+          id: routerID,
+          v: configRouter.version, // version -> v
+          p: configRouter.payload  // payload -> p
+        });
+      }
+    }
 
     // ==========================================
     // 2. ACTUALIZAR EL ROUTER
@@ -68,6 +100,26 @@ export class BigPacketService {
 
     for (const mota of createBigPacketDto.motas) {
       
+      // Check Mota version para OTA
+      const configMota = configsPendientes.find(c => c.motaId === mota.motaId);
+      
+      if (configMota) {
+        if (mota.versionAplicada !== undefined && mota.versionAplicada === configMota.version) {
+          // El hardware aplicó la configuración
+          operaciones.push(
+            this.prisma.configuracionPendiente.delete({ where: { id: configMota.id } })
+          );
+        } else {
+          // Aún falta aplicarla en el hardware o falta un acuse de recibo de confirmación
+          conf.push({
+            tg: 'm', // target: mota -> m
+            id: mota.motaId,
+            v: configMota.version, // version -> v
+            p: configMota.payload  // payload -> p
+          });
+        }
+      }
+
       // A) Actualizar el estado actual de la Mota (la "foto" del momento)
       operaciones.push(
         this.prisma.mota.update({
@@ -84,6 +136,7 @@ export class BigPacketService {
             rssi: mota.rssi,
             snr: mota.snr,
             erroresRxMota: mota.erroresRxMota,
+            versionAplicada: mota.versionAplicada, // Se actualiza si viene en el JSON
           },
         })
       );
@@ -144,8 +197,8 @@ export class BigPacketService {
         await this.parcelasService.actualizarEstadoParcela(parcelaId);
       }
 
-      // Devolvemos un mensaje diminuto para que el SIM800L se pueda ir a dormir rápido
-      return { ok: true }; 
+      // Devolvemos la confirmación y la lista de configuraciones a aplicar en formato diminuto
+      return { ok: true, conf }; 
 
     } catch (error) {
       this.logger.error(`Error crítico procesando BigPacket del Router ${routerID}: ${error.message}`);

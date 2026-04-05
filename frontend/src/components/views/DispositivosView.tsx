@@ -24,7 +24,8 @@ import {
   ChevronRight,
   Radio,
   AlertTriangle,
-  Info
+  Info,
+  RefreshCw
 } from 'lucide-react';
 import ConfirmarDesvincularModal from './ConfirmarDesvincularModal';
 import DatePicker, { registerLocale } from 'react-datepicker';
@@ -57,6 +58,8 @@ interface DispositivoBase {
   historialConsumo: { value: number; date: string }[]; // % consumido por hora (últimas 24h)
   latitud?: number | null;
   longitud?: number | null;
+  versionAplicada: number;
+  configPendiente?: { version: number } | null;
 }
 
 interface Router extends DispositivoBase {
@@ -410,8 +413,37 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
     e.preventDefault();
     if (!editingDevice) return;
     
+    // Buscar el dispositivo original para calcular qué valores han cambiado
+    const originalDevice = dispositivos.find(d => d.id === editingDevice.id && d.tipo === editingDevice.tipo);
+    if (!originalDevice) return;
+
+    const changedData: any = {};
+
+    // Campos comunes
+    if (editingDevice.nombre !== originalDevice.nombre) changedData.nombre = editingDevice.nombre;
+    if (editingDevice.parcelaId !== originalDevice.parcelaId) changedData.parcelaId = editingDevice.parcelaId;
+
+    // Campos específicos de Router
+    if (editingDevice.tipo === 'router' && originalDevice.tipo === 'router') {
+      if (editingDevice.ssid !== originalDevice.ssid) changedData.ssid = editingDevice.ssid;
+      if (editingDevice.esPublico !== originalDevice.esPublico) changedData.esPublico = editingDevice.esPublico;
+      if (editingDevice.canal !== originalDevice.canal) changedData.canal = editingDevice.canal;
+    }
+
+    // Campos específicos de Mota
+    if (editingDevice.tipo === 'mota' && originalDevice.tipo === 'mota') {
+      if (editingDevice.frecuencia !== originalDevice.frecuencia) changedData.frecuencia = editingDevice.frecuencia;
+      if (editingDevice.conexionPublica !== originalDevice.conexionPublica) changedData.conexionPublica = editingDevice.conexionPublica;
+    }
+
+    // Si no hay cambios reales, cerramos el modal sin hacer la petición a la API
+    if (Object.keys(changedData).length === 0) {
+      setEditingDevice(null);
+      return;
+    }
+
     try {
-      await updateDevice(editingDevice.id, editingDevice, editingDevice.tipo);
+      await updateDevice(editingDevice.id, changedData, editingDevice.tipo);
       setNotification({ type: 'success', message: 'Dispositivo actualizado correctamente' });
       setEditingDevice(null);
       onRefresh();
@@ -465,7 +497,9 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       erroresTx: 0,
       erroresRx: 0,
       erroresCrc: 0,
-      historialConsumo: []
+      historialConsumo: [],
+      versionAplicada: 0,
+      configPendiente: null
     } : {
       id: 0, // Temporal
       tipo: 'mota',
@@ -483,7 +517,9 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       conexionPublica: false,
       frecuencia: 15,
       estado: 'online',
-      historialConsumo: []
+      historialConsumo: [],
+      versionAplicada: 0,
+      configPendiente: null
     };
 
     try {
@@ -667,25 +703,50 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 font-medium">{disp.modelo || 'Modelo Genérico'}</p>
-                  <div className="group/status relative flex items-center gap-1.5 mt-1 cursor-help">
-                    <span className={`flex h-2 w-2 rounded-full ${
-                      disp.estado === 'online' ? 'bg-green-500' : disp.estado === 'alerta' ? 'bg-destructive' : 'bg-muted'
-                    }`} />
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{disp.estado}</span>
-                    
-                    {/* Tooltip Explicativo de Estado */}
-                    <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-4 text-sm text-card-foreground shadow-2xl border border-border z-[100] group-hover/status:block animate-in fade-in zoom-in-95 duration-200">
-                      <div className="font-bold mb-2 flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${disp.estado === 'online' ? 'bg-green-500' : 'bg-muted'}`}></div>
-                        {disp.estado === 'online' ? 'Dispositivo Operativo' : 'Sin Conexión Reciente'}
-                      </div>
-                      <p className="leading-relaxed opacity-90 text-xs text-muted-foreground">
-                        Debido al ahorro de energía (Deep Sleep), se considera <strong>Online</strong> si ha reportado datos en las últimas 24h.
-                      </p>
-                      <div className="mt-3 pt-2 border-t border-border/50 text-[10px] opacity-70 font-mono text-muted-foreground">
-                        Última conexión: {disp.fechaUltimaConexion ? new Date(disp.fechaUltimaConexion).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Nunca'}
+                  <div className="flex items-center gap-3">
+                    <div className="group/status relative flex items-center gap-1.5 mt-1 cursor-help">
+                      <span className={`flex h-2 w-2 rounded-full ${
+                        disp.estado === 'online' ? 'bg-green-500' : disp.estado === 'alerta' ? 'bg-destructive' : 'bg-muted'
+                      }`} />
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{disp.estado}</span>
+                      
+                      {/* Tooltip Explicativo de Estado */}
+                      <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-4 text-sm text-card-foreground shadow-2xl border border-border z-[100] group-hover/status:block animate-in fade-in zoom-in-95 duration-200">
+                        <div className="font-bold mb-2 flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${disp.estado === 'online' ? 'bg-green-500' : 'bg-muted'}`}></div>
+                          {disp.estado === 'online' ? 'Dispositivo Operativo' : 'Sin Conexión Reciente'}
+                        </div>
+                        <p className="leading-relaxed opacity-90 text-xs text-muted-foreground">
+                          Debido al ahorro de energía (Deep Sleep), se considera <strong>Online</strong> si ha reportado datos en las últimas 24h.
+                        </p>
+                        <div className="mt-3 pt-2 border-t border-border/50 text-[10px] opacity-70 font-mono text-muted-foreground">
+                          Última conexión: {disp.fechaUltimaConexion ? new Date(disp.fechaUltimaConexion).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Nunca'}
+                        </div>
                       </div>
                     </div>
+                    {disp.configPendiente && (
+                      <div className="group/ota relative flex items-center gap-1 mt-1 cursor-help">
+                        <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                          <RefreshCw size={10} className="animate-[spin_3s_linear_infinite]" /> OTA SYNC
+                        </span>
+                        
+                        {/* Tooltip Explicativo de OTA */}
+                        <div className="absolute top-full left-0 mt-2 hidden w-64 rounded-xl bg-card p-4 text-sm text-card-foreground shadow-2xl border border-border z-[100] group-hover/ota:block animate-in fade-in zoom-in-95 duration-200">
+                          <div className="font-bold mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                            <RefreshCw size={14} className="animate-[spin_3s_linear_infinite]" />
+                            Sincronización Pendiente
+                          </div>
+                          <p className="leading-relaxed opacity-90 text-xs text-muted-foreground mb-3">
+                            Hay una configuración esperando ser aplicada en el hardware. Se sincronizará automáticamente en su próxima ventana de comunicación.
+                          </p>
+                          <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[10px] font-mono text-muted-foreground">
+                            <span>Hardware: <strong className="text-foreground">v{disp.versionAplicada}</strong></span>
+                            <span className="text-blue-500">Deseado: <strong>v{disp.configPendiente.version}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -857,154 +918,174 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {/* Modal de Edición */}
       <AnimatePresence>
         {editingDevice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md rounded-3xl bg-card shadow-2xl"
-            >
-              <div className="flex items-center justify-between border-b border-border p-6">
-                <h3 className="text-xl font-bold text-foreground">Configurar Dispositivo</h3>
-                <button onClick={() => setEditingDevice(null)} className="rounded-full bg-muted p-2 text-muted-foreground hover:bg-accent">
-                  <X size={20} />
-                </button>
-              </div>
-              
-              <form onSubmit={handleSave} className="p-6 space-y-5">
-                {/* Aviso de Configuración Diferida */}
-                <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 flex gap-3">
-                  <Info className="text-blue-600 dark:text-blue-400 shrink-0" size={20} />
-                  <div>
-                    <h4 className="font-bold text-blue-700 dark:text-blue-300 text-sm mb-1">Aplicación Diferida de Cambios</h4>
-                    <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
-                      Para garantizar una autonomía de varios meses, el dispositivo permanece en reposo la mayor parte del tiempo. Las configuraciones se transmitirán y aplicarán automáticamente durante la <strong>próxima conexión</strong> programada.
-                    </p>
-                  </div>
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm">
+            <div className="min-h-full flex items-start justify-center p-4 py-10 w-full">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-md rounded-3xl bg-card shadow-2xl relative"
+              >
+                <div className="flex items-center justify-between border-b border-border p-6">
+                  <h3 className="text-xl font-bold text-foreground">Configurar Dispositivo</h3>
+                  <button onClick={() => setEditingDevice(null)} className="rounded-full bg-muted p-2 text-muted-foreground hover:bg-accent transition-colors">
+                    <X size={20} />
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                    Nombre del Dispositivo
-                  </label>
-                  <input 
-                    type="text" 
-                    value={editingDevice.nombre || ''}
-                    onChange={(e) => setEditingDevice(prev => {
-                      if (!prev) return null;
-                      return { ...prev, nombre: e.target.value };
-                    })}
-                    className="flora-input py-3"
-                  />
-                </div>
-
-                {editingDevice.tipo === 'router' && (
-                  <div className="space-y-4">
+                
+                <form onSubmit={handleSave} className="p-6 space-y-5">
+                  {/* Aviso de Configuración Diferida */}
+                  <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 flex gap-3">
+                    <Info className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={18} />
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">SSID de Red</label>
-                      <input 
-                        type="text" 
-                        value={editingDevice.ssid || ''} // <--- CORRECCIÓN: Evita el valor null
-                        onChange={(e) => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, ssid: e.target.value } : prev)}
-                        className="flora-input py-3"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-foreground text-sm">Red Pública</span>
-                        <span className="text-xs text-muted-foreground">Permitir conexión de vecinos</span>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={() => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, esPublico: !prev.esPublico } : prev)}
-                        className={`relative h-6 w-11 rounded-full transition-colors ${editingDevice.esPublico ? 'bg-primary' : 'bg-secondary'}`}
-                      >
-                        <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-primary-foreground transition-transform ${editingDevice.esPublico ? 'translate-x-5' : ''}`} />
-                      </button>
+                      <h4 className="font-bold text-blue-700 dark:text-blue-300 text-sm mb-1">Aplicación Diferida</h4>
+                      <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
+                        Los cambios se enviarán al dispositivo en su <strong>próxima conexión</strong> programada para ahorrar batería.
+                      </p>
                     </div>
                   </div>
-                )}
 
-                <div>
-                  <Select 
-                    label="Asignar a Parcela"
-                    value={editingDevice.parcelaId?.toString() || ''}
-                    onChange={(val) => setEditingDevice(prev => prev ? { ...prev, parcelaId: val ? parseInt(val) : null } : null)}
-                    options={[
-                      { value: '', label: 'Sin Asignar (En almacén)' },
-                      ...parcelasDisponibles.map(p => ({ value: p.id.toString(), label: p.nombre }))
-                    ]}
-                  />
-                </div>
+                  {editingDevice.configPendiente && (
+                    <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200 dark:border-amber-800/30 flex gap-3">
+                      <RefreshCw className="text-amber-600 dark:text-amber-400 shrink-0 animate-[spin_3s_linear_infinite] mt-0.5" size={18} />
+                      <div>
+                        <h4 className="font-bold text-amber-700 dark:text-amber-300 text-sm mb-1">Actualización OTA en Progreso</h4>
+                        <p className="text-xs text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
+                          Hay cambios en cola esperando ser inyectados. Aplicará la configuración objetivo <strong>(v{editingDevice.configPendiente.version})</strong>. 
+                        </p>
+                        <p className="text-[11px] font-mono text-amber-600/70 dark:text-amber-400/70 mt-1.5">
+                          Versión actual en campo: v{editingDevice.versionAplicada}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-                {editingDevice.tipo === 'router' ? (
                   <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                      Nombre del Dispositivo
+                    </label>
+                    <input 
+                      type="text" 
+                      value={editingDevice.nombre || ''}
+                      onChange={(e) => setEditingDevice(prev => {
+                        if (!prev) return null;
+                        return { ...prev, nombre: e.target.value };
+                      })}
+                      className="flora-input py-3 w-full"
+                    />
+                  </div>
+
+                  {editingDevice.tipo === 'router' && (
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">SSID de Red</label>
+                        <input 
+                          type="text" 
+                          value={editingDevice.ssid || ''}
+                          onChange={(e) => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, ssid: e.target.value } : prev)}
+                          className="flora-input py-3 w-full"
+                        />
+                      </div>
+                      
+                      <div className="relative z-[15]">
+                        <Select 
+                          label="Canal de Operación"
+                          value={editingDevice.canal?.toString() || '0'}
+                          onChange={(val) => setEditingDevice(prev => prev ? { ...prev, canal: parseInt(val) } : null)}
+                          options={[
+                            { value: '0', label: 'Canal 0 (868.1 MHz)' },
+                            { value: '1', label: 'Canal 1 (868.3 MHz)' },
+                            { value: '2', label: 'Canal 2 (868.5 MHz)' },
+                            { value: '3', label: 'Canal 3 (869.525 MHz)' }
+                          ]}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border mt-2">
+                        <div className="flex flex-col pr-4">
+                          <span className="font-bold text-foreground text-sm">Red Pública</span>
+                          <span className="text-xs text-muted-foreground mt-0.5">Permitir conexión de vecinos</span>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setEditingDevice(prev => prev && prev.tipo === 'router' ? { ...prev, esPublico: !prev.esPublico } : prev)}
+                          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${editingDevice.esPublico ? 'bg-primary' : 'bg-secondary'}`}
+                        >
+                          <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-primary-foreground transition-transform ${editingDevice.esPublico ? 'translate-x-5' : ''}`} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {editingDevice.tipo === 'mota' && (
+                    <div className="space-y-5">
+                      <div className="relative z-[15]">
+                        <Select 
+                          label="Frecuencia de Actualización"
+                          value={editingDevice.frecuencia?.toString() || '240'}
+                          onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: parseInt(val) } : null)}
+                          options={[
+                            { value: '15', label: '15 Minutos (Modo Instalación)' },
+                            { value: '60', label: '1 Hora (Alta Precisión)' },
+                            { value: '240', label: '4 Horas (Recomendado)' },
+                            { value: '480', label: '8 Horas (Modo Ahorro)' },
+                            { value: '720', label: '12 Horas (Ultra Eco)' }
+                          ]}
+                        />
+                        <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border/50 text-[11px] leading-relaxed">
+                          {editingDevice.frecuencia === 15 && <span className="text-amber-600 dark:text-amber-400"><strong>Modo Instalación:</strong> La batería durará semanas.</span>}
+                          {editingDevice.frecuencia === 60 && <span className="text-blue-600 dark:text-blue-400"><strong>Alta Precisión:</strong> Batería de 6 a 8 meses. Útil para invernaderos.</span>}
+                          {editingDevice.frecuencia === 240 && <span className="text-green-600 dark:text-green-400"><strong>Recomendado:</strong> Batería garantizada de más de 1 año.</span>}
+                          {editingDevice.frecuencia === 480 && <span className="text-green-600 dark:text-green-400"><strong>Modo Ahorro:</strong> Batería de 1.5 a 2 años. Excelente para invierno.</span>}
+                          {editingDevice.frecuencia === 720 && <span className="text-green-600 dark:text-green-400"><strong>Ultra Eco:</strong> Batería de más de 3 años. Ideal para secano.</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border mt-2">
+                        <div className="flex flex-col pr-4">
+                          <span className="font-bold text-foreground text-sm">Conexión Pública (Roaming)</span>
+                          <span className="text-xs text-muted-foreground mt-0.5">Conectar a routers públicos si el propio falla.</span>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setEditingDevice(prev => {
+                            if (!prev || prev.tipo !== 'mota') return prev;
+                            return { ...prev, conexionPublica: !prev.conexionPublica };
+                          })}
+                          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${editingDevice.conexionPublica ? 'bg-primary' : 'bg-secondary'}`}
+                        >
+                          <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-primary-foreground transition-transform ${editingDevice.conexionPublica ? 'translate-x-5' : ''}`} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="relative z-[14]">
                     <Select 
-                      label="Canal de Operación"
-                      value={editingDevice.canal?.toString() || '0'}
-                      onChange={(val) => setEditingDevice(prev => prev ? { ...prev, canal: parseInt(val) } : null)}
+                      label="Asignar a Parcela"
+                      value={editingDevice.parcelaId?.toString() || ''}
+                      onChange={(val) => setEditingDevice(prev => prev ? { ...prev, parcelaId: val ? parseInt(val) : null } : null)}
                       options={[
-                        { value: '0', label: 'Canal 0 (868.1 MHz)' },
-                        { value: '1', label: 'Canal 1 (868.3 MHz)' },
-                        { value: '2', label: 'Canal 2 (868.5 MHz)' },
-                        { value: '3', label: 'Canal 3 (869.525 MHz)' }
+                        { value: '', label: 'Sin Asignar (En almacén)' },
+                        ...parcelasDisponibles.map(p => ({ value: p.id.toString(), label: p.nombre }))
                       ]}
                     />
                   </div>
-                ) : (
-            <div className="space-y-4">
-              <div>
-                <Select 
-                  label="Frecuencia de Actualización"
-                  value={editingDevice.frecuencia?.toString() || '240'}
-                  onChange={(val) => setEditingDevice(prev => prev ? { ...prev, frecuencia: parseInt(val) } : null)}
-                  options={[
-                    { value: '15', label: '15 Minutos (Modo Instalación / Pruebas)' },
-                    { value: '60', label: '1 Hora (Alta Precisión)' },
-                    { value: '240', label: '4 Horas (Recomendado FLoRa)' },
-                    { value: '480', label: '8 Horas (Modo Ahorro)' },
-                    { value: '720', label: '12 Horas (Ultra Eco)' }
-                  ]}
-                />
-                {editingDevice.frecuencia === 15 && <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2 leading-tight"><strong>Advertencia:</strong> Ideal solo para el día de instalación. La batería durará semanas.</p>}
-                {editingDevice.frecuencia === 60 && <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería estimada de 6 a 8 meses. Útil para invernaderos o picos de calor.</p>}
-                {editingDevice.frecuencia === 240 && <p className="text-[11px] text-green-600 dark:text-green-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería garantizada de más de 1 año. Mejor equilibrio.</p>}
-                {editingDevice.frecuencia === 480 && <p className="text-[11px] text-green-600 dark:text-green-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería de 1.5 a 2 años. Excelente para otoño/invierno.</p>}
-                {editingDevice.frecuencia === 720 && <p className="text-[11px] text-green-600 dark:text-green-400 mt-2 leading-tight"><strong>Impacto:</strong> Batería de más de 3 años. Ideal para secano profundo o árboles maduros.</p>}
-              </div>
-              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border">
-                <div className="flex flex-col">
-                  <span className="font-bold text-foreground text-sm">Conexión Pública (Roaming)</span>
-                  <span className="text-xs text-muted-foreground">Conectar a routers públicos cercanos si el propio falla.</span>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => setEditingDevice(prev => {
-                    if (!prev || prev.tipo !== 'mota') return prev;
-                    return { ...prev, conexionPublica: !prev.conexionPublica };
-                  })}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${editingDevice.conexionPublica ? 'bg-primary' : 'bg-secondary'}`}
-                >
-                  <span className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-primary-foreground transition-transform ${editingDevice.conexionPublica ? 'translate-x-5' : ''}`} />
-                </button>
-              </div>
-            </div>
-                )}
 
-                <div className="pt-4 mt-4 border-t border-border space-y-3">
-                  <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-green-500/10 transition-all">
-                    <Save size={18} /> Guardar Cambios
-                  </button>
-                  <button 
-                      type="button"
-                      onClick={() => setIsUnlinkModalOpen(true)} // Abrir el modal de confirmación
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-200 border border-amber-400 dark:bg-amber-900/10 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-300 dark:hover:bg-amber-900/20 transition-all"
-                  >
-                      <Unlink size={18} /> Desvincular de la cuenta
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+                  <div className="pt-4 mt-4 border-t border-border space-y-3">
+                    <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-md shadow-green-500/10 transition-all">
+                      <Save size={18} /> Guardar Cambios
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setIsUnlinkModalOpen(true)}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all"
+                    >
+                        <Unlink size={18} /> Desvincular de la cuenta
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>
@@ -1012,13 +1093,14 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {/* Modal de Vinculación (Nuevo Dispositivo) */}
       <AnimatePresence>
         {isLinkModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md overflow-hidden rounded-3xl bg-card shadow-2xl"
-            >
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm">
+            <div className="min-h-full flex items-start justify-center p-4 py-10 w-full">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-md overflow-visible rounded-3xl bg-card shadow-2xl relative"
+              >
               <div className="flex items-center justify-between border-b border-border p-6">
                 <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                   <QrCode className="text-muted-foreground"/> Vincular Dispositivo
@@ -1079,6 +1161,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                 </div>
               </form>
             </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>
@@ -1086,13 +1169,14 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {/* Modal de Historial Detallado */}
       <AnimatePresence>
         {selectedHistoryDevice && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 md:p-6">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-white/10"
-            >
+          <div className="fixed inset-0 z-[1000] overflow-y-auto bg-black/70 backdrop-blur-sm p-4 md:p-6 flex justify-center items-start">
+            <div className="flex justify-center w-full pt-4 pb-12 sm:pt-12">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl border border-slate-200 dark:border-white/10"
+              >
               <div className="flex items-center justify-between p-6">
                 <div>
                   <h3 className="text-xl font-semibold text-slate-800 dark:text-zinc-100 flex items-center gap-3">
@@ -1174,6 +1258,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                 )}
               </div>
             </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>

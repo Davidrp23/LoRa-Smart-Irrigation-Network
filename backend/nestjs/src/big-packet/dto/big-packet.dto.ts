@@ -30,6 +30,9 @@ export class RouterTelemetryDto {
 
   @IsNumber() @IsOptional() @Expose({ name: 'eC' })
   erroresCrc?: number;
+
+  @IsNumber() @Expose({ name: 'v' })
+  versionAplicada: number;
 }
 
 // ==========================================
@@ -65,6 +68,9 @@ export class MotaReportDto {
 
   @IsNumber() @IsOptional() @Expose({ name: 'eR' })
   erroresRxMota?: number;
+
+  @IsNumber() @Expose({ name: 'v' })
+  versionAplicada: number;
 }
 
 // ==========================================

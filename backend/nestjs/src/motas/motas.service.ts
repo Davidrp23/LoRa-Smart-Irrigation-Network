@@ -61,7 +61,12 @@ export class MotasService {
         mediciones: {
           select: { bateria: true, fecha: true }, // Necesitamos batería y fecha para la gráfica
           orderBy: { fecha: 'desc' },
-          take: 24 // Últimas 24 mediciones (aprox 24h si es cada hora, o las últimas 24 muestras)
+          take: 10 // Últimas 10 mediciones de bateria para la grafica de presentacion
+        },
+        //Incluimos tambien el numero de la version pendiente para que el usuario pueda ver
+        //en la interfaz si su mota tiene algun cambio pendiente
+        configPendiente: {
+          select: {version:true}
         }
       }
     });
@@ -93,6 +98,31 @@ export class MotasService {
       if(await this.prisma.router.findUnique({where: {id:routerId}}) == null){
         throw new NotFoundException(`El router con ID ${routerId} no existe.`);
       }
+    }
+
+    // Verificamos si hay parámetros de configuración que tenga que aplicar la mota de forma física
+    if (updateMotaDto.frecuencia !== undefined || updateMotaDto.conexionPublica !== undefined) {
+      const currentConfig = await this.prisma.configuracionPendiente.findUnique({ where: { motaId: id } });
+      const motaDb = await this.prisma.mota.findUnique({ where: { id }, select: { versionAplicada: true } });
+      
+      const newPayload = {
+        ...(currentConfig ? (currentConfig.payload as object) : {}),
+        ...(updateMotaDto.frecuencia !== undefined ? { f: updateMotaDto.frecuencia } : {}),
+        ...(updateMotaDto.conexionPublica !== undefined ? { cP: updateMotaDto.conexionPublica } : {})
+      };
+
+      await this.prisma.configuracionPendiente.upsert({
+        where: { motaId: id },
+        create: {
+          motaId: id,
+          version: (motaDb?.versionAplicada || 0) + 1,
+          payload: newPayload,
+        },
+        update: {
+          version: (currentConfig?.version || 0) + 1,
+          payload: newPayload,
+        }
+      });
     }
     
     return this.prisma.mota.update({
@@ -186,13 +216,16 @@ export class MotasService {
   async actualizarMotas(usuarioId: number, updateMotasBulkDto: UpdateMotasBulkDto){
     
     const dataAActualizar: any = {};
+    const shortPayload: any = {};
     
     if (updateMotasBulkDto.frecuencia !== undefined) {
       dataAActualizar.frecuencia = updateMotasBulkDto.frecuencia;
+      shortPayload.f = updateMotasBulkDto.frecuencia;
     }
     
     if (updateMotasBulkDto.conexionPublica !== undefined) {
       dataAActualizar.conexionPublica = updateMotasBulkDto.conexionPublica;
+      shortPayload.cP = updateMotasBulkDto.conexionPublica;
     }
 
     if (Object.keys(dataAActualizar).length === 0) {
@@ -203,12 +236,43 @@ export class MotasService {
 
     let motasID: number[] = Array.from(new Set(updateMotasBulkDto.motaIds));
 
+    // Obtener las configuraciones pendientes actuales y la versión aplicada de las motas
+    const configsActuales = await this.prisma.configuracionPendiente.findMany({
+      where: { motaId: { in: motasID } }
+    });
+    const motasDb = await this.prisma.mota.findMany({
+      where: { id: { in: motasID } },
+      select: { id: true, versionAplicada: true }
+    });
 
     for (const id of motasID) {
       operaciones.push(
         this.prisma.mota.update({
           where: { id, usuarioId }, 
           data: dataAActualizar, 
+        })
+      );
+      
+      const currentConfig = configsActuales.find(c => c.motaId === id);
+      const motaDb = motasDb.find(m => m.id === id);
+
+      const newPayload = {
+        ...(currentConfig ? (currentConfig.payload as object) : {}),
+        ...shortPayload
+      };
+
+      operaciones.push(
+        this.prisma.configuracionPendiente.upsert({
+          where: { motaId: id },
+          create: {
+            motaId: id,
+            version: (motaDb?.versionAplicada || 0) + 1,
+            payload: newPayload
+          },
+          update: {
+            version: (currentConfig?.version || 0) + 1,
+            payload: newPayload
+          }
         })
       );
     }

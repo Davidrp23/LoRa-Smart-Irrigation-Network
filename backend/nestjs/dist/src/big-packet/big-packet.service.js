@@ -30,6 +30,30 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
             select: { canal: true },
         });
         const canal = router?.canal;
+        const motasIds = createBigPacketDto.motas.map(m => m.motaId);
+        const configsPendientes = await this.prisma.configuracionPendiente.findMany({
+            where: {
+                OR: [
+                    { routerId: routerID },
+                    { motaId: { in: motasIds } }
+                ]
+            }
+        });
+        const configRouter = configsPendientes.find(c => c.routerId === routerID);
+        const conf = [];
+        if (configRouter) {
+            if (createBigPacketDto.router && createBigPacketDto.router.versionAplicada !== undefined && createBigPacketDto.router.versionAplicada === configRouter.version) {
+                operaciones.push(this.prisma.configuracionPendiente.delete({ where: { id: configRouter.id } }));
+            }
+            else {
+                conf.push({
+                    tg: 'r',
+                    id: routerID,
+                    v: configRouter.version,
+                    p: configRouter.payload
+                });
+            }
+        }
         const routerUpdateData = createBigPacketDto.router
             ? { ...createBigPacketDto.router, fechaUltimaConexion: ahora }
             : { fechaUltimaConexion: ahora };
@@ -52,6 +76,20 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
         }
         const medicionesParaInsertar = [];
         for (const mota of createBigPacketDto.motas) {
+            const configMota = configsPendientes.find(c => c.motaId === mota.motaId);
+            if (configMota) {
+                if (mota.versionAplicada !== undefined && mota.versionAplicada === configMota.version) {
+                    operaciones.push(this.prisma.configuracionPendiente.delete({ where: { id: configMota.id } }));
+                }
+                else {
+                    conf.push({
+                        tg: 'm',
+                        id: mota.motaId,
+                        v: configMota.version,
+                        p: configMota.payload
+                    });
+                }
+            }
             operaciones.push(this.prisma.mota.update({
                 where: { id: mota.motaId },
                 data: {
@@ -65,6 +103,7 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
                     rssi: mota.rssi,
                     snr: mota.snr,
                     erroresRxMota: mota.erroresRxMota,
+                    versionAplicada: mota.versionAplicada,
                 },
             }));
             medicionesParaInsertar.push({
@@ -93,7 +132,7 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
             for (const parcelaId of parcelasAfectadas) {
                 await this.parcelasService.actualizarEstadoParcela(parcelaId);
             }
-            return { ok: true };
+            return { ok: true, conf };
         }
         catch (error) {
             this.logger.error(`Error crítico procesando BigPacket del Router ${routerID}: ${error.message}`);

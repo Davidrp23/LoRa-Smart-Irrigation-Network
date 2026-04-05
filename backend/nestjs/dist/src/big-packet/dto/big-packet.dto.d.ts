@@ -9,6 +9,7 @@ export declare class RouterTelemetryDto {
     erroresTx?: number;
     erroresRx?: number;
     erroresCrc?: number;
+    versionAplicada: number;
 }
 export declare class MotaReportDto {
     motaId: number;
@@ -20,6 +21,7 @@ export declare class MotaReportDto {
     rssi: number;
     snr: number;
     erroresRxMota?: number;
+    versionAplicada: number;
 }
 export declare class BigPacketDto {
     router?: RouterTelemetryDto;

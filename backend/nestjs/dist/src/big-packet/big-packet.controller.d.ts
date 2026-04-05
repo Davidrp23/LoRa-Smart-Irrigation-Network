@@ -5,5 +5,6 @@ export declare class BigPacketController {
     constructor(bigPacketService: BigPacketService);
     create(req: any, BigPacketDto: BigPacketDto): Promise<{
         ok: boolean;
+        conf: any[];
     }>;
 }

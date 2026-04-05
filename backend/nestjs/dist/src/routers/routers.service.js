@@ -56,7 +56,10 @@ let RoutersService = class RoutersService {
                 reportes: {
                     select: { bateria: true, fecha: true },
                     orderBy: { fecha: 'desc' },
-                    take: 24
+                    take: 10
+                },
+                configPendiente: {
+                    select: { version: true }
                 }
             }
         });
@@ -71,6 +74,34 @@ let RoutersService = class RoutersService {
             const parcela = await this.prisma.parcela.findUnique({ where: { id: updateRouterDto.parcelaId, usuarioId } });
             if (!parcela)
                 throw new common_2.NotFoundException(`La parcela con ID ${updateRouterDto.parcelaId} no existe o no te pertenece.`);
+        }
+        const camposHardwareRouter = ['esPublico', 'canal', 'ssid'];
+        const shortKeys = { esPublico: 'eP', canal: 'c', ssid: 's' };
+        const hasHardwareChanges = camposHardwareRouter.some(key => updateRouterDto[key] !== undefined);
+        if (hasHardwareChanges) {
+            const currentConfig = await this.prisma.configuracionPendiente.findUnique({ where: { routerId: id } });
+            const routerDb = await this.prisma.router.findUnique({ where: { id }, select: { versionAplicada: true } });
+            const newPayload = {
+                ...(currentConfig ? currentConfig.payload : {})
+            };
+            camposHardwareRouter.forEach(key => {
+                const val = updateRouterDto[key];
+                if (val !== undefined) {
+                    newPayload[shortKeys[key]] = val;
+                }
+            });
+            await this.prisma.configuracionPendiente.upsert({
+                where: { routerId: id },
+                create: {
+                    routerId: id,
+                    version: (routerDb?.versionAplicada || 0) + 1,
+                    payload: newPayload,
+                },
+                update: {
+                    version: (currentConfig?.version || 0) + 1,
+                    payload: newPayload,
+                }
+            });
         }
         return this.prisma.router.update({
             where: { id, usuarioId },

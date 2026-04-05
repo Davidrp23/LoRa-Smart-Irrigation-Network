@@ -67,7 +67,12 @@ export class RoutersService {
         reportes: {
           select: { bateria: true, fecha: true }, // Necesitamos batería y fecha para la gráfica
           orderBy: { fecha: 'desc' },
-          take: 24 // Últimas 24 mediciones (aprox 24h si es cada hora, o las últimas 24 muestras)
+          take: 10 // Últimas 10 mediciones de bateria para la grafica de presentacion
+        },
+        //Incluimos tambien el numero de la version pendiente para que el usuario pueda ver
+        //en la interfaz si su router tiene algun cambio pendiente
+        configPendiente: {
+          select: {version:true}
         }
       }
     });
@@ -84,6 +89,40 @@ export class RoutersService {
     if(updateRouterDto.parcelaId != null){
       const parcela = await this.prisma.parcela.findUnique({where: {id: updateRouterDto.parcelaId, usuarioId}});
       if(!parcela) throw new NotFoundException(`La parcela con ID ${updateRouterDto.parcelaId} no existe o no te pertenece.`);
+    }
+
+    // Verificamos si hay parámetros de configuración físicos del router para Device Shadowing OTA
+    const camposHardwareRouter: (keyof UpdateRouterDto)[] = ['esPublico', 'canal', 'ssid'];
+    const shortKeys: Record<string, string> = { esPublico: 'eP', canal: 'c', ssid: 's' };
+    const hasHardwareChanges = camposHardwareRouter.some(key => updateRouterDto[key as keyof UpdateRouterDto] !== undefined);
+
+    if (hasHardwareChanges) {
+      const currentConfig = await this.prisma.configuracionPendiente.findUnique({ where: { routerId: id } });
+      const routerDb = await this.prisma.router.findUnique({ where: { id }, select: { versionAplicada: true } });
+      
+      const newPayload: any = {
+        ...(currentConfig ? (currentConfig.payload as object) : {})
+      };
+
+      camposHardwareRouter.forEach(key => {
+        const val = updateRouterDto[key as keyof UpdateRouterDto];
+        if (val !== undefined) {
+          newPayload[shortKeys[key]] = val;
+        }
+      });
+
+      await this.prisma.configuracionPendiente.upsert({
+        where: { routerId: id },
+        create: {
+          routerId: id,
+          version: (routerDb?.versionAplicada || 0) + 1,
+          payload: newPayload,
+        },
+        update: {
+          version: (currentConfig?.version || 0) + 1,
+          payload: newPayload,
+        }
+      });
     }
 
     return this.prisma.router.update({

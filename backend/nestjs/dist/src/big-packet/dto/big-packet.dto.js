@@ -24,6 +24,7 @@ class RouterTelemetryDto {
     erroresTx;
     erroresRx;
     erroresCrc;
+    versionAplicada;
 }
 exports.RouterTelemetryDto = RouterTelemetryDto;
 __decorate([
@@ -74,6 +75,11 @@ __decorate([
     (0, class_transformer_1.Expose)({ name: 'eC' }),
     __metadata("design:type", Number)
 ], RouterTelemetryDto.prototype, "erroresCrc", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Expose)({ name: 'v' }),
+    __metadata("design:type", Number)
+], RouterTelemetryDto.prototype, "versionAplicada", void 0);
 class MotaReportDto {
     motaId;
     timestamp;
@@ -84,6 +90,7 @@ class MotaReportDto {
     rssi;
     snr;
     erroresRxMota;
+    versionAplicada;
 }
 exports.MotaReportDto = MotaReportDto;
 __decorate([
@@ -135,6 +142,11 @@ __decorate([
     (0, class_transformer_1.Expose)({ name: 'eR' }),
     __metadata("design:type", Number)
 ], MotaReportDto.prototype, "erroresRxMota", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Expose)({ name: 'v' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "versionAplicada", void 0);
 class BigPacketDto {
     router;
     motas;

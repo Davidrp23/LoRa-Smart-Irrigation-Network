@@ -105,6 +105,10 @@ model Router {
   motasConectadas   Mota[] 
   reportes          ReporteRouter[]
 
+  // --- MODIFICACIONES EN LA CONFIGURACION ---
+  versionAplicada Int      @default(0) 
+  configPendiente ConfiguracionPendiente?
+
   createdAt         DateTime @default(now()) 
   claimedAt         DateTime? 
 }
@@ -189,8 +193,13 @@ model Mota {
   snr               Float?   
   erroresRxMota     Int?     
   fechaUltimaConexion DateTime?
-  
   mediciones        Medicion[]
+
+  // --- MODIFICACIONES EN LA CONFIGURACION ---
+  versionAplicada Int      @default(0) 
+  configPendiente ConfiguracionPendiente?
+  
+  
 
   createdAt         DateTime @default(now()) 
   claimedAt         DateTime? 
@@ -288,4 +297,26 @@ model CacheClima {
   
   // Para saber si ha caducado
   actualizado DateTime @default(now()) @updatedAt 
+}
+
+// ========================================================
+// 10. SINCRONIZACION OTA (OVER-THE-AIR)
+// ========================================================
+
+model ConfiguracionPendiente {
+  id        Int      @id @default(autoincrement())
+  
+  // O es para una Mota...
+  motaId    Int?     @unique
+  mota      Mota?    @relation(fields: [motaId], references: [id], onDelete: Cascade)
+  
+  // ... o es para un Router. (Prisma permite que uno sea null)
+  routerId  Int?     @unique
+  router    Router?  @relation(fields: [routerId], references: [id], onDelete: Cascade)
+  
+  version   Int      
+  payload   Json     
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
