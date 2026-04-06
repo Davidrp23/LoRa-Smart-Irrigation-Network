@@ -45,7 +45,7 @@ export class RoutersService {
 
         return nuevoRouter; // Si funciona, devuelve el router y sale de la función
 
-      } catch (error) {
+      } catch (error: any) {
         // 4. Si falla porque el código o el token ya existen (Error P2002 de Prisma)
         if (error.code === 'P2002') {
           intentos++; // Sumamos un intento y el bucle while vuelve a empezar
@@ -223,7 +223,7 @@ export class RoutersService {
 
       return routerActualizado;
 
-    } catch (error) {
+    } catch (error: any) {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
         throw new NotFoundException(`El usuario no existe.`);
@@ -257,7 +257,7 @@ export class RoutersService {
 
       return routerActualizado;
 
-    } catch (error) {
+    } catch (error: any) {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
         throw new NotFoundException(`El usuario no existe.`);

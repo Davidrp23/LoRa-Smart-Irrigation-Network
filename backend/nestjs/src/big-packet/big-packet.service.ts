@@ -200,7 +200,7 @@ export class BigPacketService {
       // Devolvemos la confirmación y la lista de configuraciones a aplicar en formato diminuto
       return { ok: true, conf }; 
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error crítico procesando BigPacket del Router ${routerID}: ${error.message}`);
       // Lanzamos error 500 para que el router sepa que falló y lo vuelva a intentar más tarde
       throw new InternalServerErrorException('Fallo al procesar el lote de telemetría');

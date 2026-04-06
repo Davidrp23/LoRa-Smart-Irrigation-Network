@@ -40,7 +40,7 @@ export class MotasService {
         // ESCAPE 1: Si funciona, rompemos la función y salimos
         return nuevaMota; 
 
-      } catch (error) {
+      } catch (error: any) {
         if (error.code === 'P2002') {
           // ESCAPE 2: Vamos sumando hasta llegar a 3
           intentos++; 
@@ -169,7 +169,7 @@ export class MotasService {
 
       return motaActualizada;
 
-    } catch (error) {
+    } catch (error: any) {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
         throw new NotFoundException(`El usuario no existe.`);
@@ -203,7 +203,7 @@ export class MotasService {
 
       return motaActualizada;
 
-    } catch (error) {
+    } catch (error: any) {
       // Si Prisma intenta conectar a un usuario que no existe, lanza el error 'P2025'
       if (error.code === 'P2025') {
         throw new NotFoundException(`El usuario no existe.`);

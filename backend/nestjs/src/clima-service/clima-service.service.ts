@@ -116,7 +116,7 @@ export class ClimaServiceService {
       });
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       // Si falla la API pero tenemos datos viejos, los devolvemos como fallback, como maximo 3 dias de anatiguedad.
       this.logger.error(`Error obteniendo clima: ${error.message}`);
       if (cachedClima && Date.now() - cachedClima.actualizado.getTime() < TRES_DIAS_MS ){
