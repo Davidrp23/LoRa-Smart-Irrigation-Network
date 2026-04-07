@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm> // Necesario para std::sort
 
+
 //----------------------------------LORA PARAMETERS--------------------------------
 #define NUM_CHANELS 4
 
@@ -29,7 +30,7 @@
 
 
 //----------------------------------ESTRUCTURAS---------------------------
-#define SSID_LENGTH 9 + 1 // +1 para el terminador nulo
+#define SSID_LENGTH 8 + 1 // +1 para el terminador nulo
 
 enum class messageType : uint8_t {
     BEACON_REQUEST = 0x00, BEACON_RESPONSE = 0x01,
@@ -108,10 +109,10 @@ enum ButtonEvent {
 unsigned long pressStartTime = 0;
 bool isPressing = false;
 volatile ButtonEvent globalButtonState = NO_PRESS;
-
-
 //OLED UI 
 bool defaultMenu = 1; //Indica que vista del menu se tiene. 1 indica los datos visualizados por defecto 0 los demas... Todos no caben en 1 pantalla
+
+
 unsigned long startScan = 0; // Indica el momento exacto en el que se empieza a escanear las redes lora
 
 
@@ -691,6 +692,8 @@ void handleNetworkSelectionMenu() {
     int iconY = yPos + 2;
 
     const unsigned char* icono_actual = foundNetworks[currentIndex].info.isPublic ? icon_unlock : icon_lock;
+    //Serial.print("La red es publica: ");
+    //Serial.println(foundNetworks[currentIndex].info.isPublic);
 
     // --- DIBUJADO ---
     // Si es el seleccionado, lo pintamos INVERTIDO (Fondo blanco, texto e icono negro)

@@ -16,15 +16,13 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-//Operating Router Params
+// -- AM-036 --
+#include <vector> //Para guardar los datos de las motas
+#include <ArduinoJson.h> //Para comunicarse con el AM-036
+#define MAX_MOTAS_EN_COLA 40 //Numero maximo de datos para las motas en cola
+
 #define MAX_CLIENTS 30
-#define SSID_LENGTH 9 + 1 // +1 para el terminador nulo
-
-const size_t routerId = 1; // Los id son siempre > 0
-
-//Pueden cambiar durante la ejecucion
-char SSID[SSID_LENGTH] = "TOM_SUR";
-bool isPublic = true;
+#define SSID_LENGTH 8 + 1 // +1 para el terminador nulo
 
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define NUM_CHANELS 4
@@ -34,7 +32,6 @@ bool isPublic = true;
 #define CHANEL_2 868500000
 #define CHANEL_3 869525000
 
-#define RF_FREQUENCY                                CHANEL_1 // Hz
 
 #define TX_OUTPUT_POWER                             5        // dBm
 
@@ -131,6 +128,16 @@ typedef struct __attribute__((packed)) {
 
   size_t sendInterval; // Periodo en segundos que la mota tarda en enviar informacion
 
+  int8_t allowPublicConn; // Variable que le permite a la mota conectarse a routers publicos si el propio falla
+                        //Deberia ser bool, pero como el sistema de actualizaccion de configuraciones es de tipo delta
+                        //hay parametros del backend que no vienen, pero en LoRa tenemos que incluirlo (sino el struct se llena con la basura de la RAM)
+                        //Necesitamos 3 estados:
+                        // 1: allowPublicConn = -1 <-- No se aplica, la mota mantiene su valor 
+                        // 2: allowPublicConn = 0 <-- Se aplica, no se permiten conexiones publicas
+                        // 3: allowPublicConn = 1 <-- Se aplica, se permiten conexiones publicas
+
+  uint16_t version; // Version de la configuracion de la mota a aplicar
+
 }ConfData;
 
 typedef struct __attribute__((packed)) {
@@ -149,6 +156,8 @@ typedef struct __attribute__((packed)) {
   float latitude; // Mejor mandar las coordenadas como 2 float (4B cada uno) que como un array de caracteres (Ahorramos espacio).
 
   float longitude;
+
+  uint16_t version; // Version de la configuracion de la mota
   
 }SensorsData;
 
@@ -196,8 +205,21 @@ void VextOFF(void) //Vext default OFF
 }
 //--------------------------------------------------------GLOBAL VARIABLES--------------------------------------------------------------
 
+//Operating Router Params
+const size_t routerId = 1; // Los id son siempre > 0
+
+//Pueden cambiar durante la ejecucion
+char SSID[SSID_LENGTH] = "TOM_SUR";
+bool isPublic = true;
+size_t channel = CHANEL_1;
+int8_t numChannel = -1;
+uint16_t version = 0; // Version de la configuracion del router
+
+//------------------------------
+
 // Candado para proteger las variables compartidas
 SemaphoreHandle_t statsMutex; 
+SemaphoreHandle_t buttonStateMutex; 
 
 // Estructura para pasar datos de forma segura a la pantalla
 struct DisplayStats {
@@ -207,6 +229,9 @@ struct DisplayStats {
   size_t tx_err;
   size_t last_client;
   int16_t last_rssi;
+  size_t queueFull;
+  uint8_t queueSize;
+  uint8_t waiting_conf;
 };
 
 // Variables globales oled
@@ -215,15 +240,19 @@ volatile size_t shared_tx = 0;
 volatile size_t shared_rx_err = 0;
 volatile size_t shared_tx_err = 0;
 volatile int16_t shared_rssi = 0;
+volatile size_t shared_queueFull = 0;
+volatile uint8_t shared_queueSize = 0;
+volatile uint8_t shared_waiting_conf = 0;
 
 //Router params
 size_t connectedClients[MAX_CLIENTS];
+std::vector<SensorsData> motasDataQueue; //Cola para almacenar los datos de las motas
+std::vector<ConfData> motasConf; //Cola para almacenar las configuraciones de las motas
 
 uint8_t activeClients = 0;
 
 NetworkData NETWORK_DATA;
 size_t shared_lastClient = 0;
-char numChannel = -1;
 
 // Lista de canales seguros (en Hz)
 // Separación de 200kHz para evitar solapamiento de señal de 125kHz
@@ -235,6 +264,57 @@ const uint32_t channelList[] = {
 };
 
 // const uint8_t totalChannels = 4;
+
+// --- ESTADOS DEL BOTÓN (Variable Global) ---
+// Usamos un enum para que sea legible en cualquier parte del código
+enum ButtonEvent {
+  NO_PRESS,     // Nada ha pasado
+  SHORT_PRESS,  // Pulsación corta detectada
+  LONG_PRESS    // Pulsación larga detectada
+};
+
+// --- VARIABLES INTERNAS (No tocar desde fuera) [button press] ---
+unsigned long pressStartTime = 0;
+bool isPressing = false;
+volatile ButtonEvent globalButtonState = NO_PRESS;
+//OLED UI 
+bool defaultMenu = 1; //Indica que vista del menu se tiene. 1 indica los datos visualizados por defecto 0 los demas... Todos no caben en 1 pantalla
+
+// --- CONSTANTES DE TIEMPO ---
+#define BUTTON_PIN 0            // Botón PRG en Heltec V3
+#define DEBOUNCE_MS 50          // Filtro para rebotes
+#define LONG_PRESS_MS 1000      // Tiempo para considerar pulsación larga (1s)
+
+//Configuracion ficticia para las motas
+//Respuesta ficticia big-packet servidor
+
+String bigPacketResponse = R"raw(
+{
+    "ok": true,
+    "conf": [
+        {
+            "tg": "r",
+            "id": 1,
+            "v": 4,
+            "p": {
+                "c": 2,
+                "s": "RED_LEB",
+                "eP": true
+            }
+        },
+        {
+            "tg": "m",
+            "id": 2,
+            "v": 7,
+            "p": {
+                "f": 240,
+                "cP": false
+            }
+        }
+    ]
+}
+)raw";
+
 
 //----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -255,7 +335,7 @@ void setup() {
 
   initializeLora();
 
-  numChannel = findChannelNumber(RF_FREQUENCY);
+  numChannel = findChannelNumber(channel);
   
   initializeOled();
 
@@ -268,6 +348,8 @@ void setup() {
   // 1. Crear el semáforo (Mutex)
   statsMutex = xSemaphoreCreateMutex();
 
+  buttonStateMutex = xSemaphoreCreateMutex();
+
   // 2. Crear la tarea en el Core 0
   xTaskCreatePinnedToCore(
     TaskDisplay,    // Función de la tarea
@@ -279,15 +361,20 @@ void setup() {
     0               // Core ID (0 = Protocolo/Display, 1 = Arduino Loop)
   );
 
+  parseBigPacketResponse(bigPacketResponse);
+
   Serial.println("Sistema Multitarea Iniciado.");
 
 }
 
 
 void loop() {
-
   // put your main code here, to run repeatedly:
   Radio.IrqProcess( );
+
+  //GESTION BOTON:
+  checkButton(); 
+
 }
 
 void OnTxDone( void ){
@@ -429,10 +516,36 @@ void process(LoRaMessage incomingPackage){
             //pero deberia estarlo, por algun motivo se ha perdido la lista de clientes conectados, asi que enviara de vuelta un JOIN_REQUEST para unirse de nuevo a la misma.
             //No se tendra en cuenta la trama de datos en estos casos.
           }else{
-            Serial.println("Se ha recibido un paquete de datos de una mota, encendiendo AM-036 para enviar los datos al servidor de FLoRa...");
-            sendControlPacket(messageType::DATA_ACK, CLIENT_ID);
+           Serial.println("Se ha recibido un paquete de datos. Guardando en cola local...");
+            
+            // 1. Modificamos el vector de forma segura (Solo el Core 1 está tocando esto)
+            if (motasDataQueue.size() >= MAX_MOTAS_EN_COLA) {
+                motasDataQueue.erase(motasDataQueue.begin());
+                
+                // Actualizamos estadística de desbordamiento de cola
+                if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+                  shared_queueFull++;
+                  xSemaphoreGive(statsMutex);
+                }
+            }
+            motasDataQueue.push_back(incomingPackage.data.SensorsData);  
+
+            // 2. Actualizamos la variable para la pantalla OLED (Protegida)
+            if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+              shared_queueSize = motasDataQueue.size();
+              xSemaphoreGive(statsMutex);
+            }
+
+            // 3. Miramos si para la mota hay una configuracion pendiente:
+            ConfData configMota = searchMotaConf(CLIENT_ID);
+
+            if (configMota.id != 0) { //La mota tiene una configuracion pendiente, se la enviamos, ademas con esto hacemos un ack implicito (piggybacking)
+              sendConfigPacket(configMota);
+              //No eliminamos la configuracion hasta recibir DATA_CONF_ACK
+            } else { //No hay configuracion para la mota, ack normal
+              sendControlPacket(messageType::DATA_ACK, CLIENT_ID);
+            }
           }
-          
           break;
 
         case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
@@ -548,6 +661,40 @@ void sendControlPacket(messageType type, size_t clientID){
   Radio.Send((uint8_t *)&msg, realPacketSize);
 }
 
+//Esta funcion tiene como parametro la configuracion de la mota. Envia el paquete de configuracion a la misma.
+void sendConfigPacket(ConfData configMota){
+
+  Radio.Sleep( ); //Quitamos la radio del modo escucha
+
+  //Formamos el paquete.
+  LoRaMessage msg;
+  msg.type = messageType::DATA_CONF;
+
+  msg.length = sizeof(ConfData); //Tamaño de la carga util
+  msg.data.ConfData = configMota;
+  
+  msg.checksum = calculateChecksum(msg);
+
+  // Calcular el tamaño exacto del paquete.
+  // No vamos a enviar el tamaño completo del struct (244B) ya que el mensaje puede que no contenga el maximo tamaño posible (controldata vs sensordata) y estariamos desperdiciando tiempo valioso de trasmision
+  // En lugar de enviar paquetes estaticos de 244B enviaremos paquetes dinamicos para aprovechar mejor el tiempo de trasmision
+
+  // Calcula el tamaño real de los datos a transmitir:
+  // 1 (type) + 1 (length) + msg.length (datos reales) + 2 (checksum)
+
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+  
+  const size_t realPacketSize = headers + msg.length; //Carga util + headers
+
+  Serial.print("Enviando paquete de conf binario de ");
+  Serial.print(realPacketSize);
+  Serial.println(" bytes...");
+
+  // --- Transmisión ---
+  delay(10); //Esperamos un poco antes de enviar
+  Radio.Send((uint8_t *)&msg, realPacketSize);
+}
+
 //Esta funcion se usa para enviar un BEACON_RESPONSE cuando una mota lo solicita de forma previa con un BEACON_REQUEST
 //Espera un tiempo aleatorio entre 50-200ms para que todos los routers en el mismo alcance no colisionen a la vez, la probabilidad de que 2 emitan a la vez es baja.
 void sendBeaconResponse(){
@@ -580,6 +727,17 @@ void sendBeaconResponse(){
   delay(10); //Esperamos un poco antes de enviar
   Radio.Send((uint8_t *)&msg, realPacketSize);
 
+}
+
+char findChannelNumber(uint32_t ch){
+  char result = -1; // No encontrado por defecto
+  for(char i = 0; i<NUM_CHANELS; i++){
+    if(ch == channelList[i]){
+      result = i;
+      return result;
+    }
+  }
+  return result;
 }
 
 
@@ -618,7 +776,7 @@ void initializeLora(){
   RadioEvents.RxDone = OnRxDone;
 
   Radio.Init( &RadioEvents );
-  Radio.SetChannel( RF_FREQUENCY );
+  Radio.SetChannel( channel );
   Radio.SetTxConfig( MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                                   LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                                   LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
@@ -632,15 +790,23 @@ void initializeLora(){
 }
 
 void TaskDisplay(void *pvParameters) {
-  // Configuración inicial de la pantalla (si no la hiciste en setup)
-  // initializeOled(); 
   
-  DisplayStats localStats; // Copia local para pintar tranquilo
+  DisplayStats localStats; // Hacemos una copia local para dibujar en la pantalla sin condiciones de carrera
 
-  for (;;) { // Bucle infinito (como un loop propio)
+  for (;;) { // Bucle infinito
+
+    //Cogemos el mutex para leer globalButtonState y modificarlo si hace falta (core 1 tambien lo puede modificar)
+    
+    if (xSemaphoreTake(buttonStateMutex, (TickType_t)10) == pdTRUE) {
+      if(globalButtonState == SHORT_PRESS){
+        defaultMenu = !defaultMenu;
+        globalButtonState = NO_PRESS;
+      }
+      xSemaphoreGive(buttonStateMutex);
+    }
     
     // 1. COPIAR DATOS (SECCIÓN CRÍTICA)
-    // Intentamos coger el candado. Si el Core 1 lo tiene ocupado, esperamos máx 10ms.
+    // Intentamos coger el mutex. Si el Core 1 lo tiene ocupado, esperamos máx 10ms.
     if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
         
         // Copiamos rápido las variables globales a locales
@@ -650,25 +816,36 @@ void TaskDisplay(void *pvParameters) {
         localStats.tx_err = shared_tx_err;
         localStats.last_client = shared_lastClient;
         localStats.last_rssi = shared_rssi;
+        localStats.queueFull = shared_queueFull;
+        localStats.queueSize = shared_queueSize;
+        localStats.waiting_conf = shared_waiting_conf;
         
-        // Soltamos el candado inmediatamente para que la radio pueda seguir escribiendo
+        // Soltamos el mutex
         xSemaphoreGive(statsMutex);
     }
-
+    
     // 2. PINTAR EN PANTALLA (LENTO)
     // Esto puede tardar lo que quiera, NO bloqueará a la radio
     display.clear();
-    display.drawString(10, 0,  "=== FLoRa Router  ===");
-    display.drawString(0, 15, "ID: " + String(routerId) + " |" + String(SSID) + "[CH: " + String((int)numChannel) + "]"); 
-    display.drawString(0, 25, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
-    display.drawString(0, 35, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
-    display.drawString(0, 45, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));
+    if(defaultMenu){
+      display.drawString(10, 0,  "== FLoRa Router == 1/2");
+      display.drawString(0, 15, "ID: " + String(routerId) + " |" + String(SSID) + "[CH: " + String((int)numChannel) + "]"); 
+      display.drawString(0, 25, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
+      display.drawString(0, 35, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
+      display.drawString(0, 45, "RSSI: " + String(localStats.last_rssi) + " | RXID: " + String(localStats.last_client));
 
-    //Dibujar un candado cerrado si la red es privada y abierto si es publica
-    if(isPublic){
-      display.drawXbm(112, 17, emoji_width, emoji_height, icon_unlock);
+      //Dibujar un candado cerrado si la red es privada y abierto si es publica
+      if(isPublic){
+        display.drawXbm(120, 17, emoji_width, emoji_height, icon_unlock);
+      }else{
+        display.drawXbm(120, 17, emoji_width, emoji_height, icon_lock);
+      }
+
     }else{
-      display.drawXbm(112, 17, emoji_width, emoji_height, icon_lock);
+      display.drawString(10, 0,  "== FLoRa Router == 2/2");
+      display.drawString(0, 15, "Mote Data Q: " + String(localStats.queueSize));
+      display.drawString(0, 25, "Data Ovflw : " + String(localStats.queueFull));
+      display.drawString(0, 35, "Conf Pend  : " + String(localStats.waiting_conf));
     }
 
     // Barra de vida o animación para saber que no está colgado
@@ -677,9 +854,9 @@ void TaskDisplay(void *pvParameters) {
     display.display();
 
     // 3. DORMIR TAREA
-    // Actualizamos la pantalla 1 veces por segundo (cada 1000ms)
+    // Actualizamos la pantalla 1 veces por segundo (cada 700ms)
     // vTaskDelay es vital para no saturar el Core 0 y que el Watchdog no salte
-    vTaskDelay(1000 / portTICK_PERIOD_MS); 
+    vTaskDelay(700 / portTICK_PERIOD_MS); 
   }
 }
 
@@ -713,7 +890,6 @@ bool deleteClient(const size_t client){
   }
   return false;
 }
-//------------------------------------------------------------------------------------------------------------------------
 
 //------------------------------------------------Debug functions--------------------------------------------------------
 
@@ -770,14 +946,176 @@ void packageToSerial(LoRaMessage pkg, uint16_t size, int16_t rssi, int8_t snr){
   Serial.printf("6. SNR: %d\n", snr);
 }
 
-char findChannelNumber(uint32_t ch){
-  char result = -1; // No encontrado por defecto
-  for(char i = 0; i<NUM_CHANELS; i++){
-    if(ch == channelList[i]){
-      result = i;
-      return result;
+
+void checkButton() {
+  // Leemos el botón (recordamos que LOW es pulsado en Heltec V3)
+  bool currentState = (digitalRead(BUTTON_PIN) == LOW);
+
+  // 1. FLANCO DE BAJADA (Detectar inicio de pulsación)
+  if (currentState && !isPressing) {
+    isPressing = true;
+    pressStartTime = millis();
+  }
+
+  // 2. FLANCO DE SUBIDA (Detectar que se ha soltado)
+  if (!currentState && isPressing) {
+    isPressing = false;
+    
+    // Calculamos cuánto duró la pulsación
+    unsigned long duration = millis() - pressStartTime;
+
+    // 3. CLASIFICACIÓN DEL EVENTO
+    if (duration < DEBOUNCE_MS) {
+      //Cogemos el mutex para leer globalButtonState y modificarlo si hace falta (TaskDisplay tambien lo puede modificar)
+      if (xSemaphoreTake(buttonStateMutex, (TickType_t)10) == pdTRUE) {
+        // Fue ruido, no hacemos nada
+        globalButtonState = NO_PRESS; 
+        xSemaphoreGive(buttonStateMutex);
+      }
+      
+    } 
+    else if (duration < LONG_PRESS_MS) {
+      //Cogemos el mutex para leer globalButtonState y modificarlo si hace falta (TaskDisplay tambien lo puede modificar)
+      if (xSemaphoreTake(buttonStateMutex, (TickType_t)10) == pdTRUE) {
+        globalButtonState = SHORT_PRESS; 
+        xSemaphoreGive(buttonStateMutex);
+      }
+    } 
+    else {
+      //Cogemos el mutex para leer globalButtonState y modificarlo si hace falta (TaskDisplay tambien lo puede modificar)
+      if (xSemaphoreTake(buttonStateMutex, (TickType_t)10) == pdTRUE) {
+        globalButtonState = LONG_PRESS; 
+        xSemaphoreGive(buttonStateMutex);
+      }
     }
   }
-  return result;
 }
 
+void parseBigPacketResponse(String response){
+
+  JsonDocument doc; // Json dinamico , version 7
+  DeserializationError error = deserializeJson(doc, response);
+
+  if (error) {
+    Serial.print("Error al parsear el big-packet: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  JsonArray confArray = doc["conf"];
+
+  for (JsonObject item : confArray) {
+    // Seguridad básica
+    if (!item.containsKey("tg") || !item.containsKey("id")) continue; 
+
+    const char* tag = item["tg"];
+    
+    if (strcmp(tag, "r") == 0) { //Aplicamos la configuracion del router
+
+      if((size_t)item["id"] == routerId){ //Comprobamos que este router sea el target 
+        
+        uint16_t versionDeseada = (uint16_t)item["v"];
+
+        if (item.containsKey("p")) { //Parametros de configuracion
+
+          numChannel = item["p"]["c"] | numChannel;
+          channel = channelList[numChannel];
+          isPublic = item["p"]["eP"] | isPublic;
+
+          if(item["p"].containsKey("s")){
+            // Usar strncpy es más seguro que mempcpy para cadenas de texto
+            strncpy(SSID, item["p"]["s"], SSID_LENGTH - 1);
+            SSID[SSID_LENGTH - 1] = '\0'; // Asegurar el terminador nulo
+          }
+
+          //Actualizamos NETWORK_DATA usado en los beacon frames
+          strncpy(NETWORK_DATA.SSID, SSID, SSID_LENGTH);
+          NETWORK_DATA.isPublic = isPublic;
+        }
+
+        Radio.SetChannel( channel );
+        version = versionDeseada; //Una vez aplicamos los cambios actualizamos la version
+        Serial.println("Configuracion de Router actualizada.");
+      }
+
+    }
+    else if (strcmp(tag, "m") == 0) { // Aplicamos la configuración para motas
+      
+      size_t targetMoteId = item["id"];
+      int index = -1;
+
+      // 1. Buscamos si la mota ya tiene una configuración en la cola
+      for (size_t i = 0; i < motasConf.size(); i++) {
+        if (motasConf[i].id == targetMoteId) {
+          index = i;
+          break;
+        }
+      }
+
+      // 2. Si la mota NO existe en nuestra lista
+      if (index == -1) {
+        
+        // Comprobamos el límite de MAX_CLIENTS
+        if (motasConf.size() >= MAX_CLIENTS) {
+          Serial.printf("Aviso: No se pueden guardar más configs (Max %d alcanzado).\n", MAX_CLIENTS);
+          continue; // Pasamos a la siguiente iteración del for
+        }
+
+        ConfData nuevaConf;
+        nuevaConf.router = routerId; // Siempre asignamos el ID de este router
+        nuevaConf.id = targetMoteId;
+        nuevaConf.version = item["v"];
+
+        nuevaConf.sendInterval = 0; // 0 significará "Mantener actual", no tiene sentido un sendInterval de 0 minutos
+        nuevaConf.allowPublicConn = -1; // La mota mantiene su configuracion por defecto
+        
+        if (item.containsKey("p")) {
+          if (item["p"].containsKey("f")) {
+            nuevaConf.sendInterval = item["p"]["f"];
+          }
+          if (item["p"].containsKey("cP")) {
+            nuevaConf.allowPublicConn = item["p"]["cP"];
+          }
+        }
+
+        motasConf.push_back(nuevaConf);
+
+      } 
+      // 3. Si la mota YA existe, actualizamos SOLO los valores que vengan en el JSON
+      else {
+        
+        if (item.containsKey("v")) {
+          motasConf[index].version = item["v"];
+        }
+
+        if (item.containsKey("p")) {
+          // Comprobamos explícitamente cada campo para no sobreescribir con 0/false si falta
+          if (item["p"].containsKey("f")) {
+            motasConf[index].sendInterval = item["p"]["f"];
+          }
+          if (item["p"].containsKey("cP")) {
+            motasConf[index].allowPublicConn = item["p"]["cP"];
+          }
+        }
+      }
+    }
+  }
+  if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+    shared_waiting_conf = motasConf.size();
+    xSemaphoreGive(statsMutex);
+  }
+}
+
+//Funcion para buscar la configuracion de una mota, devuelve su configuracion pendiente o una configuracion con id = 0 en caso contrario 
+ConfData searchMotaConf(size_t id) {
+  for (size_t i = 0; i < motasConf.size(); i++) {
+    if (motasConf[i].id == id) {
+      return motasConf[i];
+    }
+  }
+
+  // Si no se encuentra:
+  ConfData notFound;
+  notFound.id = 0; 
+  return notFound;
+}
