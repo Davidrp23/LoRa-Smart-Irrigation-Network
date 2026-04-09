@@ -53,6 +53,8 @@
 #define RX_TIMEOUT_VALUE                            1000
 #define MAX_PAYLOAD_SIZE 240 // Max size for the Data field
 
+#define RSSI_THRESHOLD -80        // RSSI maximo para trasmitir, un valor mayor se considera que el canal esta ocupado o hay demasiado ruido ambiente
+
 //Lora chip events functions
 static RadioEvents_t RadioEvents;
 void OnTxDone( void );
@@ -206,7 +208,7 @@ void VextOFF(void) //Vext default OFF
 //--------------------------------------------------------GLOBAL VARIABLES--------------------------------------------------------------
 
 //Operating Router Params
-const size_t routerId = 1; // Los id son siempre > 0
+const size_t routerId = 2; // Los id son siempre > 0
 
 //Pueden cambiar durante la ejecucion
 char SSID[SSID_LENGTH] = "TOM_SUR";
@@ -232,6 +234,7 @@ struct DisplayStats {
   size_t queueFull;
   uint8_t queueSize;
   uint8_t waiting_conf;
+  uint16_t channelBusyErrors;
 };
 
 // Variables globales oled
@@ -243,6 +246,7 @@ volatile int16_t shared_rssi = 0;
 volatile size_t shared_queueFull = 0;
 volatile uint8_t shared_queueSize = 0;
 volatile uint8_t shared_waiting_conf = 0;
+volatile uint16_t shared_channelBusyErrors = 0;
 
 //Router params
 size_t connectedClients[MAX_CLIENTS];
@@ -294,21 +298,21 @@ String bigPacketResponse = R"raw(
     "conf": [
         {
             "tg": "r",
-            "id": 1,
+            "id": 2,
             "v": 4,
             "p": {
-                "c": 2,
-                "s": "RED_LEB",
+                "c": 3,
+                "s": "RED_TOM",
                 "eP": true
             }
         },
         {
             "tg": "m",
-            "id": 2,
+            "id": 50,
             "v": 7,
             "p": {
                 "f": 240,
-                "cP": false
+                "cP": true
             }
         }
     ]
@@ -581,12 +585,17 @@ void process(LoRaMessage incomingPackage){
               sendControlPacket(messageType::NODE_LEAVING_ACK, CLIENT_ID);
             }
           break;
+
+        case messageType::DATA_CONF_ACK : // La mota indica que recibio y aplico la configuracion, el router puede eliminar la configuracion de esa mota de la cola de confg pendientes
+          Serial.printf("La mota con ID: %d ha respondido que ha recibido la configuracion. Eliminando configuracion de la cola...\n" , CLIENT_ID);
+          deleteMotaConf(CLIENT_ID);
+          break;
         
-        case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino, lo enviamos de nuevo.
+        case messageType::INVALID : // El nodo envia INVALID, lo que quiere decir que el ultimo mensaje que enviamos estaba malformado o se corrompio por el camino.
           Serial.println("La mota ha respondido que el ultimo paquete que recibio es invalido, posible colision.");
           break;
 
-        default: // Caso no esperado, enviamos NAK para que lo envie de nuevo (posible corrupcion?)
+        default: // Caso no esperado
           Serial.printf("El router ha recibido un paquete de tipo %X, lo cual no estaba previsto.\n",incomingPackage.type);
           break;
 
@@ -657,8 +666,23 @@ void sendControlPacket(messageType type, size_t clientID){
   Serial.println(" bytes...");
 
   // --- Transmisión ---
-  delay(10); //Esperamos un poco antes de enviar
-  Radio.Send((uint8_t *)&msg, realPacketSize);
+  int8_t attempts = 3; //Intentos para trasmitir, si en los 3 (con esperas aleatorias) falla, cancelamos y devolvemos false
+  delay(50); //jitter de espera  antes de enviar, por si acabamos de recibir un mensaje, esperamos a que el ruido se vaya.
+  while(attempts > 0){
+
+    if (IsChannelFree()) {
+      Radio.Send((uint8_t *)&msg, realPacketSize);
+      return;
+    } else {
+      int16_t currentRssi = Radio.Rssi(MODEM_LORA); 
+      Serial.printf("DEBUG -> Intento %d: Canal ocupado. RSSI actual: %d dBm (Límite: %d)\n", 4 - attempts, currentRssi, RSSI_THRESHOLD);
+      delay(random(50,200)); //jitter de espera aleatoria para iniciar un nuevo intent
+      shared_channelBusyErrors++;  
+    }
+    attempts--;
+  }
+
+  Serial.printf("No se ha podido enviar el mensaje. Causa: Canal ocupado.\n");
 }
 
 //Esta funcion tiene como parametro la configuracion de la mota. Envia el paquete de configuracion a la misma.
@@ -691,8 +715,23 @@ void sendConfigPacket(ConfData configMota){
   Serial.println(" bytes...");
 
   // --- Transmisión ---
-  delay(10); //Esperamos un poco antes de enviar
-  Radio.Send((uint8_t *)&msg, realPacketSize);
+  int8_t attempts = 3; //Intentos para trasmitir, si en los 3 (con esperas aleatorias) falla, cancelamos y devolvemos false
+  delay(50); //jitter de espera  antes de enviar, por si acabamos de recibir un mensaje, esperamos a que el ruido se vaya.
+  while(attempts > 0){
+
+    if (IsChannelFree()) {
+      Radio.Send((uint8_t *)&msg, realPacketSize);
+      return;
+    } else {
+      int16_t currentRssi = Radio.Rssi(MODEM_LORA); 
+      Serial.printf("DEBUG -> Intento %d: Canal ocupado. RSSI actual: %d dBm (Límite: %d)\n", 4 - attempts, currentRssi, RSSI_THRESHOLD);
+      delay(random(50,200)); //jitter de espera aleatoria para iniciar un nuevo intent
+      shared_channelBusyErrors++;  
+    }
+    attempts--;
+  }
+
+  Serial.printf("No se ha podido enviar el mensaje. Causa: Canal ocupado.\n");
 }
 
 //Esta funcion se usa para enviar un BEACON_RESPONSE cuando una mota lo solicita de forma previa con un BEACON_REQUEST
@@ -724,9 +763,23 @@ void sendBeaconResponse(){
   Serial.printf("En la informacion de red enviada el router es publico: %d\n", msg.data.NetworkData.isPublic);
 
   // --- Transmisión ---
-  delay(10); //Esperamos un poco antes de enviar
-  Radio.Send((uint8_t *)&msg, realPacketSize);
+  int8_t attempts = 3; //Intentos para trasmitir, si en los 3 (con esperas aleatorias) falla, cancelamos y devolvemos false
+  delay(50); //jitter de espera  antes de enviar, por si acabamos de recibir un mensaje, esperamos a que el ruido se vaya.
+  while(attempts > 0){
 
+    if (IsChannelFree()) {
+      Radio.Send((uint8_t *)&msg, realPacketSize);
+      return;
+    } else {
+      int16_t currentRssi = Radio.Rssi(MODEM_LORA); 
+      Serial.printf("DEBUG -> Intento %d: Canal ocupado. RSSI actual: %d dBm (Límite: %d)\n", 4 - attempts, currentRssi, RSSI_THRESHOLD);
+      delay(random(50,200)); //jitter de espera aleatoria para iniciar un nuevo intent
+      shared_channelBusyErrors++;  
+    }
+    attempts--;
+  }
+
+  Serial.printf("No se ha podido enviar el mensaje. Causa: Canal ocupado.\n");
 }
 
 char findChannelNumber(uint32_t ch){
@@ -819,6 +872,7 @@ void TaskDisplay(void *pvParameters) {
         localStats.queueFull = shared_queueFull;
         localStats.queueSize = shared_queueSize;
         localStats.waiting_conf = shared_waiting_conf;
+        localStats.channelBusyErrors = shared_channelBusyErrors;
         
         // Soltamos el mutex
         xSemaphoreGive(statsMutex);
@@ -843,9 +897,10 @@ void TaskDisplay(void *pvParameters) {
 
     }else{
       display.drawString(10, 0,  "== FLoRa Router == 2/2");
-      display.drawString(0, 15, "Mote Data Q: " + String(localStats.queueSize));
+      display.drawString(0, 15, "Mote Data Q : " + String(localStats.queueSize));
       display.drawString(0, 25, "Data Ovflw : " + String(localStats.queueFull));
-      display.drawString(0, 35, "Conf Pend  : " + String(localStats.waiting_conf));
+      display.drawString(0, 35, "Conf Pend : " + String(localStats.waiting_conf));
+      display.drawString(0, 45, "ChannelBusyErrors : " + String(localStats.channelBusyErrors));
     }
 
     // Barra de vida o animación para saber que no está colgado
@@ -854,9 +909,9 @@ void TaskDisplay(void *pvParameters) {
     display.display();
 
     // 3. DORMIR TAREA
-    // Actualizamos la pantalla 1 veces por segundo (cada 700ms)
+    // Actualizamos la pantalla 2 veces por segundo (cada 500ms)
     // vTaskDelay es vital para no saturar el Core 0 y que el Watchdog no salte
-    vTaskDelay(700 / portTICK_PERIOD_MS); 
+    vTaskDelay(500 / portTICK_PERIOD_MS); 
   }
 }
 
@@ -1118,4 +1173,31 @@ ConfData searchMotaConf(size_t id) {
   ConfData notFound;
   notFound.id = 0; 
   return notFound;
+}
+
+//Funcion para eliminar la configuracion de una mota
+void deleteMotaConf(size_t id) {
+  for (size_t i = 0; i < motasConf.size(); i++) {
+    if (motasConf[i].id == id) {
+      motasConf.erase(motasConf.begin() + i);
+      if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+        shared_waiting_conf = motasConf.size();
+        xSemaphoreGive(statsMutex);
+      }
+    }
+  }
+}
+
+/**
+ * Comprueba si el canal está libre basándose en el RSSI actual.
+ */
+bool IsChannelFree() {
+
+  int16_t currentRssi = Radio.Rssi(MODEM_LORA);
+  
+  if (currentRssi < RSSI_THRESHOLD) {
+      return true;
+  }
+
+  return false;
 }
