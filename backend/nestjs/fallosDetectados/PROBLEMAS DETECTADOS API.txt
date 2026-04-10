@@ -12,7 +12,7 @@ TAREAS PENDIENTES (HARDWARE)
 1) Implementar en las motas/routers la lectura del medio antes de trasmitir (evitar colisiones) (logica de intentos) (actualizar stadisticas) -- ok
 2) Implementar intentos en la recepcion de datos (motas) (actualizar stadisticas) --- ok
 3) Implementar en las motas la logica para saltar a un router publico (join request infinito en mota) -- ok
-4) Implementar un menu para obtener de nuevo la ubicacion o cambiar de red
+4) Implementar un menu para obtener de nuevo la ubicacion o cambiar de red -- ok
 5) Implementar el comportamiento de unirse a una red cuando esta es privada (diseñar solucion e implemtentarla) (join denied) (cuando es publica se une sin mas) 
 6) Implemtentar el deep sleep en las motas y asegurarse la persistencia de los datos (router guardado)
 7) Probar el objeto de comunicacion con el AM

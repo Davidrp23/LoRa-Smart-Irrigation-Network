@@ -6,7 +6,6 @@
 #include <vector>
 #include <algorithm>  // Necesario para std::sort
 
-
 //----------------------------------LORA PARAMETERS--------------------------------
 #define NUM_CHANELS 4
 
@@ -235,8 +234,6 @@ const uint32_t channelList[] = {
   CHANEL_3   // Canal 3 (Alta potencia / Reserva)
 };
 
-
-
 //---------------------------------------------------------------------------------------
 
 //Maquina de estados
@@ -299,8 +296,6 @@ void setup() {
   currentState = STATE_START_SCAN;
   Serial.println("--- MOTA INICIADA ---");
 }
-
-
 
 // ---------------- LOOP PRINCIPAL ----------------
 void loop() {
@@ -705,16 +700,52 @@ void updateOled() {
   if (globalButtonState == SHORT_PRESS) {
     defaultMenu++;
     needDisplayUpdate = true;  //La primera vez se tiene que dibujar la pantalla, luego actualizar manualmente cuando sea necesario.
-    if (defaultMenu > 3) defaultMenu = 0;
+    if (defaultMenu > 5) defaultMenu = 0;
     globalButtonState = NO_PRESS;
+  }
+
+  if(globalButtonState == LONG_PRESS){
+
+    if(defaultMenu == 4){ //El usuario quiere escanear las redes FLoRa
+    //Mostramos un aviso de lo que se va a hacer
+    Serial.println("El ususario ha activado el escaneo de redes desde la oled");
+    display.clear();
+    display.drawString(40, 15, "[Scaning]");
+    display.drawString(20, 35, "[Please be patient]");
+    display.display();
+    delay(2000);
+
+    //Borramos la red actual y comenzamos a escanear (si borramos la red actual, como el id del router es 0, empezara el escaneo con menu, no el automatico para conectarse a router publico)
+    selectedNW = { 0 };
+    defaultMenu = 0; //Para que el usuario vea como se escanean las redes en la parte inferior de la pantalla.
+    currentState = STATE_START_SCAN; //Empezamos el escaneo
+    needDisplayUpdate = true;
+
+
+
+
+    }else if(defaultMenu == 5){ //El usuario quiere obtener las coordenadas del gps
+      //Mostramos un aviso de lo que se va a hacer
+      Serial.println("El ususario ha activado el refresco de coordenadas desde la oled");
+      display.clear();
+      display.drawString(30, 15, "[Updating GPS]");
+      display.drawString(20, 35, "[Please be patient]");
+      display.display();
+      delay(2000);
+
+      gpsUpdate(); //Actualizamos las coordenadas
+      needDisplayUpdate = true;
+
+    }
+    globalButtonState = NO_PRESS; //Refrescamos la accion de pulsar el boton
   }
 
   if (defaultMenu == 0 && needDisplayUpdate) {
 
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 1/4");
+    display.drawString(10, 0, "=== FLoRa Node === 1/6");
 
-    if (TARGET_ROUTER_ID != 0) {
+    if (selectedNW.info.router != 0) {
       display.drawString(0, 10, "Conected: " + String(currentNetwork));
       display.drawString(0, 20, "RSSI: " + String(lastRssi));
     } else {
@@ -742,7 +773,7 @@ void updateOled() {
   } else if (defaultMenu == 1 && needDisplayUpdate) {
 
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 2/4");
+    display.drawString(10, 0, "=== FLoRa Node === 2/6");
     display.drawString(0, 10, "Rx_err: " + String(rx_err));
     display.drawString(0, 20, "Tx_err: " + String(tx_err));
     display.drawString(0, 30, "ChannelBusyErrors: " + String(channelBusyErrors));
@@ -754,7 +785,7 @@ void updateOled() {
 
   } else if (defaultMenu == 2 && needDisplayUpdate) {
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 3/4");
+    display.drawString(10, 0, "=== FLoRa Node === 3/6");
     display.drawString(0, 10, "SendInterval: " + String(((float)sendInterval / 1000) / 60) + " min");
     display.drawString(0, 20, "AllowPublicConn: " + String(allowPublicConn == 0 ? "False" : "True"));
     display.drawString(0, 30, "Config Version: " + String(version) + ".0");
@@ -764,7 +795,7 @@ void updateOled() {
 
   } else if (defaultMenu == 3 && needDisplayUpdate) {
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 4/4");
+    display.drawString(10, 0, "=== FLoRa Node === 4/6");
     display.drawString(0, 10, "Bat: " + String(battery) + "%");
     display.drawString(0, 20, "Hum: " + String(humidity) + "%");
 
@@ -774,6 +805,38 @@ void updateOled() {
       display.drawString(0, 50, "Long: " + String(longitude, 6));
     } else {
       display.drawString(0, 30, "GPS: FAIL");
+    }
+
+    display.display();
+    needDisplayUpdate = false;
+  } else if (defaultMenu == 4 && needDisplayUpdate) {
+    display.clear();
+    display.drawString(10, 0, "=== FLoRa Node === 5/6");
+    display.drawString(20, 10, "[NETWORK SCAN]");
+    display.drawString(0, 25, "Long Press to scan FLoRa");
+    display.drawString(35, 35, "Networks");
+    
+
+    if (selectedNW.info.router != 0) {
+      display.drawString(0, 50, "Conected: " + String(currentNetwork));
+    } else {
+      display.drawString(0, 50, "Not Conected");
+    }
+
+    display.display();
+    needDisplayUpdate = false;
+
+  }else if (defaultMenu == 5 && needDisplayUpdate) {
+    display.clear();
+    display.drawString(10, 0, "=== FLoRa Node === 6/6");
+    display.drawString(30, 10, "[UPDATE GPS]");
+    display.drawString(0, 25, "Long Press to obtain GPS");
+    display.drawString(35, 35, " coordinates");
+
+    if (latitude != 0 && longitude != 0) {
+      display.drawString(0, 50, "GPS: OK");
+    }else {
+      display.drawString(0, 50, "GPS: FAIL");
     }
 
     display.display();
@@ -1042,4 +1105,12 @@ bool IsChannelFree() {
   }
 
   return false;
+}
+
+void gpsUpdate(){
+  delay(3000); //Delay artificial
+  //De momento actualizamos las coordenadas de forma artificial:
+  latitude = 37.346;
+  longitude = -5.950;
+
 }
