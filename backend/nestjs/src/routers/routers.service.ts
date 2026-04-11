@@ -138,7 +138,7 @@ export class RoutersService {
   }
 
   async isPublic(usuarioId: number = 0, apiToken: string = "", id: number): Promise<boolean> {
-    
+    //En desuso
     let router: { esPublico: boolean | null } | null = null;
 
     if (apiToken !== "") {
