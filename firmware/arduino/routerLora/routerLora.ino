@@ -235,6 +235,7 @@ struct DisplayStats {
   uint8_t queueSize;
   uint8_t waiting_conf;
   uint16_t channelBusyErrors;
+  int8_t connectedClients;
 };
 
 // Variables globales oled
@@ -247,6 +248,8 @@ volatile size_t shared_queueFull = 0;
 volatile uint8_t shared_queueSize = 0;
 volatile uint8_t shared_waiting_conf = 0;
 volatile uint16_t shared_channelBusyErrors = 0;
+volatile int8_t shared_connectedClients = 0; //Lo ponemos con signo para detectar cuando se desborda al restar (shared_connectedClients < 0 ---> shared_connectedClients = 0)
+
 
 //Router params
 size_t connectedClients[MAX_CLIENTS];
@@ -282,7 +285,7 @@ unsigned long pressStartTime = 0;
 bool isPressing = false;
 volatile ButtonEvent globalButtonState = NO_PRESS;
 //OLED UI 
-bool defaultMenu = 1; //Indica que vista del menu se tiene. 1 indica los datos visualizados por defecto 0 los demas... Todos no caben en 1 pantalla
+uint8_t defaultMenu = 0; //Indica que vista del menu se tiene. Todos los datos no caben en 1 pantalla
 
 // --- CONSTANTES DE TIEMPO ---
 #define BUTTON_PIN 0            // Botón PRG en Heltec V3
@@ -564,6 +567,11 @@ void process(LoRaMessage incomingPackage){
             addClient(CLIENT_ID);
             Serial.printf("El nodo %d se ha conectado a la red.\n", CLIENT_ID);
             //Le informamos de que ha sido incorporado en la red
+            // Actualizamos estadística de clientes conectados
+            if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+              shared_connectedClients++;
+              xSemaphoreGive(statsMutex);
+            }
           }else{
             Serial.printf("El nodo %d se ha intentado conectar a la red, pero ya estaba conectado.\n", CLIENT_ID);
             //Le respondemos que aceptamos su peticion pero no hacemos cambios en la lista de clientes.
@@ -577,13 +585,18 @@ void process(LoRaMessage incomingPackage){
             //Comprobamos si el cliente esta conectado ya a la red
             if(getClientIndex(CLIENT_ID) == (char)-1){
               //El nodo no estaba en la red, no hacemos nada.
-              Serial.printf("El nodo %d se ha intentado desconectarse de la red, pero no estaba en ella.\n", CLIENT_ID);
+              Serial.printf("El nodo %d se ha intentado desconectarse de la red, pero no estaba en ella.\n", CLIENT_ID); 
             }else{
-              Serial.printf("El nodo %d se esta intentando desconectar de la red.\n", CLIENT_ID);
+              Serial.printf("El nodo %d se ha desconectado de la red.\n", CLIENT_ID);
               //Le respondemos que su solicitud de abandonar la red ha sido procesada con exito
               deleteClient(CLIENT_ID);
-              sendControlPacket(messageType::NODE_LEAVING_ACK, CLIENT_ID);
+              if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+                shared_connectedClients--;
+                if(shared_connectedClients < 0) shared_connectedClients = 0; //Por si acaso
+                xSemaphoreGive(statsMutex);
+              }
             }
+            sendControlPacket(messageType::NODE_LEAVING_ACK, CLIENT_ID); //Le hacemos llegar que hemos recibido el mensaje
           break;
 
         case messageType::DATA_CONF_ACK : // La mota indica que recibio y aplico la configuracion, el router puede eliminar la configuracion de esa mota de la cola de confg pendientes
@@ -852,7 +865,8 @@ void TaskDisplay(void *pvParameters) {
     
     if (xSemaphoreTake(buttonStateMutex, (TickType_t)10) == pdTRUE) {
       if(globalButtonState == SHORT_PRESS){
-        defaultMenu = !defaultMenu;
+        defaultMenu++;
+        if (defaultMenu > 2) defaultMenu = 0;
         globalButtonState = NO_PRESS;
       }
       xSemaphoreGive(buttonStateMutex);
@@ -873,6 +887,7 @@ void TaskDisplay(void *pvParameters) {
         localStats.queueSize = shared_queueSize;
         localStats.waiting_conf = shared_waiting_conf;
         localStats.channelBusyErrors = shared_channelBusyErrors;
+        localStats.connectedClients = shared_connectedClients;
         
         // Soltamos el mutex
         xSemaphoreGive(statsMutex);
@@ -881,8 +896,8 @@ void TaskDisplay(void *pvParameters) {
     // 2. PINTAR EN PANTALLA (LENTO)
     // Esto puede tardar lo que quiera, NO bloqueará a la radio
     display.clear();
-    if(defaultMenu){
-      display.drawString(10, 0,  "== FLoRa Router == 1/2");
+    if(defaultMenu == 0){
+      display.drawString(10, 0,  "== FLoRa Router == 1/3");
       display.drawString(0, 15, "ID: " + String(routerId) + " |" + String(SSID) + "[CH: " + String((int)numChannel) + "]"); 
       display.drawString(0, 25, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
       display.drawString(0, 35, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
@@ -895,12 +910,16 @@ void TaskDisplay(void *pvParameters) {
         display.drawXbm(120, 17, emoji_width, emoji_height, icon_lock);
       }
 
-    }else{
-      display.drawString(10, 0,  "== FLoRa Router == 2/2");
+    }else if (defaultMenu == 1){
+      display.drawString(10, 0,  "== FLoRa Router == 2/3");
       display.drawString(0, 15, "Mote Data Q : " + String(localStats.queueSize));
       display.drawString(0, 25, "Data Ovflw : " + String(localStats.queueFull));
       display.drawString(0, 35, "Conf Pend : " + String(localStats.waiting_conf));
       display.drawString(0, 45, "ChannelBusyErrors : " + String(localStats.channelBusyErrors));
+
+    }else if (defaultMenu == 2){
+      display.drawString(10, 0,  "== FLoRa Router == 3/3");
+      display.drawString(0, 15, "Clients : " + String(localStats.connectedClients));
     }
 
     // Barra de vida o animación para saber que no está colgado

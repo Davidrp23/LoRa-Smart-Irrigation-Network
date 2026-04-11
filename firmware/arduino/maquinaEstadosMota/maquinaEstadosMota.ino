@@ -450,16 +450,15 @@ void OnTxDone(void) {
   if (currentState == STATE_TX_SCAN) {
     currentState = STATE_RX_SCAN;
     stateStartTime = millis();  // Reset para watchdog
-    Radio.Rx(0);
   } else if (currentState == STATE_TX_JOIN) {
     currentState = STATE_RX_JOIN;
-    stateStartTime = millis();
-    Radio.Rx(0);
+    stateStartTime = millis();  // Reset para watchdog
   } else if (currentState == STATE_TX_DATA) {
     currentState = STATE_RX_DATA;
-    stateStartTime = millis();
-    Radio.Rx(0);
+    stateStartTime = millis();  // Reset para watchdog
   }
+
+  Radio.Rx(0); //Cuando se envia algo ponemos la radio en modo recepcion
 }
 
 void OnTxTimeout(void) {  //Falla al trasmitir por LoRA
@@ -548,6 +547,18 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
         lastSleepTime = millis();  // Marcamos hora de dormir
         currentState = STATE_START_JOIN;
       }
+      break;
+
+    case messageType::NODE_LEAVING_ACK: //El router recibio nuestra peticion para salir de la red
+      if (!isForMe(incomingMsg.data.ControlData.id)) return;
+
+      Serial.println("El router confirma que podemos irnos de la red");
+      //Borramos la red actual y comenzamos a escanear (si borramos la red actual, como el id del router es 0, empezara el escaneo con menu, no el automatico para conectarse a router publico)
+      selectedNW = { 0 };
+      defaultMenu = 0; //Para que el usuario vea como se escanean las redes en la parte inferior de la pantalla.
+      currentState = STATE_START_SCAN; //Empezamos el escaneo
+      needDisplayUpdate = true;
+      
       break;
   }
 }
@@ -665,6 +676,17 @@ void sendJoinRequest() {
   }
 }
 
+void sendNodeLeaving() {
+  LoRaMessage msg;
+  msg.type = messageType::NODE_LEAVING; //Informamos al router que nos vamos de la red
+  ControlData cdata;
+  cdata.router = TARGET_ROUTER_ID;
+  cdata.id = MY_NODE_ID;
+  msg.data.ControlData = cdata;
+  msg.length = sizeof(ControlData);
+  sendMessage(msg);
+}
+
 void sendSensorData() {
   LoRaMessage msg;
   msg.type = messageType::DATA;
@@ -715,13 +737,7 @@ void updateOled() {
     display.display();
     delay(2000);
 
-    //Borramos la red actual y comenzamos a escanear (si borramos la red actual, como el id del router es 0, empezara el escaneo con menu, no el automatico para conectarse a router publico)
-    selectedNW = { 0 };
-    defaultMenu = 0; //Para que el usuario vea como se escanean las redes en la parte inferior de la pantalla.
-    currentState = STATE_START_SCAN; //Empezamos el escaneo
-    needDisplayUpdate = true;
-
-
+    sendNodeLeaving(); //informamos al router de que nos vamos de la red. cuando recibamos NODE_LEAVING_ACK empezaremos el escaneo 
 
 
     }else if(defaultMenu == 5){ //El usuario quiere obtener las coordenadas del gps
@@ -737,6 +753,7 @@ void updateOled() {
       needDisplayUpdate = true;
 
     }
+
     globalButtonState = NO_PRESS; //Refrescamos la accion de pulsar el boton
   }
 

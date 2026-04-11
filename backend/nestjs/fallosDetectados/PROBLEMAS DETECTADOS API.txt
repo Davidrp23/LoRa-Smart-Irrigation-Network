@@ -20,6 +20,6 @@ TAREAS PENDIENTES (HARDWARE)
 9) Implementar la logica de envio del big-packet en el router
 10) PCB + CARCASA (justo de tiempo)
 
-
+--No se usa node_leaving en las motas
 
 
