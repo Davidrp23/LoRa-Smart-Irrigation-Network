@@ -5,6 +5,7 @@
 #include "images.h"
 #include <vector>
 #include <algorithm>  // Necesario para std::sort
+#include "sensors.h"
 
 //----------------------------------LORA PARAMETERS--------------------------------
 #define NUM_CHANELS 4
@@ -23,6 +24,7 @@
 #define LORA_FIX_LENGTH_PAYLOAD_ON false
 #define LORA_IQ_INVERSION_ON false
 #define RX_TIMEOUT_VALUE 3000  // Aumentado a 3000 para dar margen
+#define RX_PRIVATE_NW_JOIN_TIMEOUT_VALUE 180000  // 180000 (3 minutos de timeout) ya que el router tiene que encender el AM para consultar con el backend (el AM tarda en conectarse al GPRS)
 #define MAX_PAYLOAD_SIZE 240
 
 #define RSSI_THRESHOLD -80  // RSSI maximo para trasmitir, un valor mayor se considera que el canal esta ocupado o hay demasiado ruido ambiente
@@ -92,6 +94,7 @@ struct ScannedNetwork {
   NetworkData info;
   int16_t rssi;
   uint8_t channel;
+  bool connected;
 };
 
 typedef struct __attribute__((packed)) {
@@ -135,6 +138,15 @@ typedef struct __attribute__((packed)) {
 
   uint16_t version;  // Version de la configuracion de la mota
 
+  //Telemetria:
+  uint16_t receivedPackets;
+  uint16_t sendedPackets;
+  int16_t lastRssi;
+  uint16_t rx_err;
+  uint16_t tx_err;
+  uint16_t channelBusyErrors;
+  uint16_t missingAckErrors;
+
 } SensorsData;
 
 typedef struct __attribute__((packed)) {
@@ -159,7 +171,6 @@ typedef struct __attribute__((packed)) {
 
 //ID'S
 const size_t MY_NODE_ID = 50;
-size_t TARGET_ROUTER_ID = 0;  //--> PERSIISTIR ENTRE REINICIOS
 char currentNetwork[SSID_LENGTH];
 ScannedNetwork selectedNW = { 0 };  //--> PERSIISTIR ENTRE REINICIOS
 
@@ -188,10 +199,9 @@ int8_t changeRouterAttempts = 7; //Veces seguidas en las que se produce RXTimeOU
 
 
 //Sensores
-uint8_t humidity = 75;
+humData myHumData = {0};
 uint8_t battery = 90;
-float latitude = 40.4167;
-float longitude = -3.7037;
+GpsData myGpsData = {0}; 
 
 //----------------------------------Control pantalla ----------------------------------
 
@@ -251,12 +261,14 @@ enum MotaState {
   STATE_START_DATA,
   STATE_TX_DATA,
   STATE_RX_DATA,
-  STATE_SLEEP
+  STATE_SLEEP,
+  STATE_LEAVING_NETWORK
 };
 
 MotaState currentState = STATE_INIT;
 unsigned long stateStartTime = 0;
 unsigned long lastSleepTime = 0;  // Para el sleep no bloqueante
+unsigned long startLeavingState = 0;  
 
 static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
 static RadioEvents_t RadioEvents;
@@ -293,15 +305,26 @@ void setup() {
 
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
 
+  if(!gpsInit()){
+    Serial.println("Fallo la inicializacion del GPS");
+  }
+  if(!humInit()){
+    Serial.println("Fallo la inicializacion del lector de humedad");
+  }
+
+  readHum(myHumData);
+  if(myHumData.isValid){
+    Serial.printf("Lectura de humedad correcta. HUM: %d  | RAW: %d\n", myHumData.percentage, myHumData.rawValue);
+  }else{
+    Serial.println("Fallo la lectura de la humedad.");
+  }
+
   currentState = STATE_START_SCAN;
   Serial.println("--- MOTA INICIADA ---");
 }
 
 // ---------------- LOOP PRINCIPAL ----------------
 void loop() {
-  //REVISION DE BANDERAS LORA
-  Radio.IrqProcess();
-
   // 1. GESTION DE PANTALLA
 
   // Si estamos eligiendo red, la pantalla la controla el menú exclusivo
@@ -312,6 +335,9 @@ void loop() {
   else {
     updateOled();
   }
+
+  //REVISION DE BANDERAS LORA
+  Radio.IrqProcess();
 
   //GESTION BOTON:
   checkButton();
@@ -356,8 +382,9 @@ void loop() {
           selectedNetworkIndex = 0;                  // Resetear cursor
           currentState = STATE_WAIT_USER_SELECTION;  // <--- Vamos al menú
 
-        }else if(selectedNW.info.router != 0 && allowPublicConn == 1){ //Teniamos una red guardada y podemos conectarnos a un router publico, si hemos llegado aqui es porque el router actual 
-        //no contesta en multiples ocasiones, se conecta automaticamente al router publico con mayor señal.
+        }else if(selectedNW.info.router != 0 && selectedNW.connected && allowPublicConn == 1){ //Teniamos una red guardada y conectada, ademas, 
+        //podemos conectarnos a un router publico, si hemos llegado aqui es porque el router actual 
+        //no contesta en multiples ocasiones, se conecta automaticamente al router publico con mayor señal si es posible.
 
           if (foundNetworks.empty()) {
             Serial.println("No se encontraron redes. (auto)");
@@ -372,7 +399,6 @@ void loop() {
 
             if(sc.info.isPublic){
               selectedNW = sc;
-              TARGET_ROUTER_ID = selectedNW.info.router;
               memcpy(currentNetwork, selectedNW.info.SSID, SSID_LENGTH);
               Radio.SetChannel(channelList[selectedNW.channel]);  //Seteamos la radio a ese canal
               Serial.printf("Intentando la conexion con un router publico (R_ID: %d) (auto)\n",sc.info.router);
@@ -382,6 +408,8 @@ void loop() {
           }
           
           Serial.println("Se encontro al menos una red pero ninguna era publica.");
+          lastSleepTime = millis();    // Marcamos hora de dormir
+          currentState = STATE_SLEEP;  //Nos ponemos a dormir, se intentara otra vez si el router falla de nuevo (watchdogRX)
           
         }
         
@@ -421,7 +449,7 @@ void loop() {
     case STATE_SLEEP:
       // Usamos millis en vez de delay
       if (millis() - lastSleepTime > sendInterval) {
-        Serial.println("Despertando...");
+        Serial.print("Despertando...");
 
         // --- RECARGAMOS LOS INTENTOS AL EMPEZAR UN NUEVO CICLO ---
         TXattempts = 3;
@@ -430,10 +458,27 @@ void loop() {
 
         if(selectedNW.info.router == 0){  // No tiene red, ya que el id del router no puede ser 0
           currentState = STATE_START_SCAN; //Empieza un nuevo scaneo
-        }else{ //Tiene red, enviar datos...
+          Serial.println("  | Sin red seleccionada.");
+        }else if(!selectedNW.connected){ //Tiene una red seleccionada pero no ha recibido el JOIN_ACEPTED
+          currentState = STATE_START_JOIN; //Le manda otro JOIN_REQ 
+          Serial.println("  | Red seleccionada pero no hemos sido aceptados.");
+        }else{//Tiene red, enviar datos...
+          Serial.println("  | Enviando datos.");
           currentState = STATE_START_DATA;
         }
-        
+      }
+      break;
+
+    case STATE_LEAVING_NETWORK:
+      if(millis() - startLeavingState > 2000 ){ //Esperamos 2s la respuesta del router y pasamos al siguiente estado
+        //Borramos la red actual y comenzamos a escanear (si borramos la red actual, como el id del router es 0, empezara el escaneo con menu, no el automatico para conectarse a router publico)
+        //Podriamos poner este bloque de codigo en  case messageType::NODE_LEAVING_ACK: (onRXdone) asi aseguramos borrar la red cuando el router nos ha eliminado 
+        //como clientes, eso ayudaria a no tener nodos fantasmas en los routers manteniendo la coerencia en la red, PERO, si el router no esta disponible nunca podriamos
+        //Cambiar de red. De esta forma le damos una oportunidad al router de eliminarnos cuando nos vamos de la red.
+        selectedNW = { 0 };
+        defaultMenu = 0; //Para que el usuario vea como se escanean las redes en la parte inferior de la pantalla.
+        currentState = STATE_START_SCAN; //Empezamos el escaneo
+        needDisplayUpdate = true;
       }
       break;
   }
@@ -486,11 +531,8 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   memcpy(&incomingMsg, payload, min((size_t)size, (size_t)MIN_SIZE + MAX_PAYLOAD_SIZE));
 
   if (calculateChecksum(incomingMsg) != incomingMsg.checksum) {
-    Serial.println("Checksum ERROR.");
     rx_err++;
-    TXattempts = 3; // <--- EXITO: Recargamos intentos
-    RXattempts = 3; // <--- EXITO: Recargamos intentos
-    changeRouterAttempts = 7; //Restablecemos la variable, hemos restablecido la comunicacion con el router.
+    Serial.println("Checksum ERROR.");
     return;
   }
 
@@ -498,8 +540,15 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   lastRssi = rssi;
   needDisplayUpdate = true;  // Avisamos al loop
 
+  if (incomingMsg.data.ControlData.router == selectedNW.info.router){ //Si recibimos un mensaje (aunque no sea para nosotros, no comprobamos el destinatario) desde 
+    //el router que tenemos configurado ahora, entonces quiere decir que esta "sano", por ello, restablecemos las variables.
+    TXattempts = 3; 
+    RXattempts = 3; 
+    changeRouterAttempts = 7; //Restablecemos la variable, hemos restablecido la comunicacion con el router.
+  };
+  
   switch (incomingMsg.type) {
-    case messageType::BEACON_RESPONSE:
+    case messageType::BEACON_RESPONSE: //Broadcast, sin destinatario
       // Si estamos en tiempo de escaneo, seguimos guardando redes
       if (currentState == STATE_RX_SCAN && millis() <= startScan + SCAN_TIME) {
         saveNetwork(incomingMsg.data.NetworkData, rssi, scaningChanel);
@@ -513,6 +562,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
 
       if (currentState == STATE_RX_JOIN) {
         Serial.println("Join aceptado -> DATA");
+        selectedNW.connected = true; //Marcamos que nos hemos conectado
         currentState = STATE_START_DATA;
       }
       break;
@@ -553,12 +603,6 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       if (!isForMe(incomingMsg.data.ControlData.id)) return;
 
       Serial.println("El router confirma que podemos irnos de la red");
-      //Borramos la red actual y comenzamos a escanear (si borramos la red actual, como el id del router es 0, empezara el escaneo con menu, no el automatico para conectarse a router publico)
-      selectedNW = { 0 };
-      defaultMenu = 0; //Para que el usuario vea como se escanean las redes en la parte inferior de la pantalla.
-      currentState = STATE_START_SCAN; //Empezamos el escaneo
-      needDisplayUpdate = true;
-      
       break;
   }
 }
@@ -634,6 +678,8 @@ bool sendMessage(LoRaMessage msg) {
   const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
   const size_t realPacketSize = headers + msg.length;
 
+  Serial.printf("Enviando un paquete de %zuB\n", realPacketSize);
+
   int8_t attempts = 3;  //Intentos para trasmitir, si en los 3 (con esperas aleatorias) falla, cancelamos y devolvemos false
   delay(50);            //jitter de espera  antes de enviar, por si acabamos de recibir un mensaje, esperamos a que el ruido se vaya.
   while (attempts > 0) {
@@ -667,7 +713,7 @@ void sendJoinRequest() {
   LoRaMessage msg;
   msg.type = messageType::JOIN_REQUEST;
   ControlData cdata;
-  cdata.router = TARGET_ROUTER_ID;
+  cdata.router = selectedNW.info.router;
   cdata.id = MY_NODE_ID;
   msg.data.ControlData = cdata;
   msg.length = sizeof(ControlData);
@@ -680,7 +726,7 @@ void sendNodeLeaving() {
   LoRaMessage msg;
   msg.type = messageType::NODE_LEAVING; //Informamos al router que nos vamos de la red
   ControlData cdata;
-  cdata.router = TARGET_ROUTER_ID;
+  cdata.router = selectedNW.info.router;
   cdata.id = MY_NODE_ID;
   msg.data.ControlData = cdata;
   msg.length = sizeof(ControlData);
@@ -691,12 +737,21 @@ void sendSensorData() {
   LoRaMessage msg;
   msg.type = messageType::DATA;
   SensorsData sdata;
-  sdata.router = TARGET_ROUTER_ID;
+
+  sdata.router = selectedNW.info.router;
   sdata.id = MY_NODE_ID;
-  sdata.humidity = humidity;
+  sdata.humidity = myHumData.percentage;
   sdata.battery = battery;
-  sdata.latitude = latitude;
-  sdata.longitude = longitude;
+  sdata.latitude = myGpsData.latitude; //Si no se inicio el GPS enviara 0
+  sdata.longitude = myGpsData.longitude; //Si no se inicio el GPS enviara 0
+  sdata.receivedPackets = receivedPackets;
+  sdata.sendedPackets = sendedPackets;
+  sdata.lastRssi = lastRssi;
+  sdata.rx_err = rx_err;
+  sdata.tx_err = tx_err;
+  sdata.channelBusyErrors = channelBusyErrors;
+  sdata.missingAckErrors = missingAckErrors;
+
   msg.data.SensorsData = sdata;
   msg.length = sizeof(SensorsData);
   if (!sendMessage(msg)) {       //Si falla el envio
@@ -709,7 +764,7 @@ void sendDataConfACK() {
   LoRaMessage msg;
   msg.type = messageType::DATA_CONF_ACK;
   ControlData cdata;
-  cdata.router = TARGET_ROUTER_ID;
+  cdata.router = selectedNW.info.router;
   cdata.id = MY_NODE_ID;
   msg.data.ControlData = cdata;
   msg.length = sizeof(ControlData);
@@ -722,7 +777,7 @@ void updateOled() {
   if (globalButtonState == SHORT_PRESS) {
     defaultMenu++;
     needDisplayUpdate = true;  //La primera vez se tiene que dibujar la pantalla, luego actualizar manualmente cuando sea necesario.
-    if (defaultMenu > 5) defaultMenu = 0;
+    if (defaultMenu > 6) defaultMenu = 0;
     globalButtonState = NO_PRESS;
   }
 
@@ -735,10 +790,11 @@ void updateOled() {
     display.drawString(40, 15, "[Scaning]");
     display.drawString(20, 35, "[Please be patient]");
     display.display();
-    delay(2000);
+    delay(2000); //Tiempo para que el usuario lea de la pantalla
 
-    sendNodeLeaving(); //informamos al router de que nos vamos de la red. cuando recibamos NODE_LEAVING_ACK empezaremos el escaneo 
-
+    sendNodeLeaving(); //informamos al router de que nos vamos de la red
+    startLeavingState = millis();
+    currentState = STATE_LEAVING_NETWORK; //Empezamos pasamos a un estado donde esperamos 2s la respuesta del router  
 
     }else if(defaultMenu == 5){ //El usuario quiere obtener las coordenadas del gps
       //Mostramos un aviso de lo que se va a hacer
@@ -747,11 +803,40 @@ void updateOled() {
       display.drawString(30, 15, "[Updating GPS]");
       display.drawString(20, 35, "[Please be patient]");
       display.display();
-      delay(2000);
 
-      gpsUpdate(); //Actualizamos las coordenadas
+      if (getGpsCoordinates(myGpsData, GPS_TIMEOUT)) {
+        // La función devolvió 'true', lo que significa que tenemos coordenadas válidas
+        Serial.println(F("[ÉXITO] Coordenadas obtenidas correctamente:"));
+        Serial.print(F(" -> Latitud:   ")); Serial.println(myGpsData.latitude, 6);
+        Serial.print(F(" -> Longitud:  ")); Serial.println(myGpsData.longitude, 6);
+        Serial.print(F(" -> Altitud:   ")); Serial.print(myGpsData.altitude); Serial.println(F(" m"));
+        Serial.print(F(" -> Satélites: ")); Serial.println(myGpsData.satellites);
+      } else {
+        // La función devolvió 'false', se agotó el tiempo sin obtener señal
+        Serial.println(F("[ERROR] Timeout: No se pudo fijar la ubicación GPS a tiempo."));
+      }
+
       needDisplayUpdate = true;
 
+    }else if(defaultMenu == 6){
+      //Mostramos un aviso de lo que se va a hacer
+      Serial.println("El ususario ha activado la lectura de humedad de forma manual");
+      display.clear();
+      display.drawString(40, 15, "[Reading]");
+      display.drawString(20, 35, "[Please be patient]");
+      display.display();
+      delay(2000);
+      
+      myHumData = {0}; //Ponemos la estructura a 0 para borrar la medicion anterior
+      readHum(myHumData);
+
+      if(myHumData.isValid){
+        Serial.printf("Lectura de humedad correcta. HUM: %d  | RAW: %d\n", myHumData.percentage, myHumData.rawValue);
+      }else{
+        Serial.println("Fallo la lectura de la humedad.");
+      }
+      
+      needDisplayUpdate = true; 
     }
 
     globalButtonState = NO_PRESS; //Refrescamos la accion de pulsar el boton
@@ -760,19 +845,22 @@ void updateOled() {
   if (defaultMenu == 0 && needDisplayUpdate) {
 
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 1/6");
+    display.drawString(10, 0, "=== FLoRa Node === 1/7");
 
-    if (selectedNW.info.router != 0) {
-      display.drawString(0, 10, "Conected: " + String(currentNetwork));
+    if (selectedNW.info.router != 0) { //Tenemos una red seleccionada
+      if(selectedNW.connected){
+        display.drawString(0, 10, "Connected: " + String(currentNetwork));
+      }else{
+        display.drawString(0, 10, "Connecting: " + String(currentNetwork));
+      }
       display.drawString(0, 20, "RSSI: " + String(lastRssi));
+      display.drawString(0, 30, "ID: " + String(MY_NODE_ID) + " | R_ID: " + String(selectedNW.info.router) + " | [CH:" + String(selectedNW.channel) + "]");
     } else {
+      display.drawString(0, 30, "ID: " + String(MY_NODE_ID)); //Omitimos los parametros de RED
       display.drawString(0, 10, "Not Conected");
     }
 
-    display.drawString(0, 30, "ID: " + String(MY_NODE_ID) + " | R_ID: " + String(TARGET_ROUTER_ID) + " | [CH:" + String(selectedNW.channel) + "]");
     display.drawString(0, 40, "TX: " + String(sendedPackets) + " | RX: " + String(receivedPackets));
-
-
 
     // Mostrar estado actual para depurar
     String estadoStr = "";
@@ -790,7 +878,7 @@ void updateOled() {
   } else if (defaultMenu == 1 && needDisplayUpdate) {
 
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 2/6");
+    display.drawString(10, 0, "=== FLoRa Node === 2/7");
     display.drawString(0, 10, "Rx_err: " + String(rx_err));
     display.drawString(0, 20, "Tx_err: " + String(tx_err));
     display.drawString(0, 30, "ChannelBusyErrors: " + String(channelBusyErrors));
@@ -802,7 +890,7 @@ void updateOled() {
 
   } else if (defaultMenu == 2 && needDisplayUpdate) {
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 3/6");
+    display.drawString(10, 0, "=== FLoRa Node === 3/7");
     display.drawString(0, 10, "SendInterval: " + String(((float)sendInterval / 1000) / 60) + " min");
     display.drawString(0, 20, "AllowPublicConn: " + String(allowPublicConn == 0 ? "False" : "True"));
     display.drawString(0, 30, "Config Version: " + String(version) + ".0");
@@ -812,14 +900,19 @@ void updateOled() {
 
   } else if (defaultMenu == 3 && needDisplayUpdate) {
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 4/6");
+    display.drawString(10, 0, "=== FLoRa Node === 4/7");
     display.drawString(0, 10, "Bat: " + String(battery) + "%");
-    display.drawString(0, 20, "Hum: " + String(humidity) + "%");
 
-    if (latitude != 0 && longitude != 0) {
-      display.drawString(0, 30, "GPS: OK");
-      display.drawString(0, 40, "Lat: " + String(latitude, 6));
-      display.drawString(0, 50, "Long: " + String(longitude, 6));
+    if(myHumData.isValid){
+      display.drawString(0, 20, "Hum: " + String(myHumData.percentage) + "%");
+    }else{
+      display.drawString(0, 20, "Hum: FAIL");
+    }
+    
+    if (myGpsData.isValid) {
+      display.drawString(0, 30, "GPS: OK | SAT: " + String(myGpsData.satellites));
+      display.drawString(0, 40, "Lat: " + String(myGpsData.latitude, 6));
+      display.drawString(0, 50, "Long: " + String(myGpsData.longitude, 6));
     } else {
       display.drawString(0, 30, "GPS: FAIL");
     }
@@ -828,16 +921,16 @@ void updateOled() {
     needDisplayUpdate = false;
   } else if (defaultMenu == 4 && needDisplayUpdate) {
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 5/6");
+    display.drawString(10, 0, "=== FLoRa Node === 5/7");
     display.drawString(20, 10, "[NETWORK SCAN]");
     display.drawString(0, 25, "Long Press to scan FLoRa");
     display.drawString(35, 35, "Networks");
     
 
     if (selectedNW.info.router != 0) {
-      display.drawString(0, 50, "Conected: " + String(currentNetwork));
+      display.drawString(0, 50, "Connected: " + String(currentNetwork));
     } else {
-      display.drawString(0, 50, "Not Conected");
+      display.drawString(0, 50, "Not Connected");
     }
 
     display.display();
@@ -845,15 +938,30 @@ void updateOled() {
 
   }else if (defaultMenu == 5 && needDisplayUpdate) {
     display.clear();
-    display.drawString(10, 0, "=== FLoRa Node === 6/6");
+    display.drawString(10, 0, "=== FLoRa Node === 6/7");
     display.drawString(30, 10, "[UPDATE GPS]");
     display.drawString(0, 25, "Long Press to obtain GPS");
     display.drawString(35, 35, " coordinates");
 
-    if (latitude != 0 && longitude != 0) {
-      display.drawString(0, 50, "GPS: OK");
+    if (myGpsData.isValid) {
+      display.drawString(0, 50, "GPS: OK | SAT: " + String(myGpsData.satellites));
     }else {
       display.drawString(0, 50, "GPS: FAIL");
+    }
+
+    display.display();
+    needDisplayUpdate = false;
+
+  }else if (defaultMenu == 6 && needDisplayUpdate) {
+    display.clear();
+    display.drawString(10, 0, "=== FLoRa Node === 7/7");
+    display.drawString(30, 10, "[UPDATE HUM]");
+    display.drawString(0, 25, "Long Press to read humidity");
+
+    if (myHumData.isValid) {
+      display.drawString(0, 50, "Hum: "+ String(myHumData.percentage) + "%" );
+    }else {
+      display.drawString(0, 50, "Hum: FAIL");
     }
 
     display.display();
@@ -863,14 +971,15 @@ void updateOled() {
 
 void watchdogRX() {
   // Si llevamos más de RX_TIMEOUT_VALUE esperando, forzamos reinicio.
-  if ((currentState == STATE_RX_SCAN || currentState == STATE_RX_JOIN || currentState == STATE_RX_DATA)
-      && (millis() - stateStartTime > RX_TIMEOUT_VALUE)) {
+  if ((currentState == STATE_RX_SCAN || currentState == STATE_RX_DATA)
+    && (millis() - stateStartTime > RX_TIMEOUT_VALUE)) {
 
-    Serial.println("[WATCHDOG] Hardware RX colgado. Reiniciando...");
     Radio.Sleep();
 
     // Decisión de recuperación
     if (currentState == STATE_RX_DATA) {  //Estamos esperando la confirmacion del router
+
+      Serial.println("[WATCHDOG] Hardware RX colgado. Reiniciando...");
 
       currentState = STATE_START_DATA;
       RXattempts--;
@@ -891,14 +1000,26 @@ void watchdogRX() {
                                          
                                          //Solo cuando se decide hacer un scaneo manual en el primer arranque o cuando el usuario lo elija en la interfaz oled (en este caso se pone id router = 0 para activar la seleccion de red manual)
       }else if (RXattempts <= 0) {
-
         lastSleepTime = millis();    // Marcamos hora de dormir
         currentState = STATE_SLEEP;  //Nos ponemos a dormir
       }
       //Serial.println("C.E: "+ String(currentState)+ "/ RXa: " + String(RXattempts));
     } else {  //Estamos escaneando redes
+      Serial.println("[WATCHDOG] Ningun router contesta al Beacon Frame. Cambiando de canal...");
       currentState = STATE_TX_SCAN;
       scaningChanel++;
+    }
+    
+  }else if(currentState == STATE_RX_JOIN ){ // Separamos este estado de los demas rx_states para poner un timeout mas alto cuando nos intentamos unir a una red privada (el router tiene que consultar el backend)
+    if(!selectedNW.info.isPublic && (millis() - stateStartTime > RX_PRIVATE_NW_JOIN_TIMEOUT_VALUE)){
+      Serial.println("[WATCHDOG] Se sobrepaso el timeot para unise a una red privada");
+      lastSleepTime = millis();
+      currentState = STATE_SLEEP;  //Nos ponemos a dormir
+
+    }else if(selectedNW.info.isPublic && (millis() - stateStartTime > RX_TIMEOUT_VALUE)){
+      Serial.println("[WATCHDOG] Se sobrepaso el timeot para unise a una red publica");
+      lastSleepTime = millis();
+      currentState = STATE_SLEEP;  //Nos ponemos a dormir
     }
   }
 }
@@ -958,6 +1079,7 @@ void saveNetwork(NetworkData newNet, int16_t currentRssi, uint8_t currentChannel
     scanned.info = newNet;
     scanned.rssi = currentRssi;
     scanned.channel = currentChannel;
+    scanned.connected = false; //No estamos conectados por defecto
 
     foundNetworks.push_back(scanned);
     Serial.printf("Nueva red: %s (RSSI: %d) [CANAL: %d] [PUBLICO: %s] \n",
@@ -1000,15 +1122,18 @@ void handleNetworkSelectionMenu() {
   if (globalButtonState == LONG_PRESS) {
     // Guardar selección
     selectedNW = foundNetworks[selectedNetworkIndex];
-    TARGET_ROUTER_ID = selectedNW.info.router;
     memcpy(currentNetwork, selectedNW.info.SSID, SSID_LENGTH);
     Radio.SetChannel(channelList[selectedNW.channel]);  //Seteamos la radio a ese canal
 
     // Feedback visual
     display.clear();
     display.drawString(35, 25, "[Connecting]");
+
+    if(!selectedNW.info.isPublic){//Advertimos que las privadas tardan mas
+      display.drawString(25, 50, "May take 1-3 min");
+    }
     display.display();
-    delay(2000);
+    delay(3500);
 
     globalButtonState = NO_PRESS;     // Consumir evento
     currentState = STATE_START_JOIN;  // <--- INICIAR PROCESO DE UNION
@@ -1080,7 +1205,7 @@ bool isForMe(size_t receiverId) {
   if (receiverId == MY_NODE_ID) {
     return true;
   } else {
-    Serial.println("Se ha recibido un mensaje para otro destinatario. Ignorando...");
+    Serial.printf("Se ha recibido un mensaje para otro destinatario (ID: %zu). Ignorando...\n", receiverId);
     return false;
   }
 }
@@ -1124,10 +1249,4 @@ bool IsChannelFree() {
   return false;
 }
 
-void gpsUpdate(){
-  delay(3000); //Delay artificial
-  //De momento actualizamos las coordenadas de forma artificial:
-  latitude = 37.346;
-  longitude = -5.950;
 
-}

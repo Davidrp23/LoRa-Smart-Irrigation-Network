@@ -1,75 +1,125 @@
 #include <HardwareSerial.h>
 #include <TinyGPSPlus.h>
 
-#define MOSFET_PIN 18
 // =================================================================
-//                      CONFIGURACIÓN GPS (NEO-6M)
+//                      DEFINICIONES DE HARDWARE
 // =================================================================
+#define GPS_MOSFET_PIN 18
 #define GPS_RX_PIN 16 
 #define GPS_TX_PIN 17 
 #define GPS_BAUD   9600 
 
-// Usamos la UART2 para el GPS
-HardwareSerial GPS_Serial(2); 
+#define GPS_TIMEOUT 120000
 
-// Creamos el objeto TinyGPSPlus que se encargará de decodificar
+HardwareSerial GPS_Serial(2); 
 TinyGPSPlus gps;
 
-void setup() {
-    // Control de energía del GPS mediante MOSFET
-    pinMode(MOSFET_PIN, OUTPUT);
-    delay(200);     
-    digitalWrite(MOSFET_PIN, HIGH);  // Encendido constante por ahora
+// =================================================================
+//                      ESTRUCTURAS DE DATOS
+// =================================================================
+/**
+ * Estructura para almacenar de forma encapsulada los datos leídos del GPS.
+ * Esto facilita el transporte de múltiples valores entre funciones.
+ */
+struct GpsData {
+    double latitude;
+    double longitude;
+    double altitude;
+    uint32_t satellites;
+    bool isValid;
+};
 
-    // Inicia el Monitor Serial
+GpsData myGpsData = {0};
+
+// =================================================================
+//                      PROTOTIPOS DE FUNCIONES
+// =================================================================
+bool getGpsCoordinates(GpsData &data, uint32_t timeoutMs);
+
+// =================================================================
+//                      CONFIGURACIÓN INICIAL
+// =================================================================
+void setup() {
+
     Serial.begin(115200);
     delay(1000);
-    Serial.println(F("\n--- INICIANDO NODO GPS ---"));
-    Serial.println(F("Esperando a fijar satélites... (Esto puede tardar unos minutos al aire libre)"));
-    Serial.println(F("----------------------------------------\n"));
-
-    // Inicia la comunicación con el módulo GPS
+    
+    // Configuración de pines y puerto serie del GPS
+    pinMode(GPS_MOSFET_PIN, OUTPUT);
+    digitalWrite(GPS_MOSFET_PIN, LOW); // Asegurar que el GPS inicie apagado
     GPS_Serial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+
+    
+    // Llamamos a la función pasando la estructura por referencia
+    if (getGpsCoordinates(myGpsData, GPS_TIMEOUT)) {
+        // La función devolvió 'true', lo que significa que tenemos coordenadas válidas
+        Serial.println(F("[ÉXITO] Coordenadas obtenidas correctamente:"));
+        Serial.print(F(" -> Latitud:   ")); Serial.println(myGpsData.latitude, 6);
+        Serial.print(F(" -> Longitud:  ")); Serial.println(myGpsData.longitude, 6);
+        Serial.print(F(" -> Altitud:   ")); Serial.print(myGpsData.altitude); Serial.println(F(" m"));
+        Serial.print(F(" -> Satélites: ")); Serial.println(myGpsData.satellites);
+    } else {
+        // La función devolvió 'false', se agotó el tiempo sin obtener señal
+        Serial.println(F("[ERROR] Timeout: No se pudo fijar la ubicación GPS a tiempo."));
+    }
 }
 
+// =================================================================
+//                      BUCLE PRINCIPAL
+// =================================================================
 void loop() {
-    // 1. Leemos los datos entrantes del GPS y se los pasamos a la librería
-    while (GPS_Serial.available() > 0) {
-        gps.encode(GPS_Serial.read());
-    }
+    // El ESP32 ahora puede dedicarse a otras tareas (como enviar por LoRa)
+    // mientras el GPS permanece apagado y sin consumir batería.
+    delay(10000); 
+}
+
+// =================================================================
+//                      IMPLEMENTACIÓN DE FUNCIONES
+// =================================================================
+
+//Enciende el GPS, intenta obtener una ubicación válida dentro de un límite de tiempo y lo apaga.
+bool getGpsCoordinates(GpsData &data, uint32_t timeoutMs) {
+    bool fixAcquired = false;
+    myGpsData = {0}; // Eliminamos las coordenadas guardadas rellenando todo con 0's (isValid = False)
     
-    // 2. Si la librería ha procesado una nueva ubicación válida, la mostramos
-    if (gps.location.isUpdated()) {
-        Serial.println(F("================================="));
-        
-        // Latitud y Longitud con 6 decimales de precisión
-        Serial.print(F("Latitud:   ")); 
-        Serial.println(gps.location.lat(), 6);
-        Serial.print(F("Longitud:  ")); 
-        Serial.println(gps.location.lng(), 6);
-        
-        // Datos adicionales muy útiles
-        Serial.print(F("Altitud:   ")); 
-        Serial.print(gps.altitude.meters()); Serial.println(F(" m"));
-        
-        Serial.print(F("Velocidad: ")); 
-        Serial.print(gps.speed.kmph()); Serial.println(F(" km/h"));
-        
-        Serial.print(F("Satélites: ")); 
-        Serial.println(gps.satellites.value());
-        
-        // Fecha y Hora (UTC)
-        Serial.print(F("Fecha:     "));
-        Serial.print(gps.date.day()); Serial.print(F("/"));
-        Serial.print(gps.date.month()); Serial.print(F("/"));
-        Serial.println(gps.date.year());
-        
-        Serial.println(F("=================================\n"));
+    //Encender GPS
+    Serial.println("Encendiendo GPS y buscando satelites...");
+    digitalWrite(GPS_MOSFET_PIN, HIGH);
+    
+    // Pequeño retardo para dar tiempo a que el voltaje del módulo se estabilice
+    delay(500); 
+    
+    // Limpiar cualquier dato basura residual en el buffer serial del GPS
+    while (GPS_Serial.available() > 0) {
+        GPS_Serial.read();
     }
 
-    // 3. Alerta por si hay problemas de conexión física (cables TX/RX cruzados o sueltos)
-    if (millis() > 5000 && gps.charsProcessed() < 10) {
-        Serial.println(F("No se detectan datos del GPS. Revisa el cableado y el MOSFET."));
-        delay(2000); // Pausa para no inundar el monitor
+    uint32_t startTime = millis();
+
+    while ((millis() - startTime) < timeoutMs) { //Intentamos obtener la ubicacion con un timeout
+        
+        while (GPS_Serial.available() > 0) {
+            gps.encode(GPS_Serial.read());
+        }
+
+        if (gps.location.isUpdated() && gps.location.isValid()) {
+            
+            data.latitude   = gps.location.lat();
+            data.longitude  = gps.location.lng();
+            data.altitude   = gps.altitude.meters();
+            data.satellites = gps.satellites.value();
+            data.isValid    = true;
+            
+            fixAcquired = true;
+            break;
+        }
+
+        delay(10); 
     }
+
+    //Apagar GPS
+    digitalWrite(GPS_MOSFET_PIN, LOW);
+    Serial.println("Se apago el GPS para ahorrar bateria.");
+
+    return fixAcquired;
 }

@@ -147,21 +147,30 @@ typedef struct __attribute__((packed)) {
   //Paquete de carga util que contiene los ID del router y mota que se estan comunicando, estos campos se usan para evitar que otras motas/router procesen un paquete que no van para ellos.
   //Ademas de los ID contiene los datos que recopila la mota.
 
-  size_t router; //Router al que va destinado el paquete, siempre > 0
+  size_t router;  //Router al que va destinado el paquete, siempre > 0
 
-  size_t id; // ID desde el que proviene el paquete, siempre > 0
+  size_t id;  // ID desde el que proviene el paquete, siempre > 0
 
   uint8_t humidity;
 
   uint8_t battery;
 
-  float latitude; // Mejor mandar las coordenadas como 2 float (4B cada uno) que como un array de caracteres (Ahorramos espacio).
+  float latitude;  // Mejor mandar las coordenadas como 2 float (4B cada uno) que como un array de caracteres (Ahorramos espacio).
 
   float longitude;
 
-  uint16_t version; // Version de la configuracion de la mota
-  
-}SensorsData;
+  uint16_t version;  // Version de la configuracion de la mota
+
+  //Telemetria:
+  uint16_t receivedPackets;
+  uint16_t sendedPackets;
+  int16_t lastRssi;
+  uint16_t rx_err;
+  uint16_t tx_err;
+  uint16_t channelBusyErrors;
+  uint16_t missingAckErrors;
+
+} SensorsData;
 
 // Se usa __attribute__((packed)) para asegurar que el compilador no añada relleno (padding)
 // entre los campos, garantizando que el struct tenga exactamente el tamaño esperado.
@@ -208,7 +217,7 @@ void VextOFF(void) //Vext default OFF
 //--------------------------------------------------------GLOBAL VARIABLES--------------------------------------------------------------
 
 //Operating Router Params
-const size_t routerId = 2; // Los id son siempre > 0
+const size_t routerId = 1; // Los id son siempre > 0
 
 //Pueden cambiar durante la ejecucion
 char SSID[SSID_LENGTH] = "TOM_SUR";
@@ -301,11 +310,11 @@ String bigPacketResponse = R"raw(
     "conf": [
         {
             "tg": "r",
-            "id": 2,
+            "id": 1,
             "v": 4,
             "p": {
-                "c": 3,
-                "s": "RED_TOM",
+                "c": 2,
+                "s": "RED_XLP",
                 "eP": true
             }
         },
@@ -992,8 +1001,26 @@ void packageToSerial(LoRaMessage pkg, uint16_t size, int16_t rssi, int8_t snr){
 
   if(pkg.type == messageType::DATA){
     
-    Serial.printf("Router: %d | ID: %d | Humidity: %d | Battery: %d | GPS: LAT -> %.5f  -- LONG -> %.5f\n", pkg.data.SensorsData.router, pkg.data.SensorsData.id,
-    pkg.data.SensorsData.humidity, pkg.data.SensorsData.battery, pkg.data.SensorsData.latitude, pkg.data.SensorsData.longitude);
+    Serial.printf(
+      "--- Data Package ---\n"
+      "Router: %zu | ID: %zu | Hum: %d%% | Bat: %d%% | GPS: %.5f, %.5f | Ver: %u\n"
+      "--- Telemetry ---\n"
+      "RX/TX: %u/%u | RSSI: %d dBm | Errors (RX/TX/Busy/Ack): %u/%u/%u/%u\n\n",
+      pkg.data.SensorsData.router, 
+      pkg.data.SensorsData.id,
+      pkg.data.SensorsData.humidity, 
+      pkg.data.SensorsData.battery, 
+      pkg.data.SensorsData.latitude, 
+      pkg.data.SensorsData.longitude,
+      pkg.data.SensorsData.version,
+      pkg.data.SensorsData.receivedPackets,
+      pkg.data.SensorsData.sendedPackets,
+      pkg.data.SensorsData.lastRssi,
+      pkg.data.SensorsData.rx_err,
+      pkg.data.SensorsData.tx_err,
+      pkg.data.SensorsData.channelBusyErrors,
+      pkg.data.SensorsData.missingAckErrors
+    );
 
   }else if(pkg.type == messageType::BEACON_REQUEST){
 
