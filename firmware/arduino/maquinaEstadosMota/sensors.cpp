@@ -87,21 +87,19 @@ bool humInit(){
 }
 
 void readHum(humData &data){
-
-  //Encender GPS
-  Serial.println("Encendiendo lector de humedad...");
+  // Encender sensor
   digitalWrite(HUM_MOSFET_PIN, HIGH);
-  delay(2000); //Esperamos 2 segundos para que el lector se inicialice bien
+  
+  delay(100); 
 
-  //Hacemos la media para varias iteraciones
   size_t rawValueAVG = 0;
 
   for(uint8_t i = 0 ; i < HUM_READ_ITERATIONS; i++){
     rawValueAVG += analogRead(HUM_READ_PIN);
-    delay(50);
+    delay(10); 
   }
 
-  Serial.println("Apagando lector de humedad para ahorrar bateria...");
+  // Apagar sensor inmediatamente
   digitalWrite(HUM_MOSFET_PIN, LOW);
 
   rawValueAVG = rawValueAVG / HUM_READ_ITERATIONS;
@@ -118,5 +116,4 @@ void readHum(humData &data){
   data.percentage = percentage;
   data.rawValue = rawValueAVG;
   data.isValid = true;
-
 }

@@ -29,11 +29,11 @@ bool getGpsCoordinates(GpsData &data, uint32_t timeoutMs);
 //=============================
 #define HUM_MOSFET_PIN 47
 #define HUM_READ_PIN 5
-#define HUM_READ_ITERATIONS 20
+#define HUM_READ_ITERATIONS 50
 
 // Valores de Calibración del Sensor de Humedad
-#define SENSOR_SECO 4095 // Valor de lectura al aire o en tierra muy seca (0%)
-#define SENSOR_AGUA 1950 // Valor sumergido en agua (100%)
+#define SENSOR_SECO 280 // Valor de lectura al aire o en tierra muy seca (0%)
+#define SENSOR_AGUA 50 // Valor sumergido en agua (100%)
 
 struct humData {
     uint8_t percentage;

@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>  // Necesario para std::sort
 #include "sensors.h"
+#include "Battery.h"
 
 //----------------------------------LORA PARAMETERS--------------------------------
 #define NUM_CHANELS 4
@@ -200,13 +201,13 @@ int8_t changeRouterAttempts = 7; //Veces seguidas en las que se produce RXTimeOU
 
 //Sensores
 humData myHumData = {0};
-uint8_t battery = 90;
-GpsData myGpsData = {0}; 
+GpsData myGpsData = {0};
+batteryStatus senderBattery = {0};
 
 //----------------------------------Control pantalla ----------------------------------
 
 // --- CONSTANTES DE TIEMPO ---
-#define BUTTON_PIN 0        // Botón PRG en Heltec V3
+#define BUTTON_PIN 4        // Botón externo
 #define DEBOUNCE_MS 50      // Filtro para rebotes
 #define LONG_PRESS_MS 1000  // Tiempo para considerar pulsación larga (1s)
 
@@ -286,11 +287,28 @@ void VextOFF(void) {
   digitalWrite(Vext, HIGH);
 }
 
+void EnableADC(){
+  // Set pin 37 as an output pin (used for ADC control):
+  pinMode(37, OUTPUT);
+
+  // Set pin 37 to HIGH (enable ADC control):
+  digitalWrite(37, HIGH);
+}
+
+
 //---------------------------------------------------------------------
 
 void setup() {
   VextON();
-  delay(100);
+  delay(500);
+
+  //Habilitamos el ADC
+  EnableADC();
+
+  delay(200);
+  // Configuración de pines analogicos, resolucion 12 bits
+  analogReadResolution(12);
+  delay(200);
 
   Serial.begin(115200);
 
@@ -303,7 +321,7 @@ void setup() {
   initializeOled();
   initializeLora();
 
-  pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+  pinMode(BUTTON_PIN, INPUT);
 
   if(!gpsInit()){
     Serial.println("Fallo la inicializacion del GPS");
@@ -318,6 +336,8 @@ void setup() {
   }else{
     Serial.println("Fallo la lectura de la humedad.");
   }
+
+  senderBattery = checkBatteryStatus();
 
   currentState = STATE_START_SCAN;
   Serial.println("--- MOTA INICIADA ---");
@@ -741,7 +761,7 @@ void sendSensorData() {
   sdata.router = selectedNW.info.router;
   sdata.id = MY_NODE_ID;
   sdata.humidity = myHumData.percentage;
-  sdata.battery = battery;
+  sdata.battery = senderBattery.batteryPercentage;
   sdata.latitude = myGpsData.latitude; //Si no se inicio el GPS enviara 0
   sdata.longitude = myGpsData.longitude; //Si no se inicio el GPS enviara 0
   sdata.receivedPackets = receivedPackets;
@@ -901,10 +921,10 @@ void updateOled() {
   } else if (defaultMenu == 3 && needDisplayUpdate) {
     display.clear();
     display.drawString(10, 0, "=== FLoRa Node === 4/7");
-    display.drawString(0, 10, "Bat: " + String(battery) + "%");
+    display.drawString(0, 10, "Bat: " + String(senderBattery.batteryPercentage) + "% | raw: "+ String(senderBattery.realVoltage) + "v");
 
     if(myHumData.isValid){
-      display.drawString(0, 20, "Hum: " + String(myHumData.percentage) + "%");
+      display.drawString(0, 20, "Hum: " + String(myHumData.percentage) + "% | raw: "+ String(myHumData.rawValue));
     }else{
       display.drawString(0, 20, "Hum: FAIL");
     }
@@ -958,9 +978,9 @@ void updateOled() {
     display.drawString(30, 10, "[UPDATE HUM]");
     display.drawString(0, 25, "Long Press to read humidity");
 
-    if (myHumData.isValid) {
-      display.drawString(0, 50, "Hum: "+ String(myHumData.percentage) + "%" );
-    }else {
+    if(myHumData.isValid){
+      display.drawString(0, 50, "Hum: " + String(myHumData.percentage) + "% | raw: "+ String(myHumData.rawValue));
+    }else{
       display.drawString(0, 50, "Hum: FAIL");
     }
 
