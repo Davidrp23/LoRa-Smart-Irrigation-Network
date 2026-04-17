@@ -1,3 +1,5 @@
+#pragma once
+
 // Battery.h
 
 struct batteryStatus {
