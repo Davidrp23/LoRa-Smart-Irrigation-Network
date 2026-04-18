@@ -1,3 +1,5 @@
+#include "lora_node.h"
+#include "WString.h"
 #include "display.h"
 #include "HT_SSD1306Wire.h"
 #include "images.h"
@@ -306,5 +308,56 @@ void updateOled(humData &myHumData, GpsData &myGpsData, batteryStatus &senderBat
     }
     display.display();
     needDisplayUpdate = false;
+  }
+}
+
+void showAlertOled(String msg){
+  if(isOledInitialized){
+    display.clear();
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+    String fullMsg = "[" + msg + "]";
+    
+    int textWidth = display.getStringWidth(fullMsg);
+    
+    if (textWidth <= 120) {
+      display.drawString(60, 25, fullMsg);
+    } else {
+      String remainingMsg = fullMsg;
+      String lines[4]; 
+      int numLines = 0;
+      
+      while (remainingMsg.length() > 0 && numLines < 4) {
+        if (display.getStringWidth(remainingMsg) <= 120) {
+          lines[numLines++] = remainingMsg;
+          break;
+        }
+        
+        int splitIdx = remainingMsg.length();
+        while (splitIdx > 0 && display.getStringWidth(remainingMsg.substring(0, splitIdx)) > 120) {
+          splitIdx--;
+        }
+        
+        int lastSpace = remainingMsg.lastIndexOf(' ', splitIdx);
+        if (lastSpace > 0 && lastSpace > (splitIdx / 2)) {
+          splitIdx = lastSpace;
+        }
+        
+        lines[numLines++] = remainingMsg.substring(0, splitIdx);
+        remainingMsg = remainingMsg.substring(splitIdx);
+        remainingMsg.trim(); 
+      }
+      
+      int yStart = 25 - ((numLines - 1) * 7); 
+      for (int i = 0; i < numLines; i++) {
+        int yPos = yStart + (i * 14);
+        if (yPos > 50) yPos = 50; 
+        display.drawString(60, yPos, lines[i]);
+      }
+    }
+    
+    display.display();
+    delay(2000);
+    display.setTextAlignment(TEXT_ALIGN_LEFT); 
+    needDisplayUpdate = true; //Para que desaparezca el cuadro de alerta y se pinte lo que toque
   }
 }

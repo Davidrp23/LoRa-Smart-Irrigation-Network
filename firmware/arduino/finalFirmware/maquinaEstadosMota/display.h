@@ -22,3 +22,4 @@ void initializeOled(bool showAnimation = true);
 void updateOled(humData &myHumData, GpsData &myGpsData, batteryStatus &senderBattery);
 void handleNetworkSelectionMenu();
 void checkButton();
+void showAlertOled(String msg);

@@ -1,3 +1,4 @@
+#include "types.h"
 #include "lora_node.h"
 #include <algorithm>
 
@@ -9,7 +10,7 @@ void OnTxTimeout(void);
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
 uint16_t calculateChecksum(LoRaMessage msg);
 bool sendMessage(LoRaMessage msg);
-bool isForMe(size_t receiverId);
+bool isForMe(size_t receiverId, size_t routerId);
 void applyConfig(ConfData config);
 void saveNetwork(NetworkData newNet, int16_t currentRssi, uint8_t currentChannel);
 
@@ -213,18 +214,34 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       break;
 
     case messageType::JOIN_ACCEPTED:
-      if (!isForMe(incomingMsg.data.ControlData.id)) return;
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
 
       if (currentState == STATE_RX_JOIN) {
         Serial.println("Join aceptado -> DATA");
         selectedNW.connected = true;
         saveNetworkConfig(); // Persist that we are connected
+        
+        showAlertOled("Join accepted");
         currentState = STATE_START_DATA;
       }
       break;
 
+    case messageType::JOIN_DENIED:
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
+
+      if (currentState == STATE_RX_JOIN) {
+        Serial.println("Join denegado -> SLEEP");
+        selectedNW.connected = false;
+        clearNetworkConfig();
+        
+        showAlertOled("Join denied");
+        lastSleepTime = millis();
+        currentState = STATE_SLEEP;
+      }
+      break;
+
     case messageType::DATA_ACK:
-      if (!isForMe(incomingMsg.data.ControlData.id)) return;
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
       if (currentState == STATE_RX_DATA) {
         Serial.println("ACK recibido -> SLEEP");
         lastSleepTime = millis();
@@ -233,7 +250,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       break;
 
     case messageType::DATA_CONF:
-      if (!isForMe(incomingMsg.data.ControlData.id)) return;
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
       if (currentState == STATE_RX_DATA) {
         Serial.println("Se ha recibido un paquete de configuracion. Aplicando...");
         ConfData config = incomingMsg.data.ConfData;
@@ -245,7 +262,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       break;
 
     case messageType::JOIN_REQUEST:
-      if (!isForMe(incomingMsg.data.ControlData.id)) return;
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
       if (currentState == STATE_RX_DATA) {
         Serial.println("El router no ha procesado el paquete de datos anterior, uniendo...");
         lastSleepTime = millis();
@@ -254,7 +271,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       break;
 
     case messageType::NODE_LEAVING_ACK:
-      if (!isForMe(incomingMsg.data.ControlData.id)) return;
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
       Serial.println("El router confirma que podemos irnos de la red");
       break;
   }
@@ -289,11 +306,11 @@ void saveNetwork(NetworkData newNet, int16_t currentRssi, uint8_t currentChannel
   std::sort(foundNetworks.begin(), foundNetworks.end(), compareRSSI);
 }
 
-bool isForMe(size_t receiverId) {
-  if (receiverId == MY_NODE_ID) {
+bool isForMe(size_t receiverId, size_t routerId) {
+  if (receiverId == MY_NODE_ID && routerId == selectedNW.info.router) {
     return true;
   } else {
-    Serial.printf("Mensaje para otro destinatario (ID: %zu). Ignorando...\n", receiverId);
+    Serial.printf("Mensaje para otro destinatario o proveniente de otro router (ID: %zu) (R_ID: %zu). Ignorando...\n", receiverId, routerId);
     return false;
   }
 }

@@ -5,6 +5,7 @@
 #include "types.h"
 #include "config.h"
 #include "storage.h"
+#include "display.h"
 
 // Variables from main
 extern MotaState currentState;
