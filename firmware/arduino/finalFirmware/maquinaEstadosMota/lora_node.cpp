@@ -1,14 +1,37 @@
+#include "storage.h"
 #include "types.h"
 #include "lora_node.h"
 #include <algorithm>
+#include <mbedtls/aes.h>
 
 const uint32_t channelList[NUM_CHANELS] = { CHANEL_0, CHANEL_1, CHANEL_2, CHANEL_3 };
 static RadioEvents_t RadioEvents;
+
+const unsigned char crypto_key[16] = "59mkla3Qh0kC0eR";
+const unsigned char crypto_iv[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10};
+RTC_DATA_ATTR uint32_t global_msg_id = 0;
+
+void processCrypto(uint8_t* payload, size_t length) {
+  mbedtls_aes_context aes;
+  mbedtls_aes_init(&aes);
+  mbedtls_aes_setkey_enc(&aes, crypto_key, 128);
+  
+  unsigned char iv_copy[16];
+  memcpy(iv_copy, crypto_iv, 16);
+  
+  unsigned char stream_block[16];
+  size_t nc_off = 0;
+  
+  mbedtls_aes_crypt_ctr(&aes, length, &nc_off, iv_copy, stream_block, payload, payload);
+  mbedtls_aes_free(&aes);
+}
+
 
 void OnTxDone(void);
 void OnTxTimeout(void);
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
 uint16_t calculateChecksum(LoRaMessage msg);
+void encryptAndMAC(LoRaMessage& msg);
 bool sendMessage(LoRaMessage msg);
 bool isForMe(size_t receiverId, size_t routerId);
 void applyConfig(ConfData config);
@@ -33,11 +56,13 @@ void initializeLora() {
 }
 
 uint16_t calculateChecksum(LoRaMessage msg) {
-  const size_t buffSize = sizeof(msg.type) + sizeof(msg.length) + msg.length;
+  const size_t buffSize = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.fcnt) + msg.length;
   uint8_t buff[buffSize];
-  memcpy(&buff, &msg.type, sizeof(msg.type));
-  memcpy(&buff[sizeof(msg.type)], &msg.length, sizeof(msg.length));
-  memcpy(&buff[sizeof(msg.type) + sizeof(msg.length)], &msg.data, msg.length);
+  size_t offset = 0;
+  memcpy(buff + offset, &msg.type, sizeof(msg.type)); offset += sizeof(msg.type);
+  memcpy(buff + offset, &msg.length, sizeof(msg.length)); offset += sizeof(msg.length);
+  memcpy(buff + offset, &msg.fcnt, sizeof(msg.fcnt)); offset += sizeof(msg.fcnt);
+  memcpy(buff + offset, &msg.data, msg.length);
 
   uint16_t crc = 0xFFFF;
   for (size_t i = 0; i < sizeof(buff); i++) {
@@ -50,9 +75,17 @@ uint16_t calculateChecksum(LoRaMessage msg) {
   return crc;
 }
 
-bool sendMessage(LoRaMessage msg) {
+void encryptAndMAC(LoRaMessage& msg) {
+  if (msg.length > 0) {
+    Serial.printf("[CRYPTO] Encriptando payload TX de %d bytes...\n", msg.length);
+    processCrypto(msg.data.raw, msg.length);
+  }
   msg.checksum = calculateChecksum(msg);
-  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+}
+
+bool sendMessage(LoRaMessage msg) {
+  encryptAndMAC(msg);
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.fcnt) + sizeof(msg.checksum);
   const size_t realPacketSize = headers + msg.length;
 
   Serial.printf("Enviando un paquete de %zuB\n", realPacketSize);
@@ -92,6 +125,11 @@ void sendJoinRequest() {
   cdata.id = MY_NODE_ID;
   msg.data.ControlData = cdata;
   msg.length = sizeof(ControlData);
+  
+  join_cnt++;
+  saveJoinCnt();
+  msg.fcnt = join_cnt;
+  
   if (!sendMessage(msg)) {
     currentState = STATE_START_JOIN;
   }
@@ -105,6 +143,10 @@ void sendNodeLeaving() {
   cdata.id = MY_NODE_ID;
   msg.data.ControlData = cdata;
   msg.length = sizeof(ControlData);
+
+  global_msg_id++;
+  msg.fcnt = global_msg_id;
+
   sendMessage(msg);
 }
 
@@ -126,9 +168,15 @@ void sendSensorData(uint8_t humPercentage, uint8_t batPercentage, float lat, flo
   sdata.tx_err = tx_err;
   sdata.channelBusyErrors = channelBusyErrors;
   sdata.missingAckErrors = missingAckErrors;
+  sdata.crypto_err = crypto_err;
+  sdata.version = version;
 
   msg.data.SensorsData = sdata;
   msg.length = sizeof(SensorsData);
+  
+  global_msg_id++;
+  msg.fcnt = global_msg_id;
+  
   if (!sendMessage(msg)) {
     lastSleepTime = millis();
     currentState = STATE_SLEEP;
@@ -143,6 +191,10 @@ void sendDataConfACK() {
   cdata.id = MY_NODE_ID;
   msg.data.ControlData = cdata;
   msg.length = sizeof(ControlData);
+
+  global_msg_id++;
+  msg.fcnt = global_msg_id;
+
   sendMessage(msg);
 }
 
@@ -179,7 +231,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   Serial.printf("<- RX Done (%d bytes)\n", size);
 
   LoRaMessage incomingMsg = {};
-  const size_t MIN_SIZE = sizeof(messageType) + sizeof(uint8_t) + sizeof(uint16_t);
+  const size_t MIN_SIZE = sizeof(messageType) + sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint16_t);
 
   if (size < MIN_SIZE) {
     rx_err++;
@@ -192,6 +244,11 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
     rx_err++;
     Serial.println("Checksum ERROR.");
     return;
+  }
+  
+  if (incomingMsg.length > 0) {
+    Serial.println("[CRYPTO] Checksum valido. Desencriptando payload RX...");
+    processCrypto(incomingMsg.data.raw, incomingMsg.length);
   }
 
   receivedPackets++;
@@ -274,6 +331,14 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
       if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
       Serial.println("El router confirma que podemos irnos de la red");
       break;
+      
+    case messageType::CRYPTO_ERROR:
+      if (!isForMe(incomingMsg.data.ControlData.id, incomingMsg.data.ControlData.router)) return;
+      Serial.println("[CRYPTO] El router informa de desincronización de FCnt. Iniciando JOIN...");
+      crypto_err++;
+      lastSleepTime = millis();
+      currentState = STATE_START_JOIN;
+      break;
   }
 }
 
@@ -316,7 +381,7 @@ bool isForMe(size_t receiverId, size_t routerId) {
 }
 
 void applyConfig(ConfData config) {
-  if (config.version <= 0 && config.version <= version) {
+  if (config.version <= 0 || config.version <= version) {
     Serial.println("Version de configuracion invalida, ignorando...");
     return;
   }

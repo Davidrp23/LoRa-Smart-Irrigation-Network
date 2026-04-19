@@ -1,3 +1,4 @@
+#include "config.h"
 #include "display.h"
 #include <Wire.h>               
 #include "HT_SSD1306Wire.h"
@@ -20,7 +21,9 @@ volatile uint8_t shared_queueSize = 0;
 volatile uint8_t shared_waiting_conf = 0;
 volatile uint16_t shared_channelBusyErrors = 0;
 volatile int8_t shared_connectedClients = 0;
+volatile size_t shared_crypto_err = 0;
 size_t shared_lastClient = 0;
+
 
 // OLED UI 
 uint8_t defaultMenu = 0; 
@@ -107,6 +110,8 @@ void TaskDisplay(void *pvParameters) {
         localStats.waiting_conf = shared_waiting_conf;
         localStats.channelBusyErrors = shared_channelBusyErrors;
         localStats.connectedClients = shared_connectedClients;
+        localStats.crypto_err = shared_crypto_err;
+        localStats.version = version;
         // Soltamos el mutex
         xSemaphoreGive(statsMutex);
     }
@@ -138,6 +143,8 @@ void TaskDisplay(void *pvParameters) {
     }else if (defaultMenu == 2){
       display.drawString(10, 0,  "== FLoRa Router == 3/3");
       display.drawString(0, 15, "Clients : " + String(localStats.connectedClients));
+      display.drawString(0, 25, "Crypto Errors : " + String(localStats.crypto_err));
+      display.drawString(0, 35, "Version : " + String(localStats.version) + ".0" );
     }
 
     // Barra de vida o animación para saber que no está colgado

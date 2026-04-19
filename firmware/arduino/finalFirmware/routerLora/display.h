@@ -21,7 +21,9 @@ extern volatile uint8_t shared_queueSize;
 extern volatile uint8_t shared_waiting_conf;
 extern volatile uint16_t shared_channelBusyErrors;
 extern volatile int8_t shared_connectedClients;
+extern volatile size_t shared_crypto_err;
 extern size_t shared_lastClient;
+//extern uint16_t version; declarada en config.h tambien es protegida
 
 // OLED UI 
 extern uint8_t defaultMenu;

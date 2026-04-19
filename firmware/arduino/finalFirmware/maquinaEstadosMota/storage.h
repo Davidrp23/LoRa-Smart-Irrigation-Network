@@ -12,6 +12,8 @@ extern RTC_DATA_ATTR uint16_t rx_err;
 extern RTC_DATA_ATTR uint16_t tx_err;
 extern RTC_DATA_ATTR uint16_t channelBusyErrors;
 extern RTC_DATA_ATTR uint16_t missingAckErrors;
+extern RTC_DATA_ATTR uint16_t crypto_err;
+extern RTC_DATA_ATTR uint32_t join_cnt;
 
 extern RTC_DATA_ATTR int8_t changeRouterAttempts;
 extern RTC_DATA_ATTR int8_t TXattempts;
@@ -34,3 +36,5 @@ void clearNetworkConfig();
 void saveGpsConfig();
 void loadGpsConfig();
 void clearGpsConfig();
+void saveJoinCnt();
+void loadJoinCnt();

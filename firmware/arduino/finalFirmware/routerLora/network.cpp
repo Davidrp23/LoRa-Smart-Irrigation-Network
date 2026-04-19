@@ -1,9 +1,12 @@
+#include "config.h"
 #include "network.h"
+#include "storage.h"
 
 //Router params
 size_t connectedClients[MAX_CLIENTS];
 std::vector<SensorsData> motasDataQueue; //Cola para almacenar los datos de las motas
 std::vector<ConfData> motasConf; //Cola para almacenar las configuraciones de las motas
+std::vector<ClientCryptoState> clientCryptoStates;
 
 uint8_t activeClients = 0;
 NetworkData NETWORK_DATA;
@@ -24,6 +27,15 @@ char getClientIndex(const size_t client){
 void addClient(const size_t client){
   connectedClients[activeClients] = client;
   activeClients++;
+}
+
+char getClientCryptoStateIndex(size_t client) {
+  for (size_t i = 0; i < clientCryptoStates.size(); i++) {
+    if (clientCryptoStates[i].id == client) return i;
+  }
+  ClientCryptoState newState = {client, 0, 0};
+  clientCryptoStates.push_back(newState);
+  return clientCryptoStates.size() - 1;
 }
 
 //Elimina un cliente. Coje al ultimo cliente de la lista y lo pone en la posicion del cliente que se va a eliminar, para tener siempre el array compacto.
@@ -60,11 +72,20 @@ void parseBigPacketResponse(String response){
     
     if (strcmp(tag, "r") == 0) { //Aplicamos la configuracion del router
 
-      if((size_t)item["id"] == routerId){ //Comprobamos que este router sea el target 
+      if((size_t)item["id"] == routerId){ //Comprobamos que este router sea el target
         
+        Serial.println("El servidor ha mandado un paquete de configuracion para este router.");
+
         uint16_t versionDeseada = (uint16_t)item["v"];
 
-        if (item.containsKey("p")) { //Parametros de configuracion
+        uint16_t versionCopy = 0;
+
+        if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+          versionCopy = version; //Una vez aplicamos los cambios actualizamos la version
+          xSemaphoreGive(statsMutex);
+        }
+
+        if (item.containsKey("p") && versionDeseada > versionCopy) { //Parametros de configuracion, comprobamos si la version del paquete es mayor a la actual (nuevos cambios)
 
           numChannel = item["p"]["c"] | numChannel;
           channel = channelList[numChannel];
@@ -79,14 +100,23 @@ void parseBigPacketResponse(String response){
           //Actualizamos NETWORK_DATA usado en los beacon frames
           strncpy(NETWORK_DATA.SSID, SSID, SSID_LENGTH);
           NETWORK_DATA.isPublic = isPublic;
+
+          Radio.SetChannel( channel );
+
+          if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+            version = versionDeseada; //Una vez aplicamos los cambios actualizamos la version
+            xSemaphoreGive(statsMutex);
+          }
+          
+          saveRouterConfig(); // Guardamos los cambios en flash
+          Serial.println("Configuracion de Router actualizada y guardada en flash.");
+
+        }else{
+          Serial.printf("No hay configuraciones o la version de configuracion para el router es antigua [versionServidor: %u | versionActual: %u]. Descartando...\n",(unsigned int) versionDeseada, (unsigned int) versionCopy);
         }
 
-        Radio.SetChannel( channel );
-        version = versionDeseada; //Una vez aplicamos los cambios actualizamos la version
-        Serial.println("Configuracion de Router actualizada.");
       }
-
-    }
+    }//Motas
     else if (strcmp(tag, "m") == 0) { // Aplicamos la configuración para motas
       
       size_t targetMoteId = item["id"];

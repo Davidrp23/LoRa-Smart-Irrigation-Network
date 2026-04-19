@@ -30,12 +30,16 @@
 #define DEBOUNCE_MS 50          // Filtro para rebotes
 #define LONG_PRESS_MS 1000      // Tiempo para considerar pulsación larga (1s)
 
+// --- TAMAÑOS ---
+#define MAX_PAYLOAD_SIZE 70 // Max size for the Data field
+#define SSID_LENGTH 8 + 1 // +1 para el terminador nulo
+
 // --- VARIABLES EXTERNAS ---
 extern const size_t routerId;
 extern char SSID[];
 extern bool isPublic;
 extern size_t channel;
 extern int8_t numChannel;
-extern uint16_t version;
+extern uint16_t version; //Variable compartida !! protegida por statsMutex!!
 
 extern const uint32_t channelList[NUM_CHANELS];

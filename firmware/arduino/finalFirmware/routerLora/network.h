@@ -15,12 +15,20 @@ extern size_t connectedClients[MAX_CLIENTS];
 extern std::vector<SensorsData> motasDataQueue; //Cola para almacenar los datos de las motas
 extern std::vector<ConfData> motasConf; //Cola para almacenar las configuraciones de las motas
 
+struct ClientCryptoState {
+  size_t id;
+  uint32_t lastFCnt;
+  uint32_t lastJoinCnt;
+};
+extern std::vector<ClientCryptoState> clientCryptoStates;
+
 extern uint8_t activeClients;
 
 // Clients Managment
 char getClientIndex(const size_t client);
 void addClient(const size_t client);
 bool deleteClient(const size_t client);
+char getClientCryptoStateIndex(size_t client);
 
 // Config Management
 void parseBigPacketResponse(String response);

@@ -2,9 +2,7 @@
 #include <Arduino.h>
 #include <cstdint>
 #include <cstddef>
-
-#define MAX_PAYLOAD_SIZE 240 // Max size for the Data field
-#define SSID_LENGTH 8 + 1 // +1 para el terminador nulo
+#include "config.h"
 
 // --- ESTADOS DEL BOTÓN (Variable Global) ---
 // Usamos un enum para que sea legible en cualquier parte del código
@@ -45,6 +43,8 @@ enum class messageType : uint8_t {
     DATA_CONF_ACK = 0x22, //Paquete que confirma que la mota ha recibido la configuracion enviada anteriormente en un paquete tipo DATA_CONF.
 
     DATA_ACK = 0x23, // Acknowledge (Confirmación) de recepción de DATA.
+    
+    CRYPTO_ERROR = 0x24,
 
     INVALID = 0xFF  // Default o desconocido
     
@@ -122,6 +122,7 @@ typedef struct __attribute__((packed)) {
   uint16_t tx_err;
   uint16_t channelBusyErrors;
   uint16_t missingAckErrors;
+  uint16_t crypto_err;
 
 } SensorsData;
 
@@ -134,10 +135,13 @@ typedef struct __attribute__((packed)) {
     // 2. Longitud de los datos (1 Byte) - Es vital para saber cuántos bytes son DATA real.
     uint8_t length;
 
-    // 3. Checksum (2 Bytes)
+    // 3. Frame counter (4 Bytes) - Cifrado e integridad global (anti-replay)
+    uint32_t fcnt;
+
+    // 4. Checksum (2 Bytes)
     uint16_t checksum;  
     
-    // 4. Carga Útil (Máximo 240 Bytes)
+    // 4. Carga Útil (Máximo 50 Bytes)
     union {
       uint8_t raw[MAX_PAYLOAD_SIZE];
       NetworkData NetworkData;
@@ -161,4 +165,6 @@ struct DisplayStats {
   uint8_t waiting_conf;
   uint16_t channelBusyErrors;
   int8_t connectedClients;
+  size_t crypto_err;
+  uint16_t version;
 };

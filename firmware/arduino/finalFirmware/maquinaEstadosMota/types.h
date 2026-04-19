@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 #define SSID_LENGTH 8 + 1  // +1 para el terminador nulo
-#define MAX_PAYLOAD_SIZE 240
+#define MAX_PAYLOAD_SIZE 70
 
 enum class messageType : uint8_t {
   BEACON_REQUEST = 0x00,
@@ -17,6 +17,7 @@ enum class messageType : uint8_t {
   DATA_CONF = 0x21,
   DATA_CONF_ACK = 0x22,
   DATA_ACK = 0x23,
+  CRYPTO_ERROR = 0x24,
   INVALID = 0xFF
 };
 
@@ -61,11 +62,13 @@ typedef struct __attribute__((packed)) {
   uint16_t tx_err;
   uint16_t channelBusyErrors;
   uint16_t missingAckErrors;
+  uint16_t crypto_err;
 } SensorsData;
 
 typedef struct __attribute__((packed)) {
   messageType type;
   uint8_t length;
+  uint32_t fcnt;
   uint16_t checksum;
   union {
     uint8_t raw[MAX_PAYLOAD_SIZE];

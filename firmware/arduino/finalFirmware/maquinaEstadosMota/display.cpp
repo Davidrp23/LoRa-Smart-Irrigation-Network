@@ -239,6 +239,7 @@ void updateOled(humData &myHumData, GpsData &myGpsData, batteryStatus &senderBat
     display.drawString(0, 20, "Tx_err: " + String(tx_err));
     display.drawString(0, 30, "ChannelBusyErrors: " + String(channelBusyErrors));
     display.drawString(0, 40, "MissingAckErrors: " + String(missingAckErrors));
+    display.drawString(0, 50, "Crypto_err: " + String(crypto_err));
     display.display();
     needDisplayUpdate = false;
   } else if (defaultMenu == 2 && needDisplayUpdate) {

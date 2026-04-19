@@ -7,6 +7,8 @@ RTC_DATA_ATTR uint16_t rx_err = 0;
 RTC_DATA_ATTR uint16_t tx_err = 0;
 RTC_DATA_ATTR uint16_t channelBusyErrors = 0;
 RTC_DATA_ATTR uint16_t missingAckErrors = 0;
+RTC_DATA_ATTR uint16_t crypto_err = 0;
+RTC_DATA_ATTR uint32_t join_cnt = 0;
 
 RTC_DATA_ATTR int8_t changeRouterAttempts = 7;
 RTC_DATA_ATTR int8_t TXattempts = 3;
@@ -25,6 +27,7 @@ void initStorage() {
   loadNetworkConfig();
   loadNodeConfig();
   loadGpsConfig();
+  loadJoinCnt();
 }
 
 void saveNetworkConfig() {
@@ -87,4 +90,16 @@ void clearGpsConfig() {
   preferences.remove("myGpsData");
   preferences.end();
   myGpsData = {0};
+}
+
+void saveJoinCnt() {
+  preferences.begin("mota_sec", false);
+  preferences.putUInt("join_cnt", join_cnt);
+  preferences.end();
+}
+
+void loadJoinCnt() {
+  preferences.begin("mota_sec", true);
+  join_cnt = preferences.getUInt("join_cnt", 0);
+  preferences.end();
 }

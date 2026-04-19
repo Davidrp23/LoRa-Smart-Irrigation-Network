@@ -8,6 +8,7 @@
 #include "config.h"
 #include "display.h"
 #include "network.h"
+#include "storage.h"
 #include "lora_router.h"
 #include "images.h"
 
@@ -57,11 +58,11 @@ String bigPacketResponse = R"raw(
         {
             "tg": "r",
             "id": 1,
-            "v": 4,
+            "v": 7,
             "p": {
                 "c": 2,
                 "s": "RED_XLP",
-                "eP": true
+                "eP": false
             }
         },
         {
@@ -93,8 +94,10 @@ void setup() {
   
   Serial.println("Iniciando Router");
 
-  initializeLora();
+  initRouterStorage(); // Cargamos la configuracion guardada en flash
 
+  initializeLora();
+  
   numChannel = findChannelNumber(channel);
   
   initializeOled();

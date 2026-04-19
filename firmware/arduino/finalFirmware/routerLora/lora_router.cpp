@@ -1,4 +1,23 @@
 #include "lora_router.h"
+#include <mbedtls/aes.h>
+
+const unsigned char crypto_key[16] = "59mkla3Qh0kC0eR";
+const unsigned char crypto_iv[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10};
+
+void processCrypto(uint8_t* payload, size_t length) {
+  mbedtls_aes_context aes;
+  mbedtls_aes_init(&aes);
+  mbedtls_aes_setkey_enc(&aes, crypto_key, 128);
+  
+  unsigned char iv_copy[16];
+  memcpy(iv_copy, crypto_iv, 16);
+  
+  unsigned char stream_block[16];
+  size_t nc_off = 0;
+  
+  mbedtls_aes_crypt_ctr(&aes, length, &nc_off, iv_copy, stream_block, payload, payload);
+  mbedtls_aes_free(&aes);
+}
 
 static RadioEvents_t RadioEvents;
 
@@ -23,7 +42,7 @@ void initializeLora(){
 
 void OnTxDone( void ){
 
-  Serial.print("TX done......");
+  Serial.println("TX done......");
 
   if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
     shared_tx++;
@@ -51,7 +70,7 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
   LoRaMessage incomingMessage; 
 
   // Define el tamaño mínimo de un paquete (Headers sin payload, 4B):
-  const size_t MIN_PACKET_SIZE = sizeof(messageType) + sizeof(uint8_t) + sizeof(uint16_t); // 4 bytes (messageType, length, checksum)
+  const size_t MIN_PACKET_SIZE = sizeof(messageType) + sizeof(uint8_t) + sizeof(uint32_t) + sizeof(uint16_t); // 8 bytes (messageType, length, fcnt, checksum)
   
   if (size >= MIN_PACKET_SIZE) {
     
@@ -69,6 +88,11 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
           shared_rx++;
           shared_rssi = rssi;
           xSemaphoreGive(statsMutex);
+        }
+
+        if (incomingMessage.length > 0) {
+            Serial.println("[CRYPTO] Checksum valido. Desencriptando payload RX...");
+            processCrypto(incomingMessage.data.raw, incomingMessage.length);
         }
 
         //Debug
@@ -147,12 +171,30 @@ void process(LoRaMessage incomingPackage){
 
       Serial.println("Se ha recibido un paquete con destino este router.");
       
+      // === VALIDACION GLOBAL ANTI-REPLAY ===
+      if (incomingPackage.type != messageType::JOIN_REQUEST && incomingPackage.type != messageType::INVALID) {
+          uint32_t incomingFCnt = incomingPackage.fcnt;
+          char cryptoIdx = getClientCryptoStateIndex(CLIENT_ID);
+          uint32_t lastFCnt = clientCryptoStates[cryptoIdx].lastFCnt;
+          
+          if (lastFCnt != 0 && incomingFCnt <= lastFCnt) {
+              Serial.printf("[CRYPTO] Desincronización o REPLAY detectado! MsgID %u (Ultimo %u). Solicitando re-join...\n", incomingFCnt, lastFCnt);
+              sendControlPacket(messageType::CRYPTO_ERROR, CLIENT_ID);
+              if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+                  shared_crypto_err++;
+                  xSemaphoreGive(statsMutex);
+              }
+              return; // Ignoramos el paquete malicioso
+          }
+          clientCryptoStates[cryptoIdx].lastFCnt = incomingFCnt;
+      }
+      
       switch(incomingPackage.type){
 
         //Para no formar bucles infinitos, el nodo y el router tendran 3 ciclos para completar la comunicacion, en caso de 3 fallos reiterados se cancelara la comunicacion
 
         case messageType::DATA : // El nodo adjunta datos recolectado por sus sensores
-
+        {
           if(getClientIndex(CLIENT_ID) == (char)-1){
             Serial.println("Se ha recibido un paquete de datos de una mota que NO estaba en la red, enviando respuesta...");
             sendControlPacket(messageType::JOIN_REQUEST, CLIENT_ID); //El JOIN_REQUEST solo lo envia la mota para conectarse a la red que gestiona el router, cuando el router lo envia como 
@@ -191,8 +233,24 @@ void process(LoRaMessage incomingPackage){
             }
           }
           break;
+        }
 
         case messageType::JOIN_REQUEST : // El nodo solicita unirse a la red gestionada por este router, aceptamos o denegamos empleando las cabeceras adecuadas
+        {
+          uint32_t incomingJoinCnt = incomingPackage.fcnt;
+          char cryptoIdx = getClientCryptoStateIndex(CLIENT_ID);
+          
+          if (clientCryptoStates[cryptoIdx].lastJoinCnt != 0 && incomingJoinCnt <= clientCryptoStates[cryptoIdx].lastJoinCnt) {
+              Serial.printf("[CRYPTO] Ataque de REPLAY detectado en JOIN_REQUEST! JoinCnt repetido o antiguo: %u. Descartando...\n", incomingJoinCnt);
+              sendControlPacket(messageType::JOIN_DENIED, CLIENT_ID);
+              if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+                  shared_crypto_err++;
+                  xSemaphoreGive(statsMutex);
+              }
+              break;
+          }
+          clientCryptoStates[cryptoIdx].lastJoinCnt = incomingJoinCnt;
+          clientCryptoStates[cryptoIdx].lastFCnt = 0;
 
         //Por ahora siempre va a aceptar la peticion de union.
 
@@ -215,6 +273,7 @@ void process(LoRaMessage incomingPackage){
           }
           sendControlPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
           break;
+        }
 
         case messageType::NODE_LEAVING : //El nodo solicita salirse de la Red que gestiona este router, el router envia NODE_LEAVING_ACK para aceptar la salida del nodo y terminar la comunicacion
           Serial.printf("El nodo %zu esta intentando desconectarse de la red.\n", CLIENT_ID);
@@ -260,14 +319,16 @@ void process(LoRaMessage incomingPackage){
 // Función de CRC-16/CCITT-FALSE (una implementación común)
 uint16_t calculateChecksum(LoRaMessage msg) {
 
-  const size_t buffSize = sizeof(msg.type) + sizeof(msg.length) + msg.length;
+  const size_t buffSize = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.fcnt) + msg.length;
   uint8_t buff[buffSize];
 
   // Metemos todos los datos del msg lora en un buffer
   //Calculo el checksum de todos los campos menos del propio checksum, una forma seria poner el checksum al final (del struct) y excluirlo, pero el campo data es variable por lo que debe ir al final.
-  memcpy(&buff, &msg.type , sizeof(msg.type));
-  memcpy(&buff[sizeof(msg.type)], &msg.length , sizeof(msg.length));
-  memcpy(&buff[sizeof(msg.type) + sizeof(msg.length)], &msg.data, msg.length);
+  size_t offset = 0;
+  memcpy(buff + offset, &msg.type, sizeof(msg.type)); offset += sizeof(msg.type);
+  memcpy(buff + offset, &msg.length, sizeof(msg.length)); offset += sizeof(msg.length);
+  memcpy(buff + offset, &msg.fcnt, sizeof(msg.fcnt)); offset += sizeof(msg.fcnt);
+  memcpy(buff + offset, &msg.data, msg.length);
 
   uint16_t crc = 0xFFFF;
   for (size_t i = 0; i < sizeof(buff); i++) {
@@ -280,6 +341,14 @@ uint16_t calculateChecksum(LoRaMessage msg) {
     }
   }
   return crc;
+}
+
+void encryptAndMAC(LoRaMessage& msg) {
+  if (msg.length > 0) {
+    Serial.printf("[CRYPTO] Encriptando payload TX de %d bytes...\n", msg.length);
+    processCrypto(msg.data.raw, msg.length);
+  }
+  msg.checksum = calculateChecksum(msg);
 }
 
 //Esta funcion tiene como parametro el tipo de mensaje y el ID del nodo destinatario. Envia un paquete de control del tipo seleccionado al cliente seleccionado
@@ -298,16 +367,16 @@ void sendControlPacket(messageType type, size_t clientID){
   msg.length = sizeof(ControlData); //Tamaño de la carga util
   msg.data.ControlData = cdata;
   
-  msg.checksum = calculateChecksum(msg);
+  encryptAndMAC(msg);
 
   // Calcular el tamaño exacto del paquete.
   // No vamos a enviar el tamaño completo del struct (244B) ya que el mensaje puede que no contenga el maximo tamaño posible (controldata vs sensordata) y estariamos desperdiciando tiempo valioso de trasmision
   // En lugar de enviar paquetes estaticos de 244B enviaremos paquetes dinamicos para aprovechar mejor el tiempo de trasmision
 
   // Calcula el tamaño real de los datos a transmitir:
-  // 1 (type) + 1 (length) + msg.length (datos reales) + 2 (checksum)
+  // 1 (type) + 1 (length) + 4 (fcnt) + msg.length (datos reales) + 2 (checksum)
 
-  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.fcnt) + sizeof(msg.checksum);
   
   const size_t realPacketSize = headers + msg.length; //Carga util + headers
 
@@ -347,16 +416,16 @@ void sendConfigPacket(ConfData configMota){
   msg.length = sizeof(ConfData); //Tamaño de la carga util
   msg.data.ConfData = configMota;
   
-  msg.checksum = calculateChecksum(msg);
+  encryptAndMAC(msg);
 
   // Calcular el tamaño exacto del paquete.
   // No vamos a enviar el tamaño completo del struct (244B) ya que el mensaje puede que no contenga el maximo tamaño posible (controldata vs sensordata) y estariamos desperdiciando tiempo valioso de trasmision
   // En lugar de enviar paquetes estaticos de 244B enviaremos paquetes dinamicos para aprovechar mejor el tiempo de trasmision
 
   // Calcula el tamaño real de los datos a transmitir:
-  // 1 (type) + 1 (length) + msg.length (datos reales) + 2 (checksum)
+  // 1 (type) + 1 (length) + 4 (fcnt) + msg.length (datos reales) + 2 (checksum)
 
-  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.fcnt) + sizeof(msg.checksum);
   
   const size_t realPacketSize = headers + msg.length; //Carga util + headers
 
@@ -400,17 +469,15 @@ void sendBeaconResponse(){
   msg.length = sizeof(NetworkData); //Tamaño de la carga util
   msg.data.NetworkData = NETWORK_DATA;
   
-  msg.checksum = calculateChecksum(msg);
+  encryptAndMAC(msg);
 
-  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.checksum);
+  const size_t headers = sizeof(msg.type) + sizeof(msg.length) + sizeof(msg.fcnt) + sizeof(msg.checksum);
   
   const size_t realPacketSize = headers + msg.length; //Carga util + headers
 
   Serial.print("Enviando paquete binario de ");
   Serial.print(realPacketSize);
   Serial.println(" bytes...");
-
-  Serial.printf("En la informacion de red enviada el router es publico: %d\n", msg.data.NetworkData.isPublic);
 
   // --- Transmisión ---
   int8_t attempts = 3; //Intentos para trasmitir, si en los 3 (con esperas aleatorias) falla, cancelamos y devolvemos false

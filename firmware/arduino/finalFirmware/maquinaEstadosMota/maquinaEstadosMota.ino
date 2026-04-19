@@ -85,6 +85,9 @@ void setup() {
     // Primer arranque o Reset Hardware
     Serial.println("--- MOTA INICIADA (COLD BOOT) ---");
     
+    //Imprimimos el logo de inicio por serie
+    Serial.println(SerialLogoFlora);
+    
     // Restablecer variables RTC a su valor inicial
     receivedPackets = 0;
     sendedPackets = 0;
