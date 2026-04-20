@@ -15,7 +15,7 @@ TAREAS PENDIENTES (HARDWARE Y FIRMWARE)
 4) Implementar un menu para obtener de nuevo la ubicacion o cambiar de red -- ok
 5) Implementar el comportamiento de unirse a una red cuando esta es privada (diseñar solucion e implemtentarla) (join denied) (cuando es publica se une sin mas) -- ok
 6) Implemtentar el deep sleep en las motas y asegurarse la persistencia de los datos (router guardado) -- ok
-7) Implementar seguridad en el protocolo FloRa (cofidencialidad, integridad, def attq por replay) (implementar en routers y motas)
+7) Implementar seguridad en el protocolo FloRa (cofidencialidad, integridad, def attq por replay) (implementar en routers y motas) -- ok
 8) Probar el objeto de comunicacion con el AM
 9) Hacer que el AM funcione con la logica de ese objeto 
 10) Implementar la logica de envio del big-packet en el router
