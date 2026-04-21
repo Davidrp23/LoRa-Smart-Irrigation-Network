@@ -184,6 +184,8 @@ void parseBigPacketResponse(String response){
   }
 }
 
+//void makeBigPacket()
+
 //Funcion para buscar la configuracion de una mota, devuelve su configuracion pendiente o una configuracion con id = 0 en caso contrario 
 ConfData searchMotaConf(size_t id) {
   for (size_t i = 0; i < motasConf.size(); i++) {

@@ -188,6 +188,7 @@ void updateOled(humData &myHumData, GpsData &myGpsData, batteryStatus &senderBat
       } else {
         Serial.println(F("[ERROR] Timeout: No se pudo fijar la ubicación GPS a tiempo."));
       }
+      lastButtonActivity = millis(); //Para que no se vaya a dormir cuando acabe de leer el gps
       needDisplayUpdate = true;
     }else if(defaultMenu == 6){
       Serial.println("El ususario ha activado la lectura de humedad de forma manual");

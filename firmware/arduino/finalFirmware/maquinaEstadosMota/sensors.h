@@ -11,7 +11,7 @@
 #define GPS_RX_PIN 6 
 #define GPS_TX_PIN 7 
 #define GPS_BAUD   9600 
-#define GPS_TIMEOUT 120000
+#define GPS_TIMEOUT 180000
 
 struct GpsData {
     double latitude;

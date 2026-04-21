@@ -168,3 +168,8 @@ struct DisplayStats {
   size_t crypto_err;
   uint16_t version;
 };
+
+
+//Estructura para pasar los valores a la funcion que envia los datos al AM
+
+
