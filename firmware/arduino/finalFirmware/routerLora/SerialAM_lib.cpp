@@ -1,102 +1,114 @@
-//SerialAM.cpp
+// SerialAM_lib.cpp
+// Implementación del driver AM-036.
+// Toda la comunicación con la tarea de control se realiza vía TaskNotify
+// (sin callbacks, sin flags globales, sin polling desde fuera).
 
-#include "SerialAM.h"
+#include "SerialAM_lib.h"
 
-SerialAM::SerialAM(HardwareSerial& hwSerial, uint8_t pin) 
-    : serial(hwSerial), mosfetPin(pin), state(AMState::OFF), rxBuffer("") {
-    onStatusChange = nullptr;
-    onSendCompleted = nullptr;
+// ---------------------------------------------------------------------------
+// Timeouts de seguridad
+// ---------------------------------------------------------------------------
+static constexpr unsigned long TIMEOUT_READY_MS = 60000UL; // 60 s para conseguir red GPRS
+static constexpr unsigned long TIMEOUT_SEND_MS  = 40000UL; // 40 s para respuesta HTTP
+
+// ---------------------------------------------------------------------------
+// Constructor e inicialización
+// ---------------------------------------------------------------------------
+SerialAM::SerialAM(HardwareSerial& hwSerial, uint8_t mosfetPin)
+    : _serial(hwSerial),
+      _mosfetPin(mosfetPin),
+      _state(AMState::OFF),
+      _stateTimer(0),
+      _rxBuffer(""),
+      _controlTask(nullptr)
+{
+    _lastResult = {false, 0, ""};
 }
 
 void SerialAM::begin(uint32_t baud, int rxPin, int txPin) {
-    // Configuración del pin de control de energía
-    pinMode(mosfetPin, OUTPUT);
-    digitalWrite(mosfetPin, LOW); // Por seguridad, arrancamos apagados
+    pinMode(_mosfetPin, OUTPUT);
+    digitalWrite(_mosfetPin, LOW); // Seguridad: arrancamos apagados
 
-    // Inicializamos el puerto UART Hardware
-    serial.begin(baud, SERIAL_8N1, rxPin, txPin);
-    
-    // Pre-reservamos algo de memoria para el buffer y evitar fragmentación
-    rxBuffer.reserve(512); 
+    _serial.begin(baud, SERIAL_8N1, rxPin, txPin);
+    _rxBuffer.reserve(512); // Pre-reservamos para evitar fragmentación de heap
 }
 
-void SerialAM::setCallbacks(StatusCallback statusCb, SendCallback sendCb) {
-    onStatusChange = statusCb;
-    onSendCompleted = sendCb;
+void SerialAM::setControlTask(TaskHandle_t taskHandle) {
+    _controlTask = taskHandle;
 }
 
-void SerialAM::changeState(AMState newState) {
-    state = newState;
-    stateTimer = millis(); // Reseteamos el temporizador para los Timeouts
-}
-
+// ---------------------------------------------------------------------------
+// Control de energía
+// ---------------------------------------------------------------------------
 void SerialAM::powerOn() {
-    if (state == AMState::OFF || state == AMState::ERROR) {
-        Serial.println("[SerialAM] Encendiendo hardware AM-036...");
-        digitalWrite(mosfetPin, HIGH);
-        rxBuffer = ""; // Limpiamos cualquier basura en el buffer
+    if (_state == AMState::OFF || _state == AMState::ERROR) {
+        Serial.println(F("[AM] Encendiendo AM-036..."));
+        _rxBuffer = "";
+        digitalWrite(_mosfetPin, HIGH);
         changeState(AMState::WAITING_READY);
     }
 }
 
 void SerialAM::powerOff() {
-    Serial.println("[SerialAM] Apagando hardware AM-036...");
-    digitalWrite(mosfetPin, LOW);
-    rxBuffer = "";
+    Serial.println(F("[AM] Apagando AM-036..."));
+    digitalWrite(_mosfetPin, LOW);
+    _rxBuffer = "";
     changeState(AMState::OFF);
 }
 
+// ---------------------------------------------------------------------------
+// Envío del BigPacket
+// ---------------------------------------------------------------------------
 bool SerialAM::sendBigPacket(const String& jsonPayload) {
-    // Cláusula de Guarda: Proteger contra envíos indebidos
-    if (state != AMState::IDLE) {
-        Serial.println("[SerialAM] Error: Intento de envío mientras no estaba IDLE.");
-        return false; 
+    if (_state != AMState::IDLE) {
+        Serial.println(F("[AM] Error: sendBigPacket() llamado fuera de estado IDLE."));
+        return false;
     }
 
-    Serial.println("[SerialAM] Transfiriendo payload al AM-036...");
-    
-    // Construimos el comando localmente y lo enviamos
-    serial.print("{\"cmd\":\"SEND\",\"data\":");
-    serial.print(jsonPayload);
-    serial.print("}\n"); // El salto de línea final es CRÍTICO
-    
+    Serial.println(F("[AM] Transfiriendo BigPacket al AM-036..."));
+
+    // Protocolo: {"cmd":"SEND","data":<payload>}\n
+    _serial.print(F("{\"cmd\":\"SEND\",\"data\":"));
+    _serial.print(jsonPayload);
+    _serial.print(F("}\n")); // Salto de línea es el delimitador de trama
+
     changeState(AMState::WAITING_SEND);
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Loop de lectura UART + watchdog de timeouts (llamar desde loop o tarea)
+// ---------------------------------------------------------------------------
 void SerialAM::update() {
-    // 1. LECTURA DE EVENTOS (No bloqueante)
-    while (serial.available()) {
-        char c = serial.read();
+    // --- 1. Lectura de UART (no bloqueante) ---
+    while (_serial.available()) {
+        char c = _serial.read();
         if (c == '\n') {
-            // Fin de trama detectado, procesamos el JSON
-            processIncomingJSON(rxBuffer);
-            rxBuffer = ""; // Vaciamos buffer para el siguiente mensaje
+            if (_rxBuffer.length() > 0) {
+                processFrame(_rxBuffer);
+            }
+            _rxBuffer = "";
         } else if (c != '\r') {
-            rxBuffer += c; // Acumulamos el caracter
+            _rxBuffer += c;
         }
     }
 
-    // 2. GESTIÓN DE TIMEOUTS DE SEGURIDAD (Vigilancia de hardware)
-    switch (state) {
+    // --- 2. Timeouts de seguridad ---
+    switch (_state) {
         case AMState::WAITING_READY:
-            // Dar hasta 60 segundos para arrancar y encontrar red celular (a veces GPRS es lento)
-            if (millis() - stateTimer > 60000) {
-                Serial.println("[SerialAM] TIMEOUT CRÍTICO: El módulo no consiguió red en 60s.");
-                changeState(AMState::ERROR); // Lo mandamos a error. El Router decidirá si apaga o reintenta.
-                if (onStatusChange) onStatusChange(false, 0);
+            if (millis() - _stateTimer > TIMEOUT_READY_MS) {
+                Serial.println(F("[AM] TIMEOUT: El módulo no obtuvo red en 60s."));
+                changeState(AMState::ERROR);
+                notify(AM_NOTIFY_ERROR);
             }
             break;
 
         case AMState::WAITING_SEND:
-            // Dar hasta 40 segundos para que el servidor backend responda al POST HTTP
-            if (millis() - stateTimer > 40000) {
-                Serial.println("[SerialAM] TIMEOUT CRÍTICO: El servidor HTTP no respondió.");
-                changeState(AMState::IDLE); // Volvemos a IDLE por si queremos reintentar
-                
-                // Creamos un documento vacío para avisar al callback del fallo
-                JsonDocument emptyDoc; 
-                if (onSendCompleted) onSendCompleted(false, 408, emptyDoc); // 408 = Request Timeout
+            if (millis() - _stateTimer > TIMEOUT_SEND_MS) {
+                Serial.println(F("[AM] TIMEOUT: El servidor HTTP no respondió en 40s."));
+                _lastResult = {false, 408, ""};
+                changeState(AMState::IDLE); // Volvemos a IDLE para permitir reintento
+                notify(AM_NOTIFY_SEND_FAIL);
             }
             break;
 
@@ -105,43 +117,66 @@ void SerialAM::update() {
     }
 }
 
-void SerialAM::processIncomingJSON(const String& jsonStr) {
-    // ArduinoJson v7: JsonDocument gestiona la memoria dinámica por nosotros
-    JsonDocument doc; 
-    DeserializationError error = deserializeJson(doc, jsonStr);
+// ---------------------------------------------------------------------------
+// Helpers privados
+// ---------------------------------------------------------------------------
+void SerialAM::changeState(AMState newState) {
+    _state = newState;
+    _stateTimer = millis();
+}
 
-    if (error) {
-        Serial.print("[SerialAM] Error de Parseo JSON desde AM-036: ");
-        Serial.println(error.c_str());
-        Serial.println("[SerialAM] Payload corrupto recibido: " + jsonStr);
+void SerialAM::notify(uint32_t bits) {
+    if (_controlTask == nullptr) return;
+
+    // xTaskNotify es seguro llamarlo desde cualquier contexto no-ISR.
+    // Si se necesitase llamar desde ISR real, usar xTaskNotifyFromISR().
+    xTaskNotify(_controlTask, bits, eSetBits);
+}
+
+void SerialAM::processFrame(const String& jsonStr) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, jsonStr);
+
+    if (err) {
+        Serial.printf("[AM] Error parseo JSON: %s | Raw: %s\n",
+                      err.c_str(), jsonStr.c_str());
         return;
     }
 
-    // Identificamos si es un Evento (del AM-036) o una Respuesta (a un comando)
-    String event = doc["event"];
+    const char* event = doc["event"] | "";
 
-    // --- PROCESAMIENTO DE EVENTOS ---
-    if (event == "READY") {
-        int csq = doc["csq"] | 0; // Leemos la cobertura, por defecto 0 si no viene
-        Serial.printf("[SerialAM] << Evento READY recibido (CSQ: %d)\n", csq);
-        
-        changeState(AMState::IDLE); 
-        if (onStatusChange) onStatusChange(true, csq);
-    } 
-    else if (event == "LOST_NETWORK") {
-        Serial.println("[SerialAM] << Evento LOST_NETWORK recibido");
-        changeState(AMState::ERROR);
-        if (onStatusChange) onStatusChange(false, 0);
-    }
-    else if (event == "SEND_DONE") {
-        bool ok = doc["ok"];
-        int code = doc["code"];
-        Serial.printf("[SerialAM] << Evento SEND_DONE recibido (HTTP: %d)\n", code);
-        
+    // -----------------------------------------------------------------------
+    // Eventos del AM-036
+    // -----------------------------------------------------------------------
+    if (strcmp(event, "READY") == 0) {
+        int csq = doc["csq"] | 0;
+        Serial.printf("[AM] << READY (CSQ: %d)\n", csq);
         changeState(AMState::IDLE);
-        if (onSendCompleted) onSendCompleted(ok, code, doc); // Pasamos el documento completo para extraer el "conf" downlink
+        notify(AM_NOTIFY_READY);
+    }
+    else if (strcmp(event, "LOST_NETWORK") == 0) {
+        Serial.println(F("[AM] << LOST_NETWORK"));
+        changeState(AMState::ERROR);
+        notify(AM_NOTIFY_ERROR);
+    }
+    else if (strcmp(event, "SEND_DONE") == 0) {
+        bool ok     = doc["ok"]   | false;
+        int  code   = doc["code"] | 0;
+        Serial.printf("[AM] << SEND_DONE (ok=%d, HTTP %d)\n", ok, code);
+
+        _lastResult.ok       = ok;
+        _lastResult.httpCode = code;
+        _lastResult.responseBody = "";
+
+        // Serializamos el campo "response" si existe (downlink del servidor)
+        if (doc.containsKey("response")) {
+            serializeJson(doc["response"], _lastResult.responseBody);
+        }
+
+        changeState(AMState::IDLE);
+        notify(ok ? AM_NOTIFY_SEND_OK : AM_NOTIFY_SEND_FAIL);
     }
     else {
-        Serial.println("[SerialAM] Evento JSON desconocido: " + event);
+        Serial.printf("[AM] Evento desconocido: %s\n", event);
     }
 }
