@@ -184,7 +184,7 @@ static void uplink_manager_task(void* pvParameters) {
                 if (notif & AM_NOTIFY_SEND_OK) {
                     AMSendResult result = am036.getLastResult();
                     Serial.printf("[AM_CTRL] Envío OK (HTTP %d).\n", result.httpCode);
-                    parseBigPacketResponse(result.responseBody);
+                    //parseBigPacketResponse(result.responseBody);
                     lastSendTs = xTaskGetTickCount();
                     firstPktTs = 0; // Reseteamos el timestamp de la cola
                     cycleOk = true;

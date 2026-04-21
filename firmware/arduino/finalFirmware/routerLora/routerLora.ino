@@ -69,7 +69,10 @@ void setup() {
 
   initializeLora();
 
+  rxQueue = xQueueCreate(RX_QUEUE_LEN, RX_MSG_SIZE);
+
   AMSetup();
+
   startUplinkTask();
   
   numChannel = findChannelNumber(channel);
@@ -98,7 +101,18 @@ void setup() {
     0               // Core ID (0 = Protocolo/Display, 1 = Arduino Loop)
   );
 
-
+  // 3. Tarea de procesamiento de paquetes LoRa recibidos (consume rxQueue)
+  //    Prioridad 2: mayor que Display para responder rapidamente al trafico radio.
+  //    Corre en Core 0 junto con Display para no interferir con el loop() de Radio.
+  xTaskCreatePinnedToCore(
+    loraRxProcessTask,  // Función de la tarea
+    "LoRaRxTask",       // Nombre (para depuración)
+    8192,               // Stack generoso: valida checksum, crypto y llama a process()
+    NULL,               // Parámetros
+    2,                  // Prioridad (2 = mayor que Display)
+    NULL,               // Handle de la tarea
+    0                   // Core ID
+  );
 
   Serial.println("Sistema Multitarea Iniciado.");
 

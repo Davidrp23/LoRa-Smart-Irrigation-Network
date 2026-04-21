@@ -169,7 +169,12 @@ struct DisplayStats {
   uint16_t version;
 };
 
-
-//Estructura para pasar los valores a la funcion que envia los datos al AM
-
-
+// Estructura que viaja por la rxQueue desde el callback OnRxDone hasta
+// la tarea loraRxProcessTask. Guarda una copia del payload crudo para
+// no depender del buffer efímero que provee el driver LoRa.
+typedef struct __attribute__((packed)) {
+  uint8_t  raw[MAX_PAYLOAD_SIZE + 8]; // +8 = margen para los headers del LoRaMessage
+  uint16_t size;                      // Tamaño real del paquete recibido (bytes)
+  int16_t  rssi;                      // RSSI del paquete
+  int8_t   snr;                       // SNR del paquete
+} RxRawPacket;

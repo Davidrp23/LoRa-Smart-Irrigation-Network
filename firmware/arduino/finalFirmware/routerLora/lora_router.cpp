@@ -24,6 +24,7 @@ void processCrypto(uint8_t *payload, size_t length) {
 }
 
 static RadioEvents_t RadioEvents;
+QueueHandle_t rxQueue; //Cola para recibir los mensajes (definido en setup())
 
 void initializeLora() {
   RadioEvents.TxDone = OnTxDone;
@@ -69,87 +70,137 @@ void OnTxTimeout(void) {
 }
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-  LoRaMessage incomingMessage;
+  // --- Contexto de ISR/callback del driver LoRa ---
+  // Aquí NO se hace ningún procesamiento pesado. Solo copiamos los bytes
+  // del buffer efimero del driver a un RxRawPacket y lo metemos en la cola.
+  // Toda la validacion, checksum, crypto y logica de protocolo la hace
+  // loraRxProcessTask en su propio contexto de tarea.
 
-  // Define el tamaño mínimo de un paquete (Headers sin payload, 4B):
+  RxRawPacket pkt;
+  // Nos aseguramos de no desbordar el buffer del paquete crudo
+  uint16_t copyLen = min((uint16_t)sizeof(pkt.raw), size);
+  memcpy(pkt.raw, payload, copyLen);
+  pkt.size = size;   // Guardamos el tamanio REAL para que la tarea lo valide
+  pkt.rssi = rssi;
+  pkt.snr  = snr;
+
+  // Enviamos desde contexto ISR sin bloquear (timeout = 0)
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  if (xQueueSendFromISR(rxQueue, &pkt, &xHigherPriorityTaskWoken) != pdTRUE) {
+    // La cola esta llena: incrementamos el contador de error de RX
+    // NOTA: accedemos a shared_rx_err sin mutex porque estamos en ISR y
+    // es una escritura atomica de una variable enteras de 32 bits en ESP32.
+    shared_rx_err++;
+    Serial.println("[OnRxDone] Cola rxQueue llena! Paquete descartado.");
+  }
+
+  // Cedemos el contexto si la tarea de mayor prioridad ha sido despertada
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+// ============================================================
+// TAREA: loraRxProcessTask
+// Bloquea sobre rxQueue y procesa cada paquete LoRa recibido:
+//  1. Comprueba tamaños (MIN_PACKET_SIZE, longitud por header)
+//  2. Valida checksum
+//  3. Desencripta el payload (AES-CTR)
+//  4. Actualiza contadores de estadisticas (statsMutex)
+//  5. Llama a process() con el LoRaMessage ya verificado
+// ============================================================
+void loraRxProcessTask(void *pvParameters) {
+
+  // Define el tamaño minimo de un paquete (Headers sin payload):
+  // messageType (1B) + length (1B) + fcnt (4B) + checksum (2B) = 8 bytes
   const size_t MIN_PACKET_SIZE =
       sizeof(messageType) + sizeof(uint8_t) + sizeof(uint32_t) +
-      sizeof(uint16_t); // 8 bytes (messageType, length, fcnt, checksum)
+      sizeof(uint16_t);
 
-  if (size >= MIN_PACKET_SIZE) {
+  RxRawPacket pkt;
 
-    memcpy(
-        &incomingMessage, payload,
-        min((size_t)size, (size_t)MIN_PACKET_SIZE + (size_t)MAX_PAYLOAD_SIZE));
+  for (;;) {
+    // Bloqueamos hasta que haya un paquete en la cola (espera indefinida)
+    if (xQueueReceive(rxQueue, &pkt, portMAX_DELAY) == pdTRUE) {
 
-    size_t expectedSize = MIN_PACKET_SIZE + incomingMessage.length;
+      const uint16_t size = pkt.size;
 
-    if (size == expectedSize) {
+      if (size >= MIN_PACKET_SIZE) {
 
-      uint16_t expectedChecksum = calculateChecksum(incomingMessage);
+        // Reconstruimos el LoRaMessage a partir de los bytes crudos
+        LoRaMessage incomingMessage;
+        memcpy(
+            &incomingMessage, pkt.raw,
+            min((size_t)size, (size_t)MIN_PACKET_SIZE + (size_t)MAX_PAYLOAD_SIZE));
 
-      if (expectedChecksum == incomingMessage.checksum) {
+        size_t expectedSize = MIN_PACKET_SIZE + incomingMessage.length;
 
-        if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
-          shared_rx++;
-          shared_rssi = rssi;
-          xSemaphoreGive(statsMutex);
+        if (size == expectedSize) {
+
+          uint16_t expectedChecksum = calculateChecksum(incomingMessage);
+
+          if (expectedChecksum == incomingMessage.checksum) {
+
+            if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+              shared_rx++;
+              shared_rssi = pkt.rssi;
+              xSemaphoreGive(statsMutex);
+            }
+
+            if (incomingMessage.length > 0) {
+              Serial.println(
+                  "[CRYPTO] Checksum valido. Desencriptando payload RX...");
+              processCrypto(incomingMessage.data.raw, incomingMessage.length);
+            }
+
+            // Debug
+            packageToSerial(incomingMessage, size, pkt.rssi, pkt.snr);
+
+            process(incomingMessage);
+
+          } else {
+
+            // Checksum invalido, hay datos corruptos
+
+            if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+              shared_rx_err++;
+              xSemaphoreGive(statsMutex);
+            }
+
+            Serial.print("Error de checksum, checksum del mensaje: ");
+            Serial.print(incomingMessage.checksum);
+            Serial.print(", checksum calculado: ");
+            Serial.println(expectedChecksum);
+          }
+
+        } else {
+          // El campo 'length' indica X, pero el paquete recibido era Y. Error de
+          // protocolo.
+
+          if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+            shared_rx_err++;
+            xSemaphoreGive(statsMutex);
+          }
+
+          Serial.print("Error de longitud en el protocolo! Paquete real: ");
+          Serial.print(size);
+          Serial.print(", Esperado por Header: ");
+          Serial.println(expectedSize);
         }
 
-        if (incomingMessage.length > 0) {
-          Serial.println(
-              "[CRYPTO] Checksum valido. Desencriptando payload RX...");
-          processCrypto(incomingMessage.data.raw, incomingMessage.length);
-        }
-
-        // Debug
-        packageToSerial(incomingMessage, size, rssi, snr);
-
-        process(incomingMessage);
-
-      } else {
-
-        // checksum invalido, hay datos corruptos
+      } else if (size > 0) {
+        // Paquete demasiado pequenio para siquiera contener los headers (corrupto)
 
         if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
           shared_rx_err++;
           xSemaphoreGive(statsMutex);
         }
 
-        Serial.print("Error de checksum, checksum del mensaje: ");
-        Serial.print(incomingMessage.checksum);
-        Serial.print(", checksum calculado: ");
-        Serial.println(expectedChecksum);
+        Serial.print("Paquete demasiado corto (");
+        Serial.print(size);
+        Serial.print(" bytes). Minimo: ");
+        Serial.print(MIN_PACKET_SIZE);
+        Serial.println(" bytes.");
       }
-
-    } else {
-      // El campo 'length' indica X, pero el paquete recibido era Y. Error de
-      // protocolo.
-
-      if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
-        shared_rx_err++;
-        xSemaphoreGive(statsMutex);
-      }
-
-      Serial.print("Error de longitud en el protocolo! Paquete real: ");
-      Serial.print(size);
-      Serial.print(", Esperado por Header: ");
-      Serial.println(expectedSize);
     }
-
-  } else if (size > 0) {
-    // Paquete demasiado pequeño para siquiera contener los headers (corrupto)
-
-    if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
-      shared_rx_err++;
-      xSemaphoreGive(statsMutex);
-    }
-
-    Serial.print("Paquete demasiado corto (");
-    Serial.print(size);
-    Serial.print(" bytes). Mínimo: ");
-    Serial.print(MIN_PACKET_SIZE);
-    Serial.println(" bytes.");
   }
 }
 
