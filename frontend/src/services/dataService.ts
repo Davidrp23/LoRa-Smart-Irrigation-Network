@@ -1,4 +1,4 @@
-const API_URL = '';
+const API_URL = '/api';
 
 // Interfaces simplificadas para el adaptador
 export interface AppData {
