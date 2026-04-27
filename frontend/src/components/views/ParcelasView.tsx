@@ -93,9 +93,11 @@ const DeviceSummaryModal = ({ parcel }: { parcel: ParcelaExtended, onClose: () =
                     <Signal size={14} /> {d.rssi ?? '--'} dBm
                   </div>
                 )}
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Radio size={14} /> CH {d.canal ?? '--'}
-                </div>
+                {d.tipo === 'router' && (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Radio size={14} /> CH {d.canal ?? '--'}
+                  </div>
+                )}
                 <div className={`flex items-center gap-1 ${d.bateria != null && d.bateria < 20 ? 'text-red-500' : 'text-green-600'}`}>
                   {d.bateria != null 
                     ? <><BatteryLevel level={d.bateria} size={14} /> {d.bateria}%</>

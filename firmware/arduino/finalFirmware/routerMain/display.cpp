@@ -9,7 +9,8 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 // Candado para proteger las variables compartidas
 SemaphoreHandle_t statsMutex; 
 SemaphoreHandle_t buttonStateMutex; 
-
+SemaphoreHandle_t networkMutex;
+SemaphoreHandle_t loraTxSemaphore;
 // Variables globales protegidas
 volatile size_t shared_rx = 0;
 volatile size_t shared_tx = 0;
@@ -21,8 +22,11 @@ volatile uint8_t shared_queueSize = 0;
 volatile uint8_t shared_waiting_conf = 0;
 volatile uint16_t shared_channelBusyErrors = 0;
 volatile int8_t shared_connectedClients = 0;
+volatile size_t shared_crc_err = 0;
 volatile size_t shared_crypto_err = 0;
 size_t shared_lastClient = 0;
+volatile int8_t shared_coverage = 0;
+volatile TickType_t shared_firstPktTimestamp = 0;
 
 
 // OLED UI 
@@ -72,9 +76,9 @@ void TaskDisplay(void *pvParameters) {
 
     //Cogemos el mutex para leer globalButtonState y modificarlo si hace falta (core 1 tambien lo puede modificar)
     if (xSemaphoreTake(buttonStateMutex, (TickType_t)10) == pdTRUE) {
-      if(globalButtonState == SHORT_PRESS){
+      if(globalButtonState == SHORT_PRESS && isOledOn){ //Para que o avance por el menu si la pantalla esta apagada
         defaultMenu++;
-        if (defaultMenu > 2) defaultMenu = 0;
+        if (defaultMenu > 3) defaultMenu = 0;
         globalButtonState = NO_PRESS;
       }
       xSemaphoreGive(buttonStateMutex);
@@ -110,8 +114,10 @@ void TaskDisplay(void *pvParameters) {
         localStats.waiting_conf = shared_waiting_conf;
         localStats.channelBusyErrors = shared_channelBusyErrors;
         localStats.connectedClients = shared_connectedClients;
+        localStats.crc_err = shared_crc_err;
         localStats.crypto_err = shared_crypto_err;
         localStats.version = version;
+        localStats.coverage = shared_coverage;
         // Soltamos el mutex
         xSemaphoreGive(statsMutex);
     }
@@ -120,7 +126,7 @@ void TaskDisplay(void *pvParameters) {
     // Esto puede tardar lo que quiera, NO bloqueará a la radio
     display.clear();
     if(defaultMenu == 0){
-      display.drawString(10, 0,  "== FLoRa Router == 1/3");
+      display.drawString(10, 0,  "== FLoRa Router == 1/4");
       display.drawString(0, 15, "ID: " + String(routerId) + " |" + String(SSID) + "[CH: " + String((int)numChannel) + "]"); 
       display.drawString(0, 25, "TX: " + String(localStats.tx_pkts) + " | Err: " + String(localStats.tx_err));
       display.drawString(0, 35, "RX: " + String(localStats.rx_pkts) + " | Err: " + String(localStats.rx_err));
@@ -134,17 +140,23 @@ void TaskDisplay(void *pvParameters) {
       }
 
     }else if (defaultMenu == 1){
-      display.drawString(10, 0,  "== FLoRa Router == 2/3");
+      display.drawString(10, 0,  "== FLoRa Router == 2/4");
       display.drawString(0, 15, "Mote Data Q : " + String(localStats.queueSize));
       display.drawString(0, 25, "Data Ovflw : " + String(localStats.queueFull));
       display.drawString(0, 35, "Conf Pend : " + String(localStats.waiting_conf));
       display.drawString(0, 45, "ChannelBusyErrors : " + String(localStats.channelBusyErrors));
 
     }else if (defaultMenu == 2){
-      display.drawString(10, 0,  "== FLoRa Router == 3/3");
+      display.drawString(10, 0,  "== FLoRa Router == 3/4");
       display.drawString(0, 15, "Clients : " + String(localStats.connectedClients));
       display.drawString(0, 25, "Crypto Errors : " + String(localStats.crypto_err));
-      display.drawString(0, 35, "Version : " + String(localStats.version) + ".0" );
+      display.drawString(0, 35, "CRC Errors : " + String(localStats.crc_err));
+      display.drawString(0, 45, "Version : " + String(localStats.version) + ".0" );
+      display.drawString(0, 45, "GPRS CSQ : " + String(localStats.coverage));
+
+    }else if (defaultMenu == 3){
+      display.drawString(10, 0,  "== FLoRa Router == 4/4");
+      display.drawString(0, 15, "GPRS CSQ : " + String(localStats.coverage));
     }
 
     // Barra de vida o animación para saber que no está colgado

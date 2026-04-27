@@ -12,5 +12,10 @@ export declare class UpdateRouterDto {
     erroresTx: number;
     erroresRx: number;
     erroresCrc: number;
+    cvgGPRS: number;
+    erroresCriptograficos: number;
+    erroresCanalOcupado: number;
+    erroresColaLlena: number;
+    versionAplicada: number;
     parcelaId: number;
 }

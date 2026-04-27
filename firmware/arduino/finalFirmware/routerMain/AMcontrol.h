@@ -24,11 +24,39 @@
 extern SerialAM am036;
 
 // ---------------------------------------------------------------------------
+// Tipos de trabajo que puede procesar el AM-036
+// ---------------------------------------------------------------------------
+enum class AMJobType : uint8_t {
+    BIG_PACKET,       // POST del big-packet (uplink periódico)
+    ACCESS_CHECK      // GET /routers/permitirAcceso/{nodeId}
+};
+
+// ---------------------------------------------------------------------------
+// Resultado de un trabajo completado
+// ---------------------------------------------------------------------------
+struct AMJobResult {
+    AMJobType type;
+    bool      success;
+    int       httpCode;
+    String    responseBody;
+    size_t    nodeId;      // Solo relevante para ACCESS_CHECK
+};
+
+// ---------------------------------------------------------------------------
+// Colas
+// ---------------------------------------------------------------------------
+// Cola para que el resultado de ACCESS_CHECK se devuelva a lora_router
+extern QueueHandle_t amResultQueue;
+
+// ---------------------------------------------------------------------------
 // API pública
 // ---------------------------------------------------------------------------
 
 // Configura pines y el driver UART. Llamar desde setup() antes de las tareas.
 void AMSetup();
 
-// Crea la tarea FreeRTOS uplink_manager. Llamar desde setup() tras AMSetup().
+// Crea las tareas FreeRTOS del AM-036. Llamar desde setup() tras AMSetup().
 void startUplinkTask();
+
+// Encola un trabajo de verificación de acceso (no bloqueante)
+bool enqueueAccessCheck(size_t nodeId);

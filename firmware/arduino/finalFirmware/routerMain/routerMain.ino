@@ -85,10 +85,14 @@ void setup() {
 
   // --- FREERTOS SETUP ---
   
-  // 1. Crear el semáforo (Mutex)
+  // 1. Crear los semáforos (Mutexes)
   statsMutex = xSemaphoreCreateMutex();
-
   buttonStateMutex = xSemaphoreCreateMutex();
+  networkMutex = xSemaphoreCreateMutex();
+  
+  // Semáforo binario para el control de la radio LoRa
+  loraTxSemaphore = xSemaphoreCreateBinary();
+  xSemaphoreGive(loraTxSemaphore); // Inicialmente la radio está libre
 
   // 2. Crear la tarea en el Core 0
   xTaskCreatePinnedToCore(

@@ -9,6 +9,8 @@
 // Candado para proteger las variables compartidas
 extern SemaphoreHandle_t statsMutex; 
 extern SemaphoreHandle_t buttonStateMutex; 
+extern SemaphoreHandle_t networkMutex;
+extern SemaphoreHandle_t loraTxSemaphore;
 
 // Variables globales protegidas
 extern volatile size_t shared_rx;
@@ -21,8 +23,11 @@ extern volatile uint8_t shared_queueSize;
 extern volatile uint8_t shared_waiting_conf;
 extern volatile uint16_t shared_channelBusyErrors;
 extern volatile int8_t shared_connectedClients;
+extern volatile size_t shared_crc_err;
 extern volatile size_t shared_crypto_err;
 extern size_t shared_lastClient;
+extern volatile int8_t shared_coverage;              // Cobertura GPRS (CSQ) del AM-036
+extern volatile TickType_t shared_firstPktTimestamp;  // Timestamp (ticks) del primer paquete en cola
 //extern uint16_t version; declarada en config.h tambien es protegida
 
 // OLED UI 

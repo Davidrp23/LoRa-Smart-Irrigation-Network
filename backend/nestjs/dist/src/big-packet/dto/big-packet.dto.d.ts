@@ -8,7 +8,11 @@ export declare class RouterTelemetryDto {
     paquetesRecibidos?: number;
     erroresTx?: number;
     erroresRx?: number;
+    erroresCriptograficos?: number;
     erroresCrc?: number;
+    erroresColaLlena?: number;
+    erroresCanalOcupado?: number;
+    cvgGPRS?: number;
     versionAplicada: number;
 }
 export declare class MotaReportDto {
@@ -20,7 +24,14 @@ export declare class MotaReportDto {
     humedad: number;
     rssi: number;
     snr: number;
-    erroresRxMota?: number;
+    paquetesEnviados?: number;
+    paquetesRecibidos?: number;
+    erroresRx?: number;
+    erroresTx?: number;
+    erroresCanalOcupado?: number;
+    erroresCriptograficos?: number;
+    erroresCrc?: number;
+    erroresACKfaltante?: number;
     versionAplicada: number;
 }
 export declare class BigPacketDto {

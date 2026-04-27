@@ -60,6 +60,26 @@ export class UpdateRouterDto{
     @IsNumber()
     erroresCrc: number; // Paquetes corruptos específicos
 
+    @IsOptional()
+    @IsNumber()
+    cvgGPRS: number;
+
+    @IsOptional()
+    @IsNumber()
+    erroresCriptograficos: number;
+
+    @IsOptional()
+    @IsNumber()
+    erroresCanalOcupado: number;
+
+    @IsOptional()
+    @IsNumber()
+    erroresColaLlena: number;
+
+    @IsOptional()
+    @IsNumber()
+    versionAplicada: number;
+
     @IsNumber()
     @IsOptional()
     parcelaId: number;

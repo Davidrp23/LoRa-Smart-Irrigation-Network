@@ -8,11 +8,12 @@ import { UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
 import { UpdateMotasBulkDto } from './dto/update-motas-bulk.dto';
+import { ObtenerMedicionDto } from './dto/obtener-medicion.dto';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('motas')
 export class MotasController {
-  constructor(private readonly motasService: MotasService) {}
+  constructor(private readonly motasService: MotasService) { }
 
   @Post()
   async create(@Body() createMotaDto: CreateMotaDto): Promise<Mota> {
@@ -20,12 +21,12 @@ export class MotasController {
   }
 
   @Post('vincular/')
-  async vincularMota(@Request() req, @Body() vincularMotaDto: vincularMotaDto): Promise<Mota>{
+  async vincularMota(@Request() req, @Body() vincularMotaDto: vincularMotaDto): Promise<Mota> {
     return this.motasService.vincularMota(req.user.id, vincularMotaDto);
   }
 
   @Post('desvincular/:id')
-  async desvincularMota(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Mota>{
+  async desvincularMota(@Request() req, @Param('id', ParseIntPipe) id: number): Promise<Mota> {
     return this.motasService.desvincularMota(req.user.id, id);
   }
 
@@ -42,7 +43,7 @@ export class MotasController {
   }
 
   @Patch(':id')
-  async update(@Request() req, @Param('id',ParseIntPipe) id: number, @Body() updateMotaDto: UpdateMotaDto): Promise<Mota> {
+  async update(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() updateMotaDto: UpdateMotaDto): Promise<Mota> {
     const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
     return this.motasService.update(miPropioId, id, updateMotaDto);
   }
@@ -56,7 +57,12 @@ export class MotasController {
   @Patch('update/all')
   async updateMotas(@Request() req, @Body() updateMotasBulkDto: UpdateMotasBulkDto) {
     const miPropioId = req.user.id; //Cogemos el id de la cabecera del JWT , imposible de falsear
-    return this.motasService.actualizarMotas(miPropioId,updateMotasBulkDto);
+    return this.motasService.actualizarMotas(miPropioId, updateMotasBulkDto);
+  }
+
+  @Post('/reportes')
+  async getReportes(@Request() req, @Body() obtenerMedicionDto: ObtenerMedicionDto) {
+    return this.motasService.getReportes(req.user.id, obtenerMedicionDto);
   }
 
 }

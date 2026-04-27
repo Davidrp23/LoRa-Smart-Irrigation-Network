@@ -118,11 +118,13 @@ typedef struct __attribute__((packed)) {
   uint16_t receivedPackets;
   uint16_t sendedPackets;
   int16_t lastRssi;
+  int8_t lastSnr;
   uint16_t rx_err;
   uint16_t tx_err;
   uint16_t channelBusyErrors;
   uint16_t missingAckErrors;
   uint16_t crypto_err;
+  uint16_t crc_err;
 
 } SensorsData;
 
@@ -165,8 +167,10 @@ struct DisplayStats {
   uint8_t waiting_conf;
   uint16_t channelBusyErrors;
   int8_t connectedClients;
+  size_t crc_err;
   size_t crypto_err;
   uint16_t version;
+  int8_t coverage;
 };
 
 // Estructura que viaja por la rxQueue desde el callback OnRxDone hasta

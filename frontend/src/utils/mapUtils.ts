@@ -22,6 +22,12 @@ export interface Dispositivo {
   erroresTx?: number;
   erroresRx?: number;
   erroresCrc?: number;
+  // Nuevos campos
+  cvgGPRS?: number | null;
+  erroresCriptograficos?: number;
+  erroresCanalOcupado?: number;
+  erroresColaLlena?: number;
+  erroresACKfaltante?: number;
 }
 
 export interface Parcela {
@@ -172,23 +178,46 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
         // Generar HTML de detalles técnicos según el tipo
         let technicalDetailsHtml = '';
         if (isRouter) {
+          const csq = d.cvgGPRS;
+          const csqLabel = csq === undefined || csq === null ? 'N/A'
+            : csq === 99 ? 'Desconocida'
+            : csq <= 10 ? 'Deficiente'
+            : csq <= 22 ? 'Normal'
+            : 'Excelente';
+          const csqColor = csq === undefined || csq === null || csq === 99 ? '#6b7280'
+            : csq <= 10 ? '#ef4444'
+            : csq <= 22 ? '#f59e0b'
+            : '#22c55e';
+          const csqPct = (csq !== undefined && csq !== null && csq !== 99)
+            ? Math.round((csq / 31) * 100) : 0;
           technicalDetailsHtml = `
-            <div class="map-tech-grid">
+            <div class="mt-2 space-y-2">
               <div class="map-tech-box">
-                <div class="map-tech-label">Enviados</div>
-                <div class="map-tech-value">${d.paquetesEnviados ?? 0}</div>
+                <div class="flex justify-between items-center mb-1 text-xs">
+                  <span class="map-tech-label">Cobertura GPRS (CSQ)</span>
+                  <span class="font-bold" style="color:${csqColor}">${csq !== undefined && csq !== null ? csq : 'N/A'} — ${csqLabel}</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                  <div class="h-1.5 rounded-full transition-all duration-500" style="width:${csqPct}%;background-color:${csqColor}"></div>
+                </div>
               </div>
-              <div class="map-tech-box">
-                <div class="map-tech-label">Recibidos</div>
-                <div class="map-tech-value">${d.paquetesRecibidos ?? 0}</div>
-              </div>
-              <div class="map-tech-box border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-900/50">
-                <div class="map-tech-label text-red-600 dark:text-red-400">Err. TX/RX</div>
-                <div class="map-tech-value text-red-700 dark:text-red-300">${d.erroresTx ?? 0} / ${d.erroresRx ?? 0}</div>
-              </div>
-              <div class="map-tech-box border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-900/50">
-                <div class="map-tech-label text-amber-600 dark:text-amber-400">Err. CRC</div>
-                <div class="map-tech-value text-amber-700 dark:text-amber-300">${d.erroresCrc ?? 0}</div>
+              <div class="map-tech-grid">
+                <div class="map-tech-box">
+                  <div class="map-tech-label">Enviados</div>
+                  <div class="map-tech-value">${d.paquetesEnviados ?? 0}</div>
+                </div>
+                <div class="map-tech-box">
+                  <div class="map-tech-label">Recibidos</div>
+                  <div class="map-tech-value">${d.paquetesRecibidos ?? 0}</div>
+                </div>
+                <div class="map-tech-box border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-900/50">
+                  <div class="map-tech-label text-red-600 dark:text-red-400">Err. TX/RX/CRC</div>
+                  <div class="map-tech-value text-red-700 dark:text-red-300">${d.erroresTx ?? 0} / ${d.erroresRx ?? 0} / ${d.erroresCrc ?? 0}</div>
+                </div>
+                <div class="map-tech-box border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-900/50">
+                  <div class="map-tech-label text-amber-600 dark:text-amber-400">Cripto / Cola</div>
+                  <div class="map-tech-value text-amber-700 dark:text-amber-300">${d.erroresCriptograficos ?? 0} / ${d.erroresColaLlena ?? 0}</div>
+                </div>
               </div>
             </div>
           `;
@@ -243,8 +272,10 @@ export const initParcelMap = (map: L.Map, parcelas: Parcela[], options?: ParcelM
 
                 ${d.ssid ? `<span class="text-muted-foreground">SSID:</span><span class="text-foreground text-right truncate max-w-[120px] justify-self-end">${d.ssid}</span>` : ''}
                 
-                <span class="text-muted-foreground">Canal:</span>
-                <span class="text-foreground text-right font-mono">CH ${d.canal ?? 0}</span>
+                ${isRouter ? `
+                  <span class="text-muted-foreground">Canal:</span>
+                  <span class="text-foreground text-right font-mono">CH ${d.canal ?? 0}</span>
+                ` : ''}
 
                 <span class="text-muted-foreground">Batería:</span>
                 <span class="text-right font-bold ${d.bateria && d.bateria < 20 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">

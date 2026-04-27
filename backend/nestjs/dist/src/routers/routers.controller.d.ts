@@ -18,12 +18,16 @@ export declare class RoutersController {
     getReportes(req: any, obtenerReportesDto: ObtenerReportesDto): Promise<{
         id: number;
         routerId: number;
-        fecha: Date;
-        bateria: number | null;
         paquetesEnviados: number;
         paquetesRecibidos: number;
-        erroresTx: number;
         erroresRx: number;
+        erroresTx: number;
+        erroresCanalOcupado: number | null;
+        erroresCriptograficos: number | null;
         erroresCrc: number;
+        fecha: Date;
+        bateria: number | null;
+        cvgGPRS: number | null;
+        erroresColaLlena: number | null;
     }[]>;
 }

@@ -26,6 +26,11 @@ class UpdateRouterDto {
     erroresTx;
     erroresRx;
     erroresCrc;
+    cvgGPRS;
+    erroresCriptograficos;
+    erroresCanalOcupado;
+    erroresColaLlena;
+    versionAplicada;
     parcelaId;
 }
 exports.UpdateRouterDto = UpdateRouterDto;
@@ -94,6 +99,31 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateRouterDto.prototype, "erroresCrc", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "cvgGPRS", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "erroresCriptograficos", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "erroresCanalOcupado", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "erroresColaLlena", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateRouterDto.prototype, "versionAplicada", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),

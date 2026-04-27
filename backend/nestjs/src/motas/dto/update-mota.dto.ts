@@ -51,7 +51,39 @@ export class UpdateMotaDto{
 
     @IsNumber()
     @IsOptional()
-    erroresRxMota: number;
+    paquetesEnviados: number;
+
+    @IsNumber()
+    @IsOptional()
+    paquetesRecibidos: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresRx: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresTx: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresCanalOcupado: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresCriptograficos: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresCrc: number;
+
+    @IsNumber()
+    @IsOptional()
+    erroresACKfaltante: number;
+
+    @IsNumber()
+    @IsOptional()
+    versionAplicada: number;
 
     @Type(() => Date)
     @IsOptional()

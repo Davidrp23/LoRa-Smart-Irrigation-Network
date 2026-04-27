@@ -27,7 +27,15 @@ const char gprsPass[] = "movistar";
 // Configuración del servidor (Ajusta esto a tu backend)
 const char server[] = "httpbin.org"; // Cambiar por la IP/Dominio de tu API
 const int  port   = 80;
-const char apiPath[] = "/post"; // Ruta donde tu backend recibe la telemetría
+
+// Rutas de la API
+const char bigPacketPath[] = "/big-packet";  // POST telemetría
+
+// Headers de autenticación del router
+const char headerDeviceId[]    = "x-device-id";
+const char headerDeviceToken[] = "x-device-token";
+const char deviceIdValue[]     = "1";
+const char deviceTokenValue[]  = "1b28f86539d5223c43e3a373e36771d1";
 
 // Variables de la Máquina de Estados
 enum ModemState {
@@ -46,8 +54,10 @@ const int MAX_ERRORES = 3;
 
 // Variables para la comunicación UART con Heltec
 String rxBuffer = "";
-bool ordenPendiente = false;
+bool ordenPendienteSend = false;
+bool ordenPendienteGet = false;
 String payloadParaEnviar = "";
+String pathParaGet = "";
 
 void setup() {
   // Inicializamos comunicación serial a 115200 (debe coincidir con la de tu clase SerialAM)
@@ -73,10 +83,17 @@ void loop() {
     escucharUART();
 
     // Si recibimos un comando "SEND" completo, lo procesamos
-    if (ordenPendiente) {
+    if (ordenPendienteSend) {
       realizarPost(payloadParaEnviar);
-      ordenPendiente = false;
+      ordenPendienteSend = false;
       payloadParaEnviar = "";
+    }
+
+    // Si recibimos un comando "GET" completo, lo procesamos
+    if (ordenPendienteGet) {
+      realizarGet(pathParaGet);
+      ordenPendienteGet = false;
+      pathParaGet = "";
     }
   }
 }
@@ -188,7 +205,12 @@ void procesarComandoJSON(const String& jsonStr) {
   if (cmd == "SEND") {
     // Extraemos la parte "data" (que es otro JSON anidado) y la convertimos de nuevo a String
     serializeJson(doc["data"], payloadParaEnviar);
-    ordenPendiente = true; // Levantamos la bandera para procesarlo en el loop()
+    ordenPendienteSend = true; // Levantamos la bandera para procesarlo en el loop()
+  }
+  else if (cmd == "GET") {
+    // Extraemos la ruta a consultar
+    pathParaGet = doc["path"].as<String>();
+    ordenPendienteGet = true; // Levantamos la bandera para procesarlo en el loop()
   }
 }
 
@@ -233,9 +255,11 @@ void realizarPost(String payload) {
   http.setHttpResponseTimeout(15000); 
 
   http.beginRequest();
-  http.post(apiPath);
+  http.post(bigPacketPath);
   http.sendHeader("Content-Type", "application/json");
   http.sendHeader("Content-Length", payload.length());
+  http.sendHeader(headerDeviceId, deviceIdValue);
+  http.sendHeader(headerDeviceToken, deviceTokenValue);
   http.beginBody();
   http.print(payload);
   http.endRequest();
@@ -249,5 +273,31 @@ void realizarPost(String payload) {
   bool success = (statusCode >= 200 && statusCode < 300);
 
   // Mandamos el resultado final al Heltec por UART
+  enviarRespuestaHTTP(success, statusCode, responseBody);
+}
+
+// ==========================================
+// EJECUCIÓN HTTP GET
+// ==========================================
+
+void realizarGet(String path) {
+  HttpClient http(client, server, port);
+  http.setHttpResponseTimeout(15000);
+
+  http.beginRequest();
+  http.get(path.c_str());
+  http.sendHeader(headerDeviceId, deviceIdValue);
+  http.sendHeader(headerDeviceToken, deviceTokenValue);
+  http.endRequest();
+
+  int statusCode = http.responseStatusCode();
+  String responseBody = http.responseBody();
+
+  http.stop(); // Liberar socket
+
+  // Evaluamos si la petición fue exitosa (códigos 200 a 299)
+  bool success = (statusCode >= 200 && statusCode < 300);
+
+  // Mandamos el resultado final al Heltec por UART (mismo protocolo SEND_DONE)
   enviarRespuestaHTTP(success, statusCode, responseBody);
 }

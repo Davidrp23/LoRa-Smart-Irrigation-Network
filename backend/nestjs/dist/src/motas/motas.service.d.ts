@@ -1,10 +1,11 @@
 import { CreateMotaDto } from './dto/create-mota.dto';
 import { UpdateMotaDto } from './dto/update-mota.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { Mota } from '@prisma/client';
+import { Medicion, Mota } from '@prisma/client';
 import { vincularMotaDto } from './dto/vincular-mota.dto';
 import { ParcelasService } from 'src/parcelas/parcelas.service';
 import { UpdateMotasBulkDto } from './dto/update-motas-bulk.dto';
+import { ObtenerMedicionDto } from './dto/obtener-medicion.dto';
 export declare class MotasService {
     private prisma;
     private parcelasService;
@@ -26,4 +27,5 @@ export declare class MotasService {
         motasActualizadas: number;
         mensaje?: undefined;
     }>;
+    getReportes(usuarioId: number, obtenerMedicionDto: ObtenerMedicionDto): Promise<Medicion[] | null>;
 }

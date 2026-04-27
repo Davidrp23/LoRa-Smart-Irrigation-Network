@@ -28,8 +28,20 @@ export class RouterTelemetryDto {
   @IsNumber() @IsOptional() @Expose({ name: 'eR' })
   erroresRx?: number;
 
-  @IsNumber() @IsOptional() @Expose({ name: 'eC' })
+  @IsNumber() @IsOptional() @Expose({ name: 'eCry' })
+  erroresCriptograficos?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'eCrc' })
   erroresCrc?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'qF' })
+  erroresColaLlena?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'cB' })
+  erroresCanalOcupado?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'cv' })
+  cvgGPRS?: number;
 
   @IsNumber() @Expose({ name: 'v' })
   versionAplicada: number;
@@ -66,8 +78,29 @@ export class MotaReportDto {
   @IsNumber() @Expose({ name: 'sn' })
   snr: number;
 
+  @IsNumber() @IsOptional() @Expose({ name: 'tx' })
+  paquetesEnviados?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'rx' })
+  paquetesRecibidos?: number;
+
   @IsNumber() @IsOptional() @Expose({ name: 'eR' })
-  erroresRxMota?: number;
+  erroresRx?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'eT' })
+  erroresTx?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'cB' })
+  erroresCanalOcupado?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'eCry' })
+  erroresCriptograficos?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'eCrc' })
+  erroresCrc?: number;
+
+  @IsNumber() @IsOptional() @Expose({ name: 'mA' })
+  erroresACKfaltante?: number;
 
   @IsNumber() @Expose({ name: 'v' })
   versionAplicada: number;

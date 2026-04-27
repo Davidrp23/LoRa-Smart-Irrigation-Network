@@ -1,5 +1,6 @@
 #include "config.h"
 #include "lora_router.h"
+#include "AMcontrol.h"
 #include <mbedtls/aes.h>
 
 const unsigned char crypto_key[16] = "59mkla3Qh0kC0eR";
@@ -55,6 +56,7 @@ void OnTxDone(void) {
   }
 
   Radio.Rx(0);
+  xSemaphoreGive(loraTxSemaphore); // Liberar la radio para otra transmisión
 }
 
 void OnTxTimeout(void) {
@@ -67,10 +69,15 @@ void OnTxTimeout(void) {
 
   // De momento si ocurre esto, no enviaremos respuesta.
   Radio.Rx(0);
+  xSemaphoreGive(loraTxSemaphore); // Liberar la radio tras el error
 }
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-  // --- Contexto de ISR/callback del driver LoRa ---
+  // --- Contexto de tarea (loop → Radio.IrqProcess → callback) ---
+  // OnRxDone NO es una ISR real. El SX1262 genera una interrupción hardware
+  // que solo pone un flag interno; Radio.IrqProcess() (llamado en loop())
+  // comprueba ese flag y ejecuta este callback en contexto de tarea normal.
+  //
   // Aquí NO se hace ningún procesamiento pesado. Solo copiamos los bytes
   // del buffer efimero del driver a un RxRawPacket y lo metemos en la cola.
   // Toda la validacion, checksum, crypto y logica de protocolo la hace
@@ -84,18 +91,16 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   pkt.rssi = rssi;
   pkt.snr  = snr;
 
-  // Enviamos desde contexto ISR sin bloquear (timeout = 0)
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-  if (xQueueSendFromISR(rxQueue, &pkt, &xHigherPriorityTaskWoken) != pdTRUE) {
+  // Enviamos al contexto de tarea sin bloquear (timeout = 0)
+  // Usamos xQueueSend (no FromISR) porque estamos en contexto de tarea.
+  if (xQueueSend(rxQueue, &pkt, (TickType_t)0) != pdTRUE) {
     // La cola esta llena: incrementamos el contador de error de RX
-    // NOTA: accedemos a shared_rx_err sin mutex porque estamos en ISR y
-    // es una escritura atomica de una variable enteras de 32 bits en ESP32.
-    shared_rx_err++;
+    if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+      shared_rx_err++;
+      xSemaphoreGive(statsMutex);
+    }
     Serial.println("[OnRxDone] Cola rxQueue llena! Paquete descartado.");
   }
-
-  // Cedemos el contexto si la tarea de mayor prioridad ha sido despertada
-  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 // ============================================================
@@ -162,6 +167,7 @@ void loraRxProcessTask(void *pvParameters) {
 
             if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
               shared_rx_err++;
+              shared_crc_err++;
               xSemaphoreGive(statsMutex);
             }
 
@@ -237,9 +243,12 @@ void process(LoRaMessage incomingPackage) {
           incomingPackage.type != messageType::INVALID) {
         uint32_t incomingFCnt = incomingPackage.fcnt;
         char cryptoIdx = getClientCryptoStateIndex(CLIENT_ID);
+        
+        xSemaphoreTake(networkMutex, portMAX_DELAY);
         uint32_t lastFCnt = clientCryptoStates[cryptoIdx].lastFCnt;
 
         if (lastFCnt != 0 && incomingFCnt <= lastFCnt) {
+          xSemaphoreGive(networkMutex);
           Serial.printf("[CRYPTO] Desincronización o REPLAY detectado! MsgID "
                         "%u (Ultimo %u). Solicitando re-join...\n",
                         incomingFCnt, lastFCnt);
@@ -251,6 +260,7 @@ void process(LoRaMessage incomingPackage) {
           return; // Ignoramos el paquete malicioso
         }
         clientCryptoStates[cryptoIdx].lastFCnt = incomingFCnt;
+        xSemaphoreGive(networkMutex);
       }
 
       switch (incomingPackage.type) {
@@ -297,6 +307,10 @@ void process(LoRaMessage incomingPackage) {
           // 2. Actualizamos la variable para la pantalla OLED (Protegida)
           if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
             shared_queueSize = motasDataQueue.size();
+            // Registramos el timestamp del primer paquete pendiente (para trigger de uplink)
+            if (shared_firstPktTimestamp == 0) {
+              shared_firstPktTimestamp = xTaskGetTickCount();
+            }
             xSemaphoreGive(statsMutex);
           }
 
@@ -323,8 +337,10 @@ void process(LoRaMessage incomingPackage) {
         uint32_t incomingJoinCnt = incomingPackage.fcnt;
         char cryptoIdx = getClientCryptoStateIndex(CLIENT_ID);
 
+        xSemaphoreTake(networkMutex, portMAX_DELAY);
         if (clientCryptoStates[cryptoIdx].lastJoinCnt != 0 &&
             incomingJoinCnt <= clientCryptoStates[cryptoIdx].lastJoinCnt) {
+          xSemaphoreGive(networkMutex);
           Serial.printf("[CRYPTO] Ataque de REPLAY detectado en JOIN_REQUEST! "
                         "JoinCnt repetido o antiguo: %u. Descartando...\n",
                         incomingJoinCnt);
@@ -337,47 +353,55 @@ void process(LoRaMessage incomingPackage) {
         }
         clientCryptoStates[cryptoIdx].lastJoinCnt = incomingJoinCnt;
         clientCryptoStates[cryptoIdx].lastFCnt = 0;
+        xSemaphoreGive(networkMutex);
 
-        // Por ahora siempre va a aceptar la peticion de union (logica red privada - publica).
+        // Comprobamos la lógica de red pública/privada
+        if (isPublic) {
+          // RED PÚBLICA: Se acepta siempre si no se ha alcanzado el límite de clientes
+          Serial.printf("El router es publico. Aceptando peticion de union del nodo %zu directamente.\n", CLIENT_ID);
+          
+          if (getClientIndex(CLIENT_ID) == (char)-1) {
+            int8_t copy_connectedClients = MAX_CLIENTS;
+            if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+              copy_connectedClients = shared_connectedClients;
+              xSemaphoreGive(statsMutex);
+            }
 
-        Serial.printf("El nodo %zu esta intentando conectarse a la red.\n",
-                      CLIENT_ID);
+            if (copy_connectedClients >= MAX_CLIENTS) {
+              Serial.printf("Numero maximo de clientes conectados, rechazando mota con ID: %zu \n", CLIENT_ID);
+              sendControlPacket(messageType::JOIN_DENIED, CLIENT_ID);
+              break;
+            }
 
-        // Comprobamos si el cliente esta conectado ya a la red
-        if (getClientIndex(CLIENT_ID) == (char)-1) {
+            if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
+              shared_connectedClients++; 
+              xSemaphoreGive(statsMutex);
+            }
 
-          // Comprobamos si se ha alcanzado el maximo de clientes
-          // (shared_connectedClients)
-          int8_t copy_connectedClients = MAX_CLIENTS;
-          if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
-            int8_t copy_connectedClients = shared_connectedClients;
-            xSemaphoreGive(statsMutex);
+            addClient(CLIENT_ID);
+            Serial.printf("El nodo %zu se ha conectado a la red.\n", CLIENT_ID);
+          } else {
+            Serial.printf("El nodo %zu ya estaba conectado.\n", CLIENT_ID);
           }
-
-          if (copy_connectedClients >= MAX_CLIENTS) {
-            Serial.printf("Numero maximo de clientes conectados, rechazando mota con ID: %zu \n", CLIENT_ID);
-            sendControlPacket(messageType::JOIN_DENIED, CLIENT_ID);
-            break;
-          }
-
-          if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
-            shared_connectedClients++; // Si no estaba llena, incrementamos el
-                                       // numero de clientes conectados
-            xSemaphoreGive(statsMutex);
-          }
-
-          // Incorporamos al nodo a la lista de clientes conectados
-          addClient(CLIENT_ID);
-          Serial.printf("El nodo %zu se ha conectado a la red.\n", CLIENT_ID);
-          // Le informamos de que ha sido incorporado en la red
+          sendControlPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
         } else {
-          Serial.printf("El nodo %zu se ha intentado conectar a la red, pero "
-                        "ya estaba conectado.\n",
-                        CLIENT_ID);
-          // Le respondemos que aceptamos su peticion pero no hacemos cambios en
-          // la lista de clientes.
+          // RED PRIVADA: Consultar al backend mediante el AM-036
+          Serial.printf("El router es privado. Consultando backend para el nodo %zu...\n", CLIENT_ID);
+          
+          if (getClientIndex(CLIENT_ID) != (char)-1) {
+             // Ya está en la red, aceptamos (o podríamos re-verificar, pero asumimos que si está ya fue verificado)
+             Serial.printf("El nodo %zu ya estaba conectado a la red privada.\n", CLIENT_ID);
+             sendControlPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
+          } else {
+             // Encolar el trabajo de verificación
+             if (!enqueueAccessCheck(CLIENT_ID)) {
+                Serial.printf("Error: no se pudo encolar la verificacion para el nodo %zu. Rechazando por defecto.\n", CLIENT_ID);
+                sendControlPacket(messageType::JOIN_DENIED, CLIENT_ID);
+             } else {
+                Serial.printf("Trabajo de verificacion encolado. Esperando respuesta asincrona para el nodo %zu...\n", CLIENT_ID);
+             }
+          }
         }
-        sendControlPacket(messageType::JOIN_ACCEPTED, CLIENT_ID);
         break;
       }
 
@@ -491,6 +515,7 @@ void encryptAndMAC(LoRaMessage &msg) {
 // seleccionado
 void sendControlPacket(messageType type, size_t clientID) {
 
+  xSemaphoreTake(loraTxSemaphore, portMAX_DELAY); // Wait for the radio to be free
   Radio.Sleep(); // Quitamos la radio del modo escucha
 
   // Formamos el paquete.
@@ -534,7 +559,7 @@ void sendControlPacket(messageType type, size_t clientID) {
 
     if (IsChannelFree()) {
       Radio.Send((uint8_t *)&msg, realPacketSize);
-      return;
+      return; // The semaphore will be given back in OnTxDone / OnTxTimeout
     } else {
       int16_t currentRssi = Radio.Rssi(MODEM_LORA);
       Serial.printf("DEBUG -> Intento %d: Canal ocupado. RSSI actual: %d dBm "
@@ -548,12 +573,14 @@ void sendControlPacket(messageType type, size_t clientID) {
   }
 
   Serial.printf("No se ha podido enviar el mensaje. Causa: Canal ocupado.\n");
+  xSemaphoreGive(loraTxSemaphore); // Liberar si se abortó por ocupado
 }
 
 // Esta funcion tiene como parametro la configuracion de la mota. Envia el
 // paquete de configuracion a la misma.
 void sendConfigPacket(ConfData configMota) {
 
+  xSemaphoreTake(loraTxSemaphore, portMAX_DELAY); // Wait for the radio to be free
   Radio.Sleep(); // Quitamos la radio del modo escucha
 
   // Formamos el paquete.
@@ -593,7 +620,7 @@ void sendConfigPacket(ConfData configMota) {
 
     if (IsChannelFree()) {
       Radio.Send((uint8_t *)&msg, realPacketSize);
-      return;
+      return; // The semaphore will be given back in OnTxDone / OnTxTimeout
     } else {
       int16_t currentRssi = Radio.Rssi(MODEM_LORA);
       Serial.printf("DEBUG -> Intento %d: Canal ocupado. RSSI actual: %d dBm "
@@ -607,6 +634,7 @@ void sendConfigPacket(ConfData configMota) {
   }
 
   Serial.printf("No se ha podido enviar el mensaje. Causa: Canal ocupado.\n");
+  xSemaphoreGive(loraTxSemaphore); // Liberar si se abortó por ocupado
 }
 
 // Esta funcion se usa para enviar un BEACON_RESPONSE cuando una mota lo
@@ -615,6 +643,7 @@ void sendConfigPacket(ConfData configMota) {
 // la vez, la probabilidad de que 2 emitan a la vez es baja.
 void sendBeaconResponse() {
 
+  xSemaphoreTake(loraTxSemaphore, portMAX_DELAY); // Wait for the radio to be free
   Radio.Sleep(); // Quitamos la radio del modo escucha
 
   delay(random(50, 200)); // jitter de espera aleatoria para evitar colisiones
@@ -648,7 +677,7 @@ void sendBeaconResponse() {
 
     if (IsChannelFree()) {
       Radio.Send((uint8_t *)&msg, realPacketSize);
-      return;
+      return; // The semaphore will be given back in OnTxDone / OnTxTimeout
     } else {
       int16_t currentRssi = Radio.Rssi(MODEM_LORA);
       Serial.printf("DEBUG -> Intento %d: Canal ocupado. RSSI actual: %d dBm "
@@ -662,6 +691,7 @@ void sendBeaconResponse() {
   }
 
   Serial.printf("No se ha podido enviar el mensaje. Causa: Canal ocupado.\n");
+  xSemaphoreGive(loraTxSemaphore); // Liberar si se abortó por ocupado
 }
 
 char findChannelNumber(uint32_t ch) {

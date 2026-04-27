@@ -10,9 +10,9 @@ export const getDashboardData = async (): Promise<AppData> => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No hay sesión activa');
 
-  const headers = { 
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}` 
+    'Authorization': `Bearer ${token}`
   };
 
   try {
@@ -38,7 +38,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         if (turnosRes.ok) {
           p.turnosRiego = await turnosRes.json();
         }
-      } catch (e) {}
+      } catch (e) { }
     }));
 
     // Helper para calcular estado basado en Deep Sleep (24h)
@@ -50,7 +50,7 @@ export const getDashboardData = async (): Promise<AppData> => {
     };
 
     // 2. ADAPTADOR: Transformamos los datos del Backend al formato del Frontend
-    
+
     // Procesamos Dispositivos (Unificamos Motas y Routers)
     const dispositivos = [
       ...routersRaw.map((r: any) => ({
@@ -70,7 +70,7 @@ export const getDashboardData = async (): Promise<AppData> => {
         rssi: m.rssi,
         snr: m.snr,
         humedad: m.humedad,
-        erroresRx: m.erroresRxMota, // Mapeamos al nombre que usa el frontend
+        // erroresRx ya viene con ese nombre desde la BD (campo renombrado)
         conexionPublica: m.conexionPublica,
         // Precarga para la tarjeta: Mapeamos las mediciones a objetos con valor y fecha
         // Usamos .reverse() porque vienen DESC (más nueva primero) y la gráfica pinta de izq a der (antigua a nueva)
@@ -95,14 +95,14 @@ export const getDashboardData = async (): Promise<AppData> => {
       // (El backend no siempre devuelve esto anidado, así que lo calculamos aquí)
       const dispositivosEnParcela = dispositivos
         .filter(d => d.parcelaId === p.id);
-      
+
       // Adaptador: Calculamos el texto del Próximo Riego basado en los turnos
       let proximoRiegoStr = 'Sin programar';
       const turnos = p.turnosRiego || [];
       if (turnos.length > 0) {
         // Buscamos el turno programado, o si no hay, el último registrado
         const turnoActivo = turnos.find((t: any) => t.estadoRiego === 'Programado') || turnos[0];
-        
+
         let timeStr = '';
         if (turnoActivo.tiempoRiegoMin) {
           const h = Math.floor(turnoActivo.tiempoRiegoMin / 60);
@@ -150,12 +150,12 @@ export const getTiposCultivo = async () => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No hay sesión activa');
 
-  const headers = { 
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}` 
+    'Authorization': `Bearer ${token}`
   };
 
-  const response = await fetch(`${API_URL}/tipo-cultivo`, {headers});
+  const response = await fetch(`${API_URL}/tipo-cultivo`, { headers });
   if (!response.ok) throw new Error('Error al cargar cultivos');
   return await response.json();
 };
@@ -164,12 +164,12 @@ export const getTiposSuelo = async () => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No hay sesión activa');
 
-  const headers = { 
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}` 
+    'Authorization': `Bearer ${token}`
   };
 
-  const response = await fetch(`${API_URL}/tipo-suelo`,{headers});
+  const response = await fetch(`${API_URL}/tipo-suelo`, { headers });
   if (!response.ok) throw new Error('Error al cargar tipos de suelo');
   return await response.json();
 };
@@ -178,12 +178,12 @@ export const getTiposRiego = async () => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No hay sesión activa');
 
-  const headers = { 
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}` 
+    'Authorization': `Bearer ${token}`
   };
 
-  const response = await fetch(`${API_URL}/tipo-riego`,{headers});
+  const response = await fetch(`${API_URL}/tipo-riego`, { headers });
   if (!response.ok) throw new Error('Error al cargar tipos de riego');
   return await response.json();
 };
@@ -199,10 +199,10 @@ export const createParcela = async (parcela: any) => {
   let lngCentro = parcela.longitudCentro;
 
   if ((!latCentro || !lngCentro) && parcela.coordenadas && parcela.coordenadas.length > 0) {
-     const lats = parcela.coordenadas.map((p: any) => p[0]);
-     const lngs = parcela.coordenadas.map((p: any) => p[1]);
-     latCentro = lats.reduce((a:any, b:any) => a + b, 0) / lats.length;
-     lngCentro = lngs.reduce((a:any, b:any) => a + b, 0) / lngs.length;
+    const lats = parcela.coordenadas.map((p: any) => p[0]);
+    const lngs = parcela.coordenadas.map((p: any) => p[1]);
+    latCentro = lats.reduce((a: any, b: any) => a + b, 0) / lats.length;
+    lngCentro = lngs.reduce((a: any, b: any) => a + b, 0) / lngs.length;
   }
 
   // Preparamos el payload LIMPIO (solo lo que el DTO permite)
@@ -250,11 +250,11 @@ export const updateParcela = async (id: number, parcela: any) => {
     caudalRiegoLh: parcela.caudalRiegoLh,
     zonaHoraria: parcela.zonaHoraria
   };
-  
+
   // Si se editaron los puntos, los enviamos
   if (parcela.coordenadas) {
-      payload.puntos = parcela.coordenadas;
-      // Nota: Deberíamos recalcular el centro aquí también, pero por simplicidad lo omitimos o el backend podría hacerlo
+    payload.puntos = parcela.coordenadas;
+    // Nota: Deberíamos recalcular el centro aquí también, pero por simplicidad lo omitimos o el backend podría hacerlo
   }
 
   const response = await fetch(`${API_URL}/parcelas/${id}`, {
@@ -292,7 +292,7 @@ export const createDevice = async (device: any, type: 'router' | 'mota') => {
   if (!token) throw new Error('No hay sesión activa');
 
   const endpoint = type === 'router' ? 'routers/vincular' : 'motas/vincular';
-  
+
   // Solo enviamos el código de vinculación para reclamar el dispositivo
   const payload = { codigoVinculacion: device.codigoVinculacion };
 
@@ -312,14 +312,14 @@ export const updateDevice = async (id: number, device: any, type: 'router' | 'mo
 
   const endpoint = type === 'router' ? 'routers' : 'motas';
   // Reutilizamos la lógica de payload de creación, pero sin código de vinculación (no se suele editar)
-  const payload: any = { 
+  const payload: any = {
     nombre: device.nombre,
     parcelaId: device.parcelaId ? Number(device.parcelaId) : null
   };
 
-  if (type === 'router') { 
-    payload.ssid = device.ssid; 
-    payload.esPublico = device.esPublico; 
+  if (type === 'router') {
+    payload.ssid = device.ssid;
+    payload.esPublico = device.esPublico;
     payload.canal = device.canal; // Enviamos el canal numérico
   } else {
     payload.frecuencia = device.frecuencia; // Solo las motas tienen frecuencia de actualización
@@ -345,7 +345,7 @@ export const deleteDevice = async (id: number, type: 'router' | 'mota') => {
   // Endpoint correcto: /desvincular/:id (POST)
   const endpoint = type === 'router' ? 'routers/desvincular' : 'motas/desvincular';
   const response = await fetch(`${API_URL}/${endpoint}/${id}`, {
-    method: 'POST', 
+    method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
   });
 
@@ -359,9 +359,9 @@ export const getMotas = async () => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No hay sesión activa');
 
-  const headers = { 
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}` 
+    'Authorization': `Bearer ${token}`
   };
 
   const response = await fetch(`${API_URL}/motas`, { headers });
@@ -389,7 +389,7 @@ export const getMediciones = async (motaId: number, fechaBegin: Date, fechaEnd: 
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No hay sesión activa');
 
-  const response = await fetch(`${API_URL}/mediciones/buscar`, {
+  const response = await fetch(`${API_URL}/motas/reportes`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

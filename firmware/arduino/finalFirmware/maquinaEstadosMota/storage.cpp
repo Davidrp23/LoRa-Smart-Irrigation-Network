@@ -3,7 +3,9 @@
 RTC_DATA_ATTR uint16_t receivedPackets = 0;
 RTC_DATA_ATTR uint16_t sendedPackets = 0;
 RTC_DATA_ATTR int16_t lastRssi = 0;
+RTC_DATA_ATTR int8_t lastSnr = 0;
 RTC_DATA_ATTR uint16_t rx_err = 0;
+RTC_DATA_ATTR uint16_t crc_err = 0;
 RTC_DATA_ATTR uint16_t tx_err = 0;
 RTC_DATA_ATTR uint16_t channelBusyErrors = 0;
 RTC_DATA_ATTR uint16_t missingAckErrors = 0;

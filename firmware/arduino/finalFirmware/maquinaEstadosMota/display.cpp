@@ -1,3 +1,4 @@
+#include "storage.h"
 #include "lora_node.h"
 #include "WString.h"
 #include "display.h"
@@ -215,7 +216,7 @@ void updateOled(humData &myHumData, GpsData &myGpsData, batteryStatus &senderBat
       }else{
         display.drawString(0, 10, "Connecting: " + String(currentNetwork));
       }
-      display.drawString(0, 20, "RSSI: " + String(lastRssi));
+      display.drawString(0, 20, "RSSI: " + String(lastRssi) + "| SNR: " + String(lastSnr));
       display.drawString(0, 30, "ID: " + String(MY_NODE_ID) + " | R_ID: " + String(selectedNW.info.router) + " | [CH:" + String(selectedNW.channel) + "]");
     } else {
       display.drawString(0, 30, "ID: " + String(MY_NODE_ID));
@@ -236,7 +237,7 @@ void updateOled(humData &myHumData, GpsData &myGpsData, batteryStatus &senderBat
   } else if (defaultMenu == 1 && needDisplayUpdate) {
     display.clear();
     display.drawString(10, 0, "=== FLoRa Node === 2/7");
-    display.drawString(0, 10, "Rx_err: " + String(rx_err));
+    display.drawString(0, 10, "Rx_err: " + String(rx_err) + "| CRC: " + String(crc_err));
     display.drawString(0, 20, "Tx_err: " + String(tx_err));
     display.drawString(0, 30, "ChannelBusyErrors: " + String(channelBusyErrors));
     display.drawString(0, 40, "MissingAckErrors: " + String(missingAckErrors));

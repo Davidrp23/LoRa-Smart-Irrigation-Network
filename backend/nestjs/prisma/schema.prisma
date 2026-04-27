@@ -88,7 +88,8 @@ model Router {
   parcela           Parcela? @relation(fields: [parcelaId], references: [id], onDelete: SetNull)
 
   // --- ESTADO Y SALUD ---
-  bateria           Int?     
+  bateria           Int?
+  cvgGPRS           Int?     
   fechaUltimaConexion DateTime?
   
   // --- CONTADORES DE TRÁFICO ---
@@ -96,7 +97,12 @@ model Router {
   paquetesRecibidos Int      @default(0) 
   erroresTx         Int      @default(0) 
   erroresRx         Int      @default(0) 
-  erroresCrc        Int      @default(0) 
+  erroresCrc        Int      @default(0)
+  erroresCriptograficos Int      @default(0) 
+  erroresCanalOcupado Int      @default(0) 
+  erroresColaLlena Int      @default(0)
+  
+
 
   // Relaciones
   usuarioId         Int?     
@@ -184,14 +190,21 @@ model Mota {
   // --- CONECTIVIDAD ---
   routerId          Int?     
   router            Router?  @relation(fields: [routerId], references: [id], onDelete: SetNull)
-  canal             Int?     
   
   // --- CACHÉ DE ESTADO ---
   humedad           Float?   
   bateriaUltima     Int?
   rssi              Int?     
-  snr               Float?   
-  erroresRxMota     Int?     
+  snr               Float?
+  paquetesEnviados  Int      @default(0) 
+  paquetesRecibidos Int      @default(0)
+  erroresTx     Int?     @default(0)     
+  erroresRx     Int?     @default(0) 
+  erroresCriptograficos Int? @default(0)
+  erroresCrc    Int?     @default(0) 
+  erroresCanalOcupado Int? @default(0)
+  erroresACKfaltante Int? @default(0) 
+
   fechaUltimaConexion DateTime?
   mediciones        Medicion[]
 
@@ -216,8 +229,15 @@ model Medicion {
   humedad       Float
   bateria       Int      
   rssi          Int?     
-  snr           Float?   
-  erroresRxMota Int? 
+  snr           Float?  
+  paquetesEnviados  Int?
+  paquetesRecibidos Int?
+  erroresTx     Int?        
+  erroresRx     Int?    
+  erroresCriptograficos Int? 
+  erroresCrc    Int?
+  erroresCanalOcupado Int?
+  erroresACKfaltante Int? 
 
   motaId        Int
   mota          Mota     @relation(fields: [motaId], references: [id], onDelete: Cascade)
@@ -235,11 +255,15 @@ model ReporteRouter {
   fecha             DateTime @default(now())
   
   bateria           Int?
+  cvgGPRS           Int?
   paquetesEnviados  Int
   paquetesRecibidos Int
   erroresTx         Int
   erroresRx         Int
   erroresCrc        Int
+  erroresCriptograficos Int?
+  erroresCanalOcupado Int? 
+  erroresColaLlena Int? 
   
   routerId          Int
   router            Router   @relation(fields: [routerId], references: [id], onDelete: Cascade)

@@ -15,37 +15,49 @@ NetworkData NETWORK_DATA;
 
 //Devuelve la posicion del cliente en la lista ( >= 0 ) si estaba presente, -1 en caso contrario
 char getClientIndex(const size_t client){
-
+  xSemaphoreTake(networkMutex, portMAX_DELAY);
+  char result = -1;
   for(uint8_t c = 0 ; c < activeClients; c++ ){ //Para que no de muchas vueltas, en vez de poner MAX_CLIENT podemos poner el numero de clientes activos, pero debemos tener el buffer siempre compacto
     if(connectedClients[c] == client){                //Ver la funcion de eliminacion de clientes
-      return c;
+      result = c;
+      break;
     }
   }
-  return -1;
+  xSemaphoreGive(networkMutex);
+  return result;
 }
 
 void addClient(const size_t client){
+  xSemaphoreTake(networkMutex, portMAX_DELAY);
   connectedClients[activeClients] = client;
   activeClients++;
+  xSemaphoreGive(networkMutex);
 }
 
 char getClientCryptoStateIndex(size_t client) {
+  xSemaphoreTake(networkMutex, portMAX_DELAY);
   for (size_t i = 0; i < clientCryptoStates.size(); i++) {
-    if (clientCryptoStates[i].id == client) return i;
+    if (clientCryptoStates[i].id == client) {
+      xSemaphoreGive(networkMutex);
+      return i;
+    }
   }
   ClientCryptoState newState = {client, 0, 0};
   clientCryptoStates.push_back(newState);
-  return clientCryptoStates.size() - 1;
+  char result = clientCryptoStates.size() - 1;
+  xSemaphoreGive(networkMutex);
+  return result;
 }
 
 //Elimina un cliente. Coje al ultimo cliente de la lista y lo pone en la posicion del cliente que se va a eliminar, para tener siempre el array compacto.
 bool deleteClient(const size_t client){
-
   char pos = getClientIndex(client);
   if(pos >= 0){
+    xSemaphoreTake(networkMutex, portMAX_DELAY);
     connectedClients[pos] = connectedClients[activeClients - 1];
     connectedClients[activeClients - 1] = 0;
     activeClients--;
+    xSemaphoreGive(networkMutex);
     return true;
   }
   return false;
@@ -122,6 +134,8 @@ void parseBigPacketResponse(String response){
       size_t targetMoteId = item["id"];
       int index = -1;
 
+      xSemaphoreTake(networkMutex, portMAX_DELAY);
+
       // 1. Buscamos si la mota ya tiene una configuración en la cola
       for (size_t i = 0; i < motasConf.size(); i++) {
         if (motasConf[i].id == targetMoteId) {
@@ -136,6 +150,7 @@ void parseBigPacketResponse(String response){
         // Comprobamos el límite de MAX_CLIENTS
         if (motasConf.size() >= MAX_CLIENTS) {
           Serial.printf("Aviso: No se pueden guardar más configs (Max %d alcanzado).\n", MAX_CLIENTS);
+          xSemaphoreGive(networkMutex);
           continue; // Pasamos a la siguiente iteración del for
         }
 
@@ -176,6 +191,8 @@ void parseBigPacketResponse(String response){
           }
         }
       }
+
+      xSemaphoreGive(networkMutex);
     }
   }
   if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {
@@ -188,20 +205,24 @@ void parseBigPacketResponse(String response){
 
 //Funcion para buscar la configuracion de una mota, devuelve su configuracion pendiente o una configuracion con id = 0 en caso contrario 
 ConfData searchMotaConf(size_t id) {
+  ConfData result;
+  result.id = 0;
+
+  xSemaphoreTake(networkMutex, portMAX_DELAY);
   for (size_t i = 0; i < motasConf.size(); i++) {
     if (motasConf[i].id == id) {
-      return motasConf[i];
+      result = motasConf[i];
+      break;
     }
   }
-
-  // Si no se encuentra:
-  ConfData notFound;
-  notFound.id = 0; 
-  return notFound;
+  xSemaphoreGive(networkMutex);
+  
+  return result;
 }
 
 //Funcion para eliminar la configuracion de una mota
 void deleteMotaConf(size_t id) {
+  xSemaphoreTake(networkMutex, portMAX_DELAY);
   for (size_t i = 0; i < motasConf.size(); i++) {
     if (motasConf[i].id == id) {
       motasConf.erase(motasConf.begin() + i);
@@ -209,6 +230,8 @@ void deleteMotaConf(size_t id) {
         shared_waiting_conf = motasConf.size();
         xSemaphoreGive(statsMutex);
       }
+      break;
     }
   }
+  xSemaphoreGive(networkMutex);
 }

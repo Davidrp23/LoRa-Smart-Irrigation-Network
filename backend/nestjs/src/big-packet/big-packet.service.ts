@@ -1,7 +1,7 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BigPacketDto } from './dto/big-packet.dto';
-import { Prisma ,PrismaPromise } from '@prisma/client';
+import { Prisma, PrismaPromise } from '@prisma/client';
 import { ParcelasService } from '../parcelas/parcelas.service';
 
 @Injectable()
@@ -9,12 +9,12 @@ export class BigPacketService {
 
   private readonly logger = new Logger(BigPacketService.name);
 
-  constructor(private prisma: PrismaService, private parcelasService: ParcelasService) {}
+  constructor(private prisma: PrismaService, private parcelasService: ParcelasService) { }
 
   async create(routerID: number, createBigPacketDto: BigPacketDto) {
     // 1. Array donde guardaremos todas las "órdenes" para la base de datos
     const operaciones: PrismaPromise<any>[] = [];
-    
+
     // Capturamos la hora exacta en la que llega el paquete
     const ahora = new Date();
 
@@ -63,7 +63,7 @@ export class BigPacketService {
     // ==========================================
     // Si el JSON incluía la parte "rt" (router), actualizamos sus sensores.
     // Si no, simplemente actualizamos su fecha de última conexión.
-    const routerUpdateData = createBigPacketDto.router 
+    const routerUpdateData = createBigPacketDto.router
       ? { ...createBigPacketDto.router, fechaUltimaConexion: ahora }
       : { fechaUltimaConexion: ahora };
 
@@ -83,11 +83,15 @@ export class BigPacketService {
         data: {
           routerId: routerID,
           bateria: createBigPacketDto.router.bateria,
+          cvgGPRS: createBigPacketDto.router.cvgGPRS,
           paquetesEnviados: createBigPacketDto.router.paquetesEnviados ?? 0,
           paquetesRecibidos: createBigPacketDto.router.paquetesRecibidos ?? 0,
           erroresTx: createBigPacketDto.router.erroresTx ?? 0,
           erroresRx: createBigPacketDto.router.erroresRx ?? 0,
           erroresCrc: createBigPacketDto.router.erroresCrc ?? 0,
+          erroresCriptograficos: createBigPacketDto.router.erroresCriptograficos ?? 0,
+          erroresCanalOcupado: createBigPacketDto.router.erroresCanalOcupado ?? 0,
+          erroresColaLlena: createBigPacketDto.router.erroresColaLlena ?? 0,
         }
       }));
     }
@@ -99,10 +103,10 @@ export class BigPacketService {
     const medicionesParaInsertar: Prisma.MedicionCreateManyInput[] = [];
 
     for (const mota of createBigPacketDto.motas) {
-      
+
       // Check Mota version para OTA
       const configMota = configsPendientes.find(c => c.motaId === mota.motaId);
-      
+
       if (configMota) {
         if (mota.versionAplicada !== undefined && mota.versionAplicada === configMota.version) {
           // El hardware aplicó la configuración
@@ -127,15 +131,21 @@ export class BigPacketService {
           data: {
             bateriaUltima: mota.bateria,
             // Truco Prisma: Si latitud/longitud vienen 'undefined', Prisma simplemente los ignora (no los borra).
-            latitud: mota.latitud, 
+            latitud: mota.latitud,
             longitud: mota.longitud,
             routerId: routerID, // Enganchamos la mota al router que nos acaba de hablar
             fechaUltimaConexion: ahora,
             humedad: mota.humedad,
-            canal: canal,
             rssi: mota.rssi,
             snr: mota.snr,
-            erroresRxMota: mota.erroresRxMota,
+            paquetesEnviados: mota.paquetesEnviados ?? 0,
+            paquetesRecibidos: mota.paquetesRecibidos ?? 0,
+            erroresRx: mota.erroresRx ?? 0,
+            erroresTx: mota.erroresTx ?? 0,
+            erroresCrc: mota.erroresCrc ?? 0,
+            erroresCanalOcupado: mota.erroresCanalOcupado ?? 0,
+            erroresCriptograficos: mota.erroresCriptograficos ?? 0,
+            erroresACKfaltante: mota.erroresACKfaltante ?? 0,
             versionAplicada: mota.versionAplicada, // Se actualiza si viene en el JSON
           },
         })
@@ -150,7 +160,14 @@ export class BigPacketService {
         bateria: mota.bateria,
         rssi: mota.rssi,
         snr: mota.snr,
-        erroresRxMota: mota.erroresRxMota,
+        paquetesEnviados: mota.paquetesEnviados,
+        paquetesRecibidos: mota.paquetesRecibidos,
+        erroresRx: mota.erroresRx,
+        erroresTx: mota.erroresTx,
+        erroresCrc: mota.erroresCrc,
+        erroresCriptograficos: mota.erroresCriptograficos,
+        erroresCanalOcupado: mota.erroresCanalOcupado,
+        erroresACKfaltante: mota.erroresACKfaltante,
       });
     }
 
@@ -171,16 +188,16 @@ export class BigPacketService {
     try {
       // Prisma ejecutará todas las promesas del array en estricto orden y de forma segura
       const resultados = await this.prisma.$transaction(operaciones);
-      
+
       this.logger.log(`BigPacket procesado con éxito. Router ID: ${routerID} | Motas actualizadas: ${createBigPacketDto.motas.length}`);
-      
+
       // ==========================================
       // 6. RECALCULO REACTIVO DE PARCELAS
       // ==========================================
       // Identificamos qué parcelas se han visto afectadas por estos nuevos datos
       // para recalcular su humedad media inmediatamente.
       const parcelasAfectadas = new Set<number>();
-      
+
       // Buscamos en los resultados de la transacción las motas actualizadas
       // (Saltamos el update del router y el reporte si existe)
       // Una forma más segura es iterar las motas del DTO y buscar su estado actual en BD, 
@@ -189,7 +206,7 @@ export class BigPacketService {
       // Para simplificar y ser robustos: consultamos los IDs de parcela de las motas recibidas.
       const motasIds = createBigPacketDto.motas.map(m => m.motaId);
       const motasDb = await this.prisma.mota.findMany({ where: { id: { in: motasIds } }, select: { parcelaId: true } });
-      
+
       motasDb.forEach(m => { if (m.parcelaId) parcelasAfectadas.add(m.parcelaId); });
 
       // Ejecutamos la actualización de agregados (fuera de la transacción principal para no bloquear)
@@ -198,7 +215,7 @@ export class BigPacketService {
       }
 
       // Devolvemos la confirmación y la lista de configuraciones a aplicar en formato diminuto
-      return { ok: true, conf }; 
+      return { ok: true, conf };
 
     } catch (error: any) {
       this.logger.error(`Error crítico procesando BigPacket del Router ${routerID}: ${error.message}`);

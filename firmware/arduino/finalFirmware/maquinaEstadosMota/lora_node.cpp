@@ -164,11 +164,13 @@ void sendSensorData(uint8_t humPercentage, uint8_t batPercentage, float lat, flo
   sdata.receivedPackets = receivedPackets;
   sdata.sendedPackets = sendedPackets;
   sdata.lastRssi = lastRssi;
+  sdata.lastSnr = lastSnr;
   sdata.rx_err = rx_err;
   sdata.tx_err = tx_err;
   sdata.channelBusyErrors = channelBusyErrors;
   sdata.missingAckErrors = missingAckErrors;
   sdata.crypto_err = crypto_err;
+  sdata.crc_err = crc_err;
   sdata.version = version;
 
   msg.data.SensorsData = sdata;
@@ -241,6 +243,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
   memcpy(&incomingMsg, payload, min((size_t)size, (size_t)MIN_SIZE + MAX_PAYLOAD_SIZE));
 
   if (calculateChecksum(incomingMsg) != incomingMsg.checksum) {
+    crc_err++;
     rx_err++;
     Serial.println("Checksum ERROR.");
     return;
@@ -253,6 +256,7 @@ void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
 
   receivedPackets++;
   lastRssi = rssi;
+  lastSnr = snr;
   needDisplayUpdate = true;
 
   if (incomingMsg.data.ControlData.router == selectedNW.info.router){

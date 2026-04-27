@@ -24,7 +24,15 @@ class UpdateMotaDto {
     humedad;
     rssi;
     snr;
-    erroresRxMota;
+    paquetesEnviados;
+    paquetesRecibidos;
+    erroresRx;
+    erroresTx;
+    erroresCanalOcupado;
+    erroresCriptograficos;
+    erroresCrc;
+    erroresACKfaltante;
+    versionAplicada;
     fechaUltimaConexion;
     conexionPublica;
 }
@@ -88,7 +96,47 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
-], UpdateMotaDto.prototype, "erroresRxMota", void 0);
+], UpdateMotaDto.prototype, "paquetesEnviados", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "paquetesRecibidos", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresRx", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresTx", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresCanalOcupado", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresCriptograficos", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresCrc", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "erroresACKfaltante", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateMotaDto.prototype, "versionAplicada", void 0);
 __decorate([
     (0, class_transformer_1.Type)(() => Date),
     (0, class_validator_1.IsOptional)(),

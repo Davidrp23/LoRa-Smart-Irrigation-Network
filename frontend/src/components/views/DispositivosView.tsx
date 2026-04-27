@@ -64,23 +64,34 @@ interface DispositivoBase {
 
 interface Router extends DispositivoBase {
   tipo: 'router';
-  ssid: string | null; // Puede ser null desde el backend
+  ssid: string | null;
   esPublico: boolean;
-  bateria: number | null; // Puede ir con placa solar
+  bateria: number | null;
+  cvgGPRS?: number | null;
   paquetesEnviados: number;
   paquetesRecibidos: number;
   erroresTx: number;
   erroresRx: number;
   erroresCrc: number;
+  erroresCriptograficos?: number;
+  erroresCanalOcupado?: number;
+  erroresColaLlena?: number;
 }
 
 interface Mota extends DispositivoBase {
   tipo: 'mota';
   bateriaUltima: number;
   routerId: number;
-  rssi: number | null; // Señal puede ser null
+  rssi: number | null;
   snr: number | null;
-  erroresRx: number; // Pérdidas
+  erroresRx: number;
+  erroresTx?: number;
+  erroresCrc?: number;
+  erroresCriptograficos?: number;
+  erroresCanalOcupado?: number;
+  erroresACKfaltante?: number;
+  paquetesEnviados?: number;
+  paquetesRecibidos?: number;
   conexionPublica: boolean;
 }
 
@@ -731,8 +742,8 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                           <RefreshCw size={10} className="animate-[spin_3s_linear_infinite]" /> OTA SYNC
                         </span>
                         
-                        {/* Tooltip Explicativo de OTA */}
-                        <div className="absolute top-full left-0 mt-2 hidden w-64 rounded-xl bg-card p-4 text-sm text-card-foreground shadow-2xl border border-border z-[100] group-hover/ota:block animate-in fade-in zoom-in-95 duration-200">
+                        {/* Tooltip Explicativo de OTA - posicionado a la derecha por defecto, se mueve a izquierda con right-0 para evitar overflow */}
+                        <div className="absolute top-full right-0 mt-2 hidden w-64 rounded-xl bg-card p-4 text-sm text-card-foreground shadow-2xl border border-border z-[100] group-hover/ota:block animate-in fade-in zoom-in-95 duration-200">
                           <div className="font-bold mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
                             <RefreshCw size={14} className="animate-[spin_3s_linear_infinite]" />
                             Sincronización Pendiente
@@ -779,11 +790,10 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                 <div className="group/gps-label relative flex items-center gap-1.5 text-muted-foreground cursor-help">
                   <Globe size={14}/> <span className="border-b border-dotted border-muted-foreground/50">GPS</span>
                   {/* Tooltip GPS */}
-                  <div className="absolute top-full left-0 mt-2 hidden w-64 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[100] group-hover/gps-label:block animate-in fade-in zoom-in-95 duration-200">
+                  <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[100] group-hover/gps-label:block animate-in fade-in zoom-in-95 duration-200">
                     <div className="font-bold mb-1 text-foreground">Posicionamiento Eficiente</div>
                     <p className="opacity-90 leading-relaxed">
-                      Para maximizar la autonomía, las coordenadas solo se envían al conectarse a la red. 
-                      Si cambia el dispositivo de lugar, solicite una actualización física (reinicio) para registrar la nueva ubicación.
+                      Las coordenadas GPS se calculan y transmiten manualmente desde el menú físico del dispositivo. Si cambia de ubicación, seleccione el modo <strong>Update GPS</strong> en el menú del hardware para registrar la nueva posición.
                     </p>
                   </div>
                 </div>
@@ -832,65 +842,128 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
                 </>
               )}
 
-              <div className="flex items-center justify-between text-xs">
-                <div className="group/channel-label relative flex items-center gap-1.5 text-muted-foreground cursor-help">
-                  <Radio size={14}/> <span className="border-b border-dotted border-muted-foreground/50">Canal</span>
-                  {/* Tooltip Canal */}
-                  <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[100] group-hover/channel-label:block animate-in fade-in zoom-in-95 duration-200">
-                    <div className="font-bold mb-1 text-foreground">Frecuencia LoRaWAN</div>
-                    <p className="opacity-90 leading-relaxed mb-2">
-                      Canal de comunicación físico. Se recomienda usar canales distintos en redes cercanas para evitar colisiones.
-                    </p>
-                    <div className="bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-800/30 text-amber-700 dark:text-amber-400">
-                      <strong>¡Precaución!</strong> Las motas no cambian de canal remotamente. Si cambia el canal del Router, deberá reiniciar físicamente todas las motas para que reconecten.
+              {disp.tipo === 'router' && (
+                <div className="flex items-center justify-between text-xs">
+                  <div className="group/channel-label relative flex items-center gap-1.5 text-muted-foreground cursor-help">
+                    <Radio size={14}/> <span className="border-b border-dotted border-muted-foreground/50">Canal</span>
+                    <div className="absolute top-full left-0 mt-2 hidden w-72 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[100] group-hover/channel-label:block animate-in fade-in zoom-in-95 duration-200">
+                      <div className="font-bold mb-1 text-foreground">Frecuencia LoRaWAN</div>
+                      <p className="opacity-90 leading-relaxed">Canal de comunicación físico. Se recomienda usar canales distintos en redes cercanas para evitar colisiones.</p>
                     </div>
                   </div>
+                  <span className="font-medium text-foreground">
+                    CH {disp.canal ?? '-'} ({CHANNEL_FREQUENCIES[disp.canal ?? -1] || 'Unknown'})
+                  </span>
                 </div>
-
-                <span className="font-medium text-foreground">
-                  {disp.tipo === 'router' 
-                    ? `CH ${disp.canal ?? '-'} (${CHANNEL_FREQUENCIES[disp.canal ?? -1] || 'Unknown'})` 
-                    : `CH ${disp.canal ?? '-'}`
-                  }
-                </span>
-              </div>
+              )}
             </div>
 
             {/* Footer / Métricas */}
-            <div className="mt-auto pt-4 border-t border-border grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Batería</span>
-                <div className={`flex items-center gap-1.5 text-sm font-bold ${
-                  getBateriaColor(disp.tipo === 'router' ? disp.bateria : disp.bateriaUltima)
-                }`}>
-                  <BatteryLevel level={disp.tipo === 'router' ? (disp.bateria || 0) : (disp.bateriaUltima || 0)} size={16} /> 
-                  {disp.tipo === 'router' ? (disp.bateria !== null && disp.bateria !== undefined ? `${disp.bateria}%` : '--%') : (disp.bateriaUltima !== null && disp.bateriaUltima !== undefined ? `${disp.bateriaUltima}%` : '--%')}
+            <div
+              className="mt-auto pt-4 border-t border-border cursor-pointer hover:bg-muted/30 rounded-b-xl -mx-5 px-5 pb-1 transition-colors"
+              onClick={() => setViewingConnectionDevice(disp)}
+            >
+              {/* Fila 1: Batería + Señal/GPRS */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Batería</span>
+                  <div className={`flex items-center gap-1.5 text-sm font-bold ${
+                    getBateriaColor(disp.tipo === 'router' ? disp.bateria : disp.bateriaUltima)
+                  }`}>
+                    <BatteryLevel level={disp.tipo === 'router' ? (disp.bateria || 0) : (disp.bateriaUltima || 0)} size={16} />
+                    {disp.tipo === 'router'
+                      ? (disp.bateria != null ? `${disp.bateria}%` : '--%')
+                      : (disp.bateriaUltima != null ? `${disp.bateriaUltima}%` : '--%')}
+                  </div>
                 </div>
-              </div>
-              
-              <div 
-                className="flex flex-col gap-1 items-end cursor-pointer hover:bg-muted/50 p-1 -mr-1 rounded-lg transition-colors"
-                onClick={() => setViewingConnectionDevice(disp)}
-              >
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                  {disp.tipo === 'router' ? 'Tráfico' : 'Señal'}
-                </span>
-                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                  {disp.tipo === 'router' ? (
-                    (disp.paquetesEnviados > 0 || disp.paquetesRecibidos > 0) ? (
-                      <><Activity size={16} className="text-blue-500"/> {disp.paquetesEnviados}</>
+
+                {disp.tipo === 'router' ? (
+                  <div className="flex flex-col gap-1 items-end">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">GPRS (CSQ)</span>
+                    {(() => {
+                      const csq = disp.cvgGPRS;
+                      const label = csq == null ? '--' : csq === 99 ? 'Desc.' : csq <= 10 ? 'Deficiente' : csq <= 22 ? 'Normal' : 'Excelente';
+                      const cls = csq == null || csq === 99 ? 'text-muted-foreground' : csq <= 10 ? 'text-destructive' : csq <= 22 ? 'text-amber-500' : 'text-green-500';
+                      return (
+                        <div className={`flex items-center gap-1.5 text-sm font-bold ${cls}`}>
+                          <Signal size={14} />{csq != null ? csq : '--'} <span className="text-xs font-normal">{label}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1 items-end">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Señal LoRa</span>
+                    {(disp.rssi !== null && disp.rssi !== undefined) ? (
+                      <div className={`flex items-center gap-1.5 text-sm font-bold ${disp.rssi > -100 ? 'text-blue-500' : 'text-amber-500'}`}>
+                        <Signal size={14} /> {disp.rssi} dBm
+                      </div>
                     ) : (
                       <span className="text-xs font-normal text-muted-foreground italic">--</span>
-                    )
-                  ) : (
-                    (disp.rssi !== null && disp.rssi !== undefined) ? (
-                      <><Signal size={16} className={disp.rssi > -100 ? "text-blue-500" : "text-amber-500"}/> {disp.rssi} dBm</>
-                    ) : (
-                      <span className="text-xs font-normal text-muted-foreground italic">--</span>
-                    )
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Fila 2: Resumen de Tráfico */}
+              {disp.tipo === 'router' ? (
+                // ROUTER: paquetes + badges de error
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="font-mono">↑ {disp.paquetesEnviados ?? 0}</span>
+                    <span className="text-border">·</span>
+                    <span className="font-mono">↓ {disp.paquetesRecibidos ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {disp.erroresRx > 0 && (
+                      <span className="flex items-center gap-1 font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/15 px-2 py-0.5 rounded-full">
+                        <X size={9} /> {disp.erroresRx} rx
+                      </span>
+                    )}
+                    {disp.erroresTx > 0 && (
+                      <span className="flex items-center gap-1 font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/15 px-2 py-0.5 rounded-full">
+                        <X size={9} /> {disp.erroresTx} tx
+                      </span>
+                    )}
+                    {disp.erroresRx === 0 && disp.erroresTx === 0 && (
+                      <span className="text-[10px] font-medium text-green-600 dark:text-green-400 opacity-70">sin errores</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                // MOTA: paquetes + badges de error RX y TX
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="font-mono">↑ {disp.paquetesEnviados ?? '--'}</span>
+                    <span className="text-border">·</span>
+                    <span className="font-mono">↓ {disp.paquetesRecibidos ?? '--'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {(disp.erroresRx ?? 0) > 0 && (
+                      <span className="group/errbadge-rx relative flex items-center gap-1 font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/15 px-2 py-0.5 rounded-full cursor-help">
+                        <X size={9} /> {disp.erroresRx} rx
+                        <div className="absolute bottom-full right-0 mb-2 hidden w-60 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[200] group-hover/errbadge-rx:block animate-in fade-in zoom-in-95 duration-150 pointer-events-none">
+                          <div className="font-bold mb-1 text-foreground">Errores de Recepción (RX)</div>
+                          <p className="opacity-80 leading-relaxed">Paquetes perdidos al recibir. Incluye: CRC inválido, error criptográfico, ACK faltante o tamaño inesperado. Ver historial para el desglose.</p>
+                        </div>
+                      </span>
+                    )}
+                    {(disp.erroresTx ?? 0) > 0 && (
+                      <span className="group/errbadge-tx relative flex items-center gap-1 font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/15 px-2 py-0.5 rounded-full cursor-help">
+                        <X size={9} /> {disp.erroresTx} tx
+                        <div className="absolute bottom-full right-0 mb-2 hidden w-60 rounded-xl bg-card p-3 text-xs text-card-foreground shadow-xl border border-border z-[200] group-hover/errbadge-tx:block animate-in fade-in zoom-in-95 duration-150 pointer-events-none">
+                          <div className="font-bold mb-1 text-foreground">Errores de Envío (TX)</div>
+                          <p className="opacity-80 leading-relaxed">Fallos al transmitir. Incluye: TX timeout (sin respuesta del chip LoRa) o canal ocupado durante el envío. Ver historial para el desglose.</p>
+                        </div>
+                      </span>
+                    )}
+                    {(disp.erroresRx ?? 0) === 0 && (disp.erroresTx ?? 0) === 0 && (
+                      <span className="text-[10px] font-medium text-green-600 dark:text-green-400 opacity-70">sin errores</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <p className="text-[9px] text-center text-muted-foreground mt-1.5 mb-1">paquetes · toca para ver historial</p>
             </div>
 
             {/* Gráfico de Consumo */}

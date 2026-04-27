@@ -66,11 +66,15 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
                 data: {
                     routerId: routerID,
                     bateria: createBigPacketDto.router.bateria,
+                    cvgGPRS: createBigPacketDto.router.cvgGPRS,
                     paquetesEnviados: createBigPacketDto.router.paquetesEnviados ?? 0,
                     paquetesRecibidos: createBigPacketDto.router.paquetesRecibidos ?? 0,
                     erroresTx: createBigPacketDto.router.erroresTx ?? 0,
                     erroresRx: createBigPacketDto.router.erroresRx ?? 0,
                     erroresCrc: createBigPacketDto.router.erroresCrc ?? 0,
+                    erroresCriptograficos: createBigPacketDto.router.erroresCriptograficos ?? 0,
+                    erroresCanalOcupado: createBigPacketDto.router.erroresCanalOcupado ?? 0,
+                    erroresColaLlena: createBigPacketDto.router.erroresColaLlena ?? 0,
                 }
             }));
         }
@@ -99,10 +103,16 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
                     routerId: routerID,
                     fechaUltimaConexion: ahora,
                     humedad: mota.humedad,
-                    canal: canal,
                     rssi: mota.rssi,
                     snr: mota.snr,
-                    erroresRxMota: mota.erroresRxMota,
+                    paquetesEnviados: mota.paquetesEnviados ?? 0,
+                    paquetesRecibidos: mota.paquetesRecibidos ?? 0,
+                    erroresRx: mota.erroresRx ?? 0,
+                    erroresTx: mota.erroresTx ?? 0,
+                    erroresCrc: mota.erroresCrc ?? 0,
+                    erroresCanalOcupado: mota.erroresCanalOcupado ?? 0,
+                    erroresCriptograficos: mota.erroresCriptograficos ?? 0,
+                    erroresACKfaltante: mota.erroresACKfaltante ?? 0,
                     versionAplicada: mota.versionAplicada,
                 },
             }));
@@ -113,7 +123,14 @@ let BigPacketService = BigPacketService_1 = class BigPacketService {
                 bateria: mota.bateria,
                 rssi: mota.rssi,
                 snr: mota.snr,
-                erroresRxMota: mota.erroresRxMota,
+                paquetesEnviados: mota.paquetesEnviados,
+                paquetesRecibidos: mota.paquetesRecibidos,
+                erroresRx: mota.erroresRx,
+                erroresTx: mota.erroresTx,
+                erroresCrc: mota.erroresCrc,
+                erroresCriptograficos: mota.erroresCriptograficos,
+                erroresCanalOcupado: mota.erroresCanalOcupado,
+                erroresACKfaltante: mota.erroresACKfaltante,
             });
         }
         if (medicionesParaInsertar.length > 0) {

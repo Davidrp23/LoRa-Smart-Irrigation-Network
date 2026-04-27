@@ -23,7 +23,11 @@ class RouterTelemetryDto {
     paquetesRecibidos;
     erroresTx;
     erroresRx;
+    erroresCriptograficos;
     erroresCrc;
+    erroresColaLlena;
+    erroresCanalOcupado;
+    cvgGPRS;
     versionAplicada;
 }
 exports.RouterTelemetryDto = RouterTelemetryDto;
@@ -72,9 +76,33 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Expose)({ name: 'eC' }),
+    (0, class_transformer_1.Expose)({ name: 'eCry' }),
+    __metadata("design:type", Number)
+], RouterTelemetryDto.prototype, "erroresCriptograficos", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'eCrc' }),
     __metadata("design:type", Number)
 ], RouterTelemetryDto.prototype, "erroresCrc", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'qF' }),
+    __metadata("design:type", Number)
+], RouterTelemetryDto.prototype, "erroresColaLlena", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'cB' }),
+    __metadata("design:type", Number)
+], RouterTelemetryDto.prototype, "erroresCanalOcupado", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'cv' }),
+    __metadata("design:type", Number)
+], RouterTelemetryDto.prototype, "cvgGPRS", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_transformer_1.Expose)({ name: 'v' }),
@@ -89,7 +117,14 @@ class MotaReportDto {
     humedad;
     rssi;
     snr;
-    erroresRxMota;
+    paquetesEnviados;
+    paquetesRecibidos;
+    erroresRx;
+    erroresTx;
+    erroresCanalOcupado;
+    erroresCriptograficos;
+    erroresCrc;
+    erroresACKfaltante;
     versionAplicada;
 }
 exports.MotaReportDto = MotaReportDto;
@@ -139,9 +174,51 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'tx' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "paquetesEnviados", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'rx' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "paquetesRecibidos", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Expose)({ name: 'eR' }),
     __metadata("design:type", Number)
-], MotaReportDto.prototype, "erroresRxMota", void 0);
+], MotaReportDto.prototype, "erroresRx", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'eT' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "erroresTx", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'cB' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "erroresCanalOcupado", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'eCry' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "erroresCriptograficos", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'eCrc' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "erroresCrc", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Expose)({ name: 'mA' }),
+    __metadata("design:type", Number)
+], MotaReportDto.prototype, "erroresACKfaltante", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_transformer_1.Expose)({ name: 'v' }),

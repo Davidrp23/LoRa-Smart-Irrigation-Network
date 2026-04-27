@@ -48,21 +48,36 @@ typedef struct __attribute__((packed)) {
 } ConfData;
 
 typedef struct __attribute__((packed)) {
-  size_t router;
-  size_t id;
+
+  //Paquete de carga util que contiene los ID del router y mota que se estan comunicando, estos campos se usan para evitar que otras motas/router procesen un paquete que no van para ellos.
+  //Ademas de los ID contiene los datos que recopila la mota.
+
+  size_t router;  //Router al que va destinado el paquete, siempre > 0
+
+  size_t id;  // ID desde el que proviene el paquete, siempre > 0
+
   uint8_t humidity;
+
   uint8_t battery;
-  float latitude;
+
+  float latitude;  // Mejor mandar las coordenadas como 2 float (4B cada uno) que como un array de caracteres (Ahorramos espacio).
+
   float longitude;
-  uint16_t version;
+
+  uint16_t version;  // Version de la configuracion de la mota
+
+  //Telemetria:
   uint16_t receivedPackets;
   uint16_t sendedPackets;
   int16_t lastRssi;
+  int8_t lastSnr;
   uint16_t rx_err;
   uint16_t tx_err;
   uint16_t channelBusyErrors;
   uint16_t missingAckErrors;
   uint16_t crypto_err;
+  uint16_t crc_err;
+
 } SensorsData;
 
 typedef struct __attribute__((packed)) {

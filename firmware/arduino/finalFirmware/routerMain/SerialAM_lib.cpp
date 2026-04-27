@@ -23,6 +23,7 @@ SerialAM::SerialAM(HardwareSerial& hwSerial, uint8_t mosfetPin)
       _controlTask(nullptr)
 {
     _lastResult = {false, 0, ""};
+    _lastCsq = 0;
 }
 
 void SerialAM::begin(uint32_t baud, int rxPin, int txPin) {
@@ -71,6 +72,26 @@ bool SerialAM::sendBigPacket(const String& jsonPayload) {
     _serial.print(F("{\"cmd\":\"SEND\",\"data\":"));
     _serial.print(jsonPayload);
     _serial.print(F("}\n")); // Salto de línea es el delimitador de trama
+
+    changeState(AMState::WAITING_SEND);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Envío de petición GET
+// ---------------------------------------------------------------------------
+bool SerialAM::sendGetRequest(const String& path) {
+    if (_state != AMState::IDLE) {
+        Serial.println(F("[AM] Error: sendGetRequest() llamado fuera de estado IDLE."));
+        return false;
+    }
+
+    Serial.printf("[AM] Enviando GET request: %s\n", path.c_str());
+
+    // Protocolo: {"cmd":"GET","path":"<path>"}\n
+    _serial.print(F("{\"cmd\":\"GET\",\"path\":\""));
+    _serial.print(path);
+    _serial.print(F("\"}\n")); // Salto de línea es el delimitador de trama
 
     changeState(AMState::WAITING_SEND);
     return true;
@@ -150,6 +171,7 @@ void SerialAM::processFrame(const String& jsonStr) {
     // -----------------------------------------------------------------------
     if (strcmp(event, "READY") == 0) {
         int csq = doc["csq"] | 0;
+        _lastCsq = (int8_t)csq;
         Serial.printf("[AM] << READY (CSQ: %d)\n", csq);
         changeState(AMState::IDLE);
         notify(AM_NOTIFY_READY);

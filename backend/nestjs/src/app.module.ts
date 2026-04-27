@@ -5,7 +5,6 @@ import { MotasModule } from './motas/motas.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { RoutersModule } from './routers/routers.module';
 import { ParcelasModule } from './parcelas/parcelas.module';
-import { MedicionesModule } from './mediciones/mediciones.module';
 import { BigPacketModule } from './big-packet/big-packet.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -19,10 +18,10 @@ import { ClimaServiceModule } from './clima-service/clima-service.module';
 
 
 @Module({
-  imports: [MotasModule, UsuariosModule, RoutersModule, ParcelasModule, MedicionesModule, BigPacketModule, PrismaModule, AuthModule, TipoCultivoModule, TipoSueloModule, TipoRiegoModule, TurnoRiegoModule
-    ,ScheduleModule.forRoot(), ClimaServiceModule
+  imports: [MotasModule, UsuariosModule, RoutersModule, ParcelasModule, BigPacketModule, PrismaModule, AuthModule, TipoCultivoModule, TipoSueloModule, TipoRiegoModule, TurnoRiegoModule
+    , ScheduleModule.forRoot(), ClimaServiceModule
   ],
   controllers: [AppController],
   providers: [AppService, RiegoService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -10,7 +10,15 @@ export declare class UpdateMotaDto {
     humedad: number;
     rssi: number;
     snr: number;
-    erroresRxMota: number;
+    paquetesEnviados: number;
+    paquetesRecibidos: number;
+    erroresRx: number;
+    erroresTx: number;
+    erroresCanalOcupado: number;
+    erroresCriptograficos: number;
+    erroresCrc: number;
+    erroresACKfaltante: number;
+    versionAplicada: number;
     fechaUltimaConexion: Date;
     conexionPublica: boolean;
 }
