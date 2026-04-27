@@ -91,7 +91,7 @@ export default function Login() {
       
       {/* VIDEO DE FONDO */}
       <video autoPlay loop muted playsInline className="absolute z-0 min-h-full min-w-full object-cover"
-        src="media/videos/background_login_video.mp4"
+        src="/media/videos/background_login_video.mp4"
       />
 
       {/* OVERLAY con desenfoque suave (sm) */}
@@ -112,7 +112,7 @@ export default function Login() {
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-primary/50 bg-primary/10 shadow-md shadow-primary/5 backdrop-blur-xl">
             
                 <motion.img 
-                    src="media/FLoRa_logo.png" 
+                    src="/media/FLoRa_logo.png" 
                     alt="FLoRa Logo" 
                     className="h-16 w-16 object-contain"
                     animate={{ scale: [1, 1.05, 1] }}
