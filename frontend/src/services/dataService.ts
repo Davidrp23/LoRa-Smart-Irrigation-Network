@@ -311,19 +311,12 @@ export const updateDevice = async (id: number, device: any, type: 'router' | 'mo
   if (!token) throw new Error('No hay sesión activa');
 
   const endpoint = type === 'router' ? 'routers' : 'motas';
-  // Reutilizamos la lógica de payload de creación, pero sin código de vinculación (no se suele editar)
-  const payload: any = {
-    nombre: device.nombre,
-    parcelaId: device.parcelaId ? Number(device.parcelaId) : null
-  };
+  // Solo reenviamos los campos que realmente cambiaron (recibidos desde handleSave)
+  const payload: any = { ...device };
 
-  if (type === 'router') {
-    payload.ssid = device.ssid;
-    payload.esPublico = device.esPublico;
-    payload.canal = device.canal; // Enviamos el canal numérico
-  } else {
-    payload.frecuencia = device.frecuencia; // Solo las motas tienen frecuencia de actualización
-    payload.conexionPublica = device.conexionPublica; // Enviamos la configuración de roaming
+  // Si parcelaId viene explícitamente, aseguramos que sea número o null
+  if ('parcelaId' in payload) {
+    payload.parcelaId = payload.parcelaId ? Number(payload.parcelaId) : null;
   }
 
   //console.log(payload);
