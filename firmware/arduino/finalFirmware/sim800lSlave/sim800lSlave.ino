@@ -25,17 +25,17 @@ const char gprsUser[] = "movistar";
 const char gprsPass[] = "movistar";
 
 // Configuración del servidor (Ajusta esto a tu backend)
-const char server[] = "httpbin.org"; // Cambiar por la IP/Dominio de tu API
+const char server[] = "http://flora.ddns.net"; // Cambiar por la IP/Dominio de tu API
 const int  port   = 80;
 
 // Rutas de la API
-const char bigPacketPath[] = "/big-packet";  // POST telemetría
+const char bigPacketPath[] = "/api/big-packet";  // POST telemetría
 
 // Headers de autenticación del router
 const char headerDeviceId[]    = "x-device-id";
 const char headerDeviceToken[] = "x-device-token";
 const char deviceIdValue[]     = "1";
-const char deviceTokenValue[]  = "1b28f86539d5223c43e3a373e36771d1";
+const char deviceTokenValue[]  = "eb1348f0abedcf9cc764c8b6f4107efa";
 
 // Variables de la Máquina de Estados
 enum ModemState {

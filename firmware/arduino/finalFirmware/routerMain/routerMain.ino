@@ -71,10 +71,6 @@ void setup() {
 
   rxQueue = xQueueCreate(RX_QUEUE_LEN, RX_MSG_SIZE);
 
-  AMSetup();
-
-  startUplinkTask();
-  
   numChannel = findChannelNumber(channel);
   
   initializeOled();
@@ -117,6 +113,10 @@ void setup() {
     NULL,               // Handle de la tarea
     0                   // Core ID
   );
+
+  AMSetup();
+
+  startUplinkTask();
 
   Serial.println("Sistema Multitarea Iniciado.");
 

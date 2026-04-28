@@ -152,7 +152,6 @@ void TaskDisplay(void *pvParameters) {
       display.drawString(0, 25, "Crypto Errors : " + String(localStats.crypto_err));
       display.drawString(0, 35, "CRC Errors : " + String(localStats.crc_err));
       display.drawString(0, 45, "Version : " + String(localStats.version) + ".0" );
-      display.drawString(0, 45, "GPRS CSQ : " + String(localStats.coverage));
 
     }else if (defaultMenu == 3){
       display.drawString(10, 0,  "== FLoRa Router == 4/4");

@@ -7,9 +7,8 @@
 
 // -- Coordenadas fijas del router -- (Temporal, sustituir cuando se implante el
 // GPS en el router)
-#define ROUTER_LATITUDE 36.959108709622576
-#define ROUTER_LONGITUDE -6.117285131521883
-
+#define ROUTER_LATITUDE 37.3483883212164
+#define ROUTER_LONGITUDE -5.953348557513961
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define NUM_CHANELS 4
 

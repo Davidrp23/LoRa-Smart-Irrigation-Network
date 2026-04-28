@@ -34,6 +34,7 @@ QueueHandle_t amResultQueue;
 // ---------------------------------------------------------------------------
 // Constantes de tiempo
 // ---------------------------------------------------------------------------
+static constexpr uint32_t FIVE_MINUTES_MS = 300000UL;
 static constexpr uint32_t TEN_MINUTES_MS = 600000UL;
 static constexpr uint32_t TWELVE_HOURS_MS = 43200000UL;
 static constexpr uint32_t ONE_HOUR_MS = 3600000UL;
@@ -168,9 +169,9 @@ static bool checkBigPacketConditions(TickType_t lastSendTs) {
     xSemaphoreGive(statsMutex);
   }
 
-  // Condición 1: ≥ 1 hora desde que llegó el primer paquete pendiente
+  // Condición 1: ≥ 1 hora desde que llegó el primer paquete pendiente  -- 5 MINUTOS PARA PRUEBA, CAMBIAR
   bool oldPacket = (firstPktTs > 0) && ((xTaskGetTickCount() - firstPktTs) >=
-                                        pdMS_TO_TICKS(ONE_HOUR_MS));
+                                        pdMS_TO_TICKS(FIVE_MINUTES_MS));
 
   // Condición 2: cola llena (máximo de clientes alcanzado)
   bool queueFull = (queueSz >= MAX_CLIENTS);
@@ -314,7 +315,7 @@ static void am_manager_task(void *pvParameters) {
         Serial.printf("[AM_CTRL] Ejecutando Job: ACCESS_CHECK para nodo %zu\n",
                       currentJob.nodeId);
 
-        String path = "/routers/permitirAcceso/";
+        String path = "/api/routers/permitirAcceso/";
         path += String(currentJob.nodeId);
 
         if (am036.sendGetRequest(path)) {
