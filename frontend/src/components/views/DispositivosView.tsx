@@ -992,7 +992,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       <AnimatePresence>
         {editingDevice && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm">
-            <div className="min-h-full flex items-start justify-center p-4 py-10 w-full">
+            <div className="min-h-full flex items-center justify-center p-4 w-full">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1167,7 +1167,7 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       <AnimatePresence>
         {isLinkModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm">
-            <div className="min-h-full flex items-start justify-center p-4 py-10 w-full">
+            <div className="min-h-full flex items-center justify-center p-4 w-full">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1242,8 +1242,8 @@ export default function DispositivosView({ datosDispositivos, parcelasDisponible
       {/* Modal de Historial Detallado */}
       <AnimatePresence>
         {selectedHistoryDevice && (
-          <div className="fixed inset-0 z-[1000] overflow-y-auto bg-black/70 backdrop-blur-sm p-4 md:p-6 flex justify-center items-start">
-            <div className="flex justify-center w-full pt-4 pb-12 sm:pt-12">
+          <div className="fixed inset-0 z-[1000] overflow-y-auto bg-black/70 backdrop-blur-sm p-4 md:p-6 flex justify-center items-center">
+            <div className="flex justify-center w-full">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
