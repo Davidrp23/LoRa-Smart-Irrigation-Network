@@ -25,7 +25,7 @@ const char gprsUser[] = "movistar";
 const char gprsPass[] = "movistar";
 
 // Configuración del servidor (Ajusta esto a tu backend)
-const char server[] = "http://flora.ddns.net"; // Cambiar por la IP/Dominio de tu API
+const char server[] = "flora.ddns.net"; // Cambiar por la IP/Dominio de tu API
 const int  port   = 80;
 
 // Rutas de la API
