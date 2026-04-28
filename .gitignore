@@ -39,3 +39,13 @@
 
 # debug information files
 *.dwo
+# Compilación
+**/dist/
+**/*.tsbuildinfo
+node_modules/
+
+# Logs y caché
+npm-debug.log
+yarn-error.log
+.incremental
+*.tsbuildinfo

@@ -102,25 +102,45 @@ export class BigPacketService {
     // Prisma nos permite insertar cientos de registros de golpe con createMany
     const medicionesParaInsertar: Prisma.MedicionCreateManyInput[] = [];
 
+    // Pre-calcular la versión más alta de cada mota dentro de este big-packet.
+    // Si una mota aparece varias veces (datos acumulados), nos quedamos con la
+    // versionAplicada más grande para decidir si la config pendiente ya fue aplicada.
+    const maxVersionPorMota = new Map<number, number>();
+    for (const mota of createBigPacketDto.motas) {
+      if (mota.versionAplicada !== undefined) {
+        const actual = maxVersionPorMota.get(mota.motaId);
+        if (actual === undefined || mota.versionAplicada > actual) {
+          maxVersionPorMota.set(mota.motaId, mota.versionAplicada);
+        }
+      }
+    }
+
+    // Set para asegurar que la lógica OTA de cada mota solo se ejecuta una vez
+    const motasOtaProcesadas = new Set<number>();
+
     for (const mota of createBigPacketDto.motas) {
 
-      // Check Mota version para OTA
-      const configMota = configsPendientes.find(c => c.motaId === mota.motaId);
+      // Check Mota version para OTA — solo una vez por motaId, usando la versión más alta
+      if (!motasOtaProcesadas.has(mota.motaId)) {
+        motasOtaProcesadas.add(mota.motaId);
 
-      if (configMota) {
-        if (mota.versionAplicada !== undefined && mota.versionAplicada === configMota.version) {
-          // El hardware aplicó la configuración
-          operaciones.push(
-            this.prisma.configuracionPendiente.delete({ where: { id: configMota.id } })
-          );
-        } else {
-          // Aún falta aplicarla en el hardware o falta un acuse de recibo de confirmación
-          conf.push({
-            tg: 'm', // target: mota -> m
-            id: mota.motaId,
-            v: configMota.version, // version -> v
-            p: configMota.payload  // payload -> p
-          });
+        const configMota = configsPendientes.find(c => c.motaId === mota.motaId);
+        if (configMota) {
+          const mejorVersion = maxVersionPorMota.get(mota.motaId);
+          if (mejorVersion !== undefined && mejorVersion === configMota.version) {
+            // La versión más reciente dentro del big-packet coincide con la config deseada → aplicada
+            operaciones.push(
+              this.prisma.configuracionPendiente.delete({ where: { id: configMota.id } })
+            );
+          } else {
+            // Aún falta aplicarla en el hardware o falta un acuse de recibo de confirmación
+            conf.push({
+              tg: 'm', // target: mota -> m
+              id: mota.motaId,
+              v: configMota.version, // version -> v
+              p: configMota.payload  // payload -> p
+            });
+          }
         }
       }
 
