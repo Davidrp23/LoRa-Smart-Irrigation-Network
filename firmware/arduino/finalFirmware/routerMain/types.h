@@ -128,6 +128,21 @@ typedef struct __attribute__((packed)) {
 
 } SensorsData;
 
+/**
+ * Wrapper que envuelve los datos crudos de la mota (SensorsData)
+ * con el timestamp del reloj interno del router y un flag de control
+ * para la gestión segura de la cola durante transmisión AM.
+ *
+ * NOTA: Este struct NO se transmite por LoRa. Solo se usa internamente
+ *       en la cola motasDataQueue del router para asociar la hora de
+ *       recepción a cada paquete de datos.
+ */
+typedef struct {
+  SensorsData data;          // Datos originales de la mota (sin modificar)
+  uint32_t    timestamp;     // Epoch Unix del reloj del router al recibir los datos (0 = no calibrado)
+  bool        markedForSend; // true = copiado para envío AM, pendiente de borrado tras éxito
+} TimestampedSensorsData;
+
 // Se usa __attribute__((packed)) para asegurar que el compilador no añada relleno (padding)
 // entre los campos, garantizando que el struct tenga exactamente el tamaño esperado.
 typedef struct __attribute__((packed)) {
@@ -171,6 +186,36 @@ struct DisplayStats {
   size_t crypto_err;
   uint16_t version;
   int8_t coverage;
+  // GPS del router
+  double gpsLat;
+  double gpsLon;
+  uint32_t gpsSats;
+  bool gpsValid;
+  // Fuel Gauge
+  float batPct;
+  float batVolt;
+  bool batCharging;
+  bool batValid;
+};
+
+// ---------------------------------------------------------------------------
+// Datos GPS del router (latitud, longitud, altitud, satélites)
+// ---------------------------------------------------------------------------
+struct GpsData {
+    double   latitude;
+    double   longitude;
+    double   altitude;
+    uint32_t satellites;
+    bool     isValid;
+};
+
+// ---------------------------------------------------------------------------
+// Estado de la batería (Fuel Gauge MAX17043)
+// ---------------------------------------------------------------------------
+struct BatteryStatus {
+    float voltage;      // Voltaje real en V
+    float percentage;   // SOC en % (0-100)
+    bool  isValid;      // false hasta que el sensor responde
 };
 
 // Estructura que viaja por la rxQueue desde el callback OnRxDone hasta

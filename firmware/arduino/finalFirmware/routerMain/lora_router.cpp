@@ -1,6 +1,7 @@
 #include "config.h"
 #include "lora_router.h"
 #include "AMcontrol.h"
+#include "rtc_sync.h"
 #include <mbedtls/aes.h>
 
 const unsigned char crypto_key[16] = "59mkla3Qh0kC0eR";
@@ -302,7 +303,13 @@ void process(LoRaMessage incomingPackage) {
               xSemaphoreGive(statsMutex);
             }
           }
-          motasDataQueue.push_back(incomingPackage.data.SensorsData);
+          // Envolvemos los datos de la mota con el timestamp del reloj del router.
+          // Si el reloj no está calibrado, timestamp será 0 y el backend usará su hora.
+          TimestampedSensorsData entry;
+          entry.data          = incomingPackage.data.SensorsData;
+          entry.timestamp     = rtcSyncNow(); // 0 si aún no se calibró
+          entry.markedForSend = false;
+          motasDataQueue.push_back(entry);
 
           // 2. Actualizamos la variable para la pantalla OLED (Protegida)
           if (xSemaphoreTake(statsMutex, (TickType_t)10) == pdTRUE) {

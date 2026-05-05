@@ -1,10 +1,11 @@
 #include "config.h"
 #include "network.h"
 #include "storage.h"
+#include "rtc_sync.h"
 
 //Router params
 size_t connectedClients[MAX_CLIENTS];
-std::vector<SensorsData> motasDataQueue; //Cola para almacenar los datos de las motas
+std::vector<TimestampedSensorsData> motasDataQueue; //Cola para almacenar los datos de las motas (con timestamp del router)
 std::vector<ConfData> motasConf; //Cola para almacenar las configuraciones de las motas
 std::vector<ClientCryptoState> clientCryptoStates;
 
@@ -72,6 +73,17 @@ void parseBigPacketResponse(String response){
     Serial.print("Error al parsear el big-packet: ");
     Serial.println(error.c_str());
     return;
+  }
+
+  // --- Calibración automática del reloj interno ---
+  // El backend envía "time" (epoch Unix) cuando detecta que el reloj del
+  // router está desfasado más de 5 minutos. Este campo viaja a nivel raíz
+  // del JSON, fuera del array "conf", porque es una corrección automática
+  // del sistema y no una configuración del usuario.
+  if (doc.containsKey("time")) {
+    uint32_t serverTime = doc["time"];
+    rtcSyncCalibrate(serverTime);
+    Serial.printf("[RTC_SYNC] Reloj calibrado desde backend: epoch=%u\n", serverTime);
   }
 
   JsonArray confArray = doc["conf"];

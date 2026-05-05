@@ -49,3 +49,8 @@ npm-debug.log
 yarn-error.log
 .incremental
 *.tsbuildinfo
+
+# Arduino / PlatformIO builds
+build/
+.pio/
+bin/

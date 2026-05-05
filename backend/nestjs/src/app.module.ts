@@ -15,11 +15,12 @@ import { TurnoRiegoModule } from './turno-riego/turno-riego.module';
 import { ScheduleModule } from '@nestjs/schedule'; // <-- 1. Importación necesaria
 import { RiegoService } from './irrigationAlgorithm/riego.service';
 import { ClimaServiceModule } from './clima-service/clima-service.module';
+import { TimeModule } from './time/time.module';
 
 
 @Module({
   imports: [MotasModule, UsuariosModule, RoutersModule, ParcelasModule, BigPacketModule, PrismaModule, AuthModule, TipoCultivoModule, TipoSueloModule, TipoRiegoModule, TurnoRiegoModule
-    , ScheduleModule.forRoot(), ClimaServiceModule
+    , ScheduleModule.forRoot(), ClimaServiceModule, TimeModule
   ],
   controllers: [AppController],
   providers: [AppService, RiegoService],

@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 #define AM_RX_PIN     41   // RX Heltec ← TX AM-036
 #define AM_TX_PIN     42   // TX Heltec → RX AM-036
-#define AM_MOSFET_PIN  3   // Gate del IRLML6344
+#define AM_MOSFET_PIN  47   // Gate del IRLML6344
 
 // ---------------------------------------------------------------------------
 // Instancia única del driver (definida en AMcontrol.cpp)
@@ -60,3 +60,6 @@ void startUplinkTask();
 
 // Encola un trabajo de verificación de acceso (no bloqueante)
 bool enqueueAccessCheck(size_t nodeId);
+
+// Dispara manualmente un big-packet desde el OLED (no bloqueante, ISR-safe)
+void triggerManualBigPacket();

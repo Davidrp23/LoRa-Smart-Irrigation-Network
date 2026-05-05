@@ -5,10 +5,16 @@
 #define MAX_MOTAS_EN_COLA 40 // Numero maximo de datos para las motas en cola
 #define MAX_CLIENTS 30
 
-// -- Coordenadas fijas del router -- (Temporal, sustituir cuando se implante el
-// GPS en el router)
-#define ROUTER_LATITUDE 37.3483883212164
-#define ROUTER_LONGITUDE -5.953348557513961
+// -- GPS del router (mismo módulo que las motas, mismo UART)
+#define GPS_MOSFET_PIN  48
+#define GPS_RX_PIN       6   // ESP32 RX ← GPS TX
+#define GPS_TX_PIN       7   // ESP32 TX → GPS RX
+#define GPS_BAUD      9600
+#define GPS_TIMEOUT  180000  // 3 minutos máx. de búsqueda de fix
+
+// -- Fuel Gauge MAX17043 (I2C secundario del Heltec router)
+#define FUEL_SDA_PIN    33
+#define FUEL_SCL_PIN    26
 //----------------------------------LORA_PARAMETERS----------------------------------
 #define NUM_CHANELS 4
 
@@ -32,7 +38,7 @@
       // esta ocupado o hay demasiado ruido ambiente
 
 // --- CONSTANTES DE TIEMPO ---
-#define BUTTON_PIN 0       // Botón PRG en Heltec V3
+#define BUTTON_PIN 3       // Botón externo
 #define DEBOUNCE_MS 50     // Filtro para rebotes
 #define LONG_PRESS_MS 1000 // Tiempo para considerar pulsación larga (1s)
 

@@ -3,27 +3,88 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BigPacketDto } from './dto/big-packet.dto';
 import { Prisma, PrismaPromise } from '@prisma/client';
 import { ParcelasService } from '../parcelas/parcelas.service';
+import { TimeService } from '../time/time.service';
 
 @Injectable()
 export class BigPacketService {
 
   private readonly logger = new Logger(BigPacketService.name);
 
-  constructor(private prisma: PrismaService, private parcelasService: ParcelasService) { }
+  constructor(
+    private prisma: PrismaService,
+    private parcelasService: ParcelasService,
+    private timeService: TimeService,
+  ) { }
 
   async create(routerID: number, createBigPacketDto: BigPacketDto) {
     // 1. Array donde guardaremos todas las "órdenes" para la base de datos
     const operaciones: PrismaPromise<any>[] = [];
 
-    // Capturamos la hora exacta en la que llega el paquete
-    const ahora = new Date();
 
-    //Sacamos el canal del router
-    const router = await this.prisma.router.findUnique({
+    // ==========================================
+    // 1.1 CALIBRACIÓN DEL RELOJ DEL ROUTER
+    // ==========================================
+    // El epoch Unix (segundos desde 1970-01-01 UTC) que se envía al router es
+    // SIEMPRE UTC, independientemente de la zona horaria de la parcela.
+    // Esto es correcto: Unix epoch ES UTC por definición. El mismo número
+    // representa el mismo instante en todo el planeta.
+    //
+    // La zona horaria de la parcela solo se usa para formatear los logs del
+    // backend (ver campo localFormatted), lo que facilita la depuración al
+    // mostrar la hora local del dispositivo.
+    //
+    // En el frontend, los campos DateTime de la BD llegan como ISO 8601 UTC
+    // (ej: "2026-05-05T17:00:00.000Z"). El navegador del usuario los convierte
+    // automáticamente a su zona horaria local al usar toLocaleString() o
+    // cualquier librería de fechas (luxon, date-fns, etc.).
+    const routerWithParcela = await this.prisma.router.findUnique({
       where: { id: routerID },
-      select: { canal: true },
+      select: {
+        parcela: { select: { zonaHoraria: true } },
+      },
     });
-    const canal = router?.canal;
+    const zonaHoraria = routerWithParcela?.parcela?.zonaHoraria ?? null;
+
+    // Hora actual del servidor expresada en la zona horaria de la parcela (para logs)
+    // unixSeconds es UTC independientemente de la zona — es el mismo número siempre
+    const serverTime = this.timeService.getTimeForZone(zonaHoraria);
+    const ahora = new Date(serverTime.unixSeconds * 1000);
+
+    this.logger.debug(
+      `Router ${routerID} → zona parcela: "${serverTime.timezone}" | ` +
+      `Hora local: ${serverTime.localFormatted} (${serverTime.utcOffset}) | ` +
+      `Epoch UTC: ${serverTime.unixSeconds}`
+    );
+
+    const TIME_DRIFT_THRESHOLD_S = 300; // 5 minutos
+    let timeCorrection: number | undefined;
+
+    if (createBigPacketDto.router?.routerTimestamp) {
+      const routerEpoch = createBigPacketDto.router.routerTimestamp;
+      const drift = Math.abs(serverTime.unixSeconds - routerEpoch);
+
+      if (drift > TIME_DRIFT_THRESHOLD_S) {
+        timeCorrection = serverTime.unixSeconds;
+        this.logger.warn(
+          `Reloj del Router ${routerID} desfasado ${drift}s (${(drift / 60).toFixed(1)} min) ` +
+          `respecto a ${serverTime.timezone}. Enviando corrección.`
+        );
+      } else {
+        this.logger.debug(
+          `Reloj del Router ${routerID} sincronizado (desfase: ${drift}s).`
+        );
+      }
+    } else {
+      // El router no envió timestamp → reloj no calibrado aún.
+      // Enviamos la hora actual para que se calibre en su primer contacto.
+      timeCorrection = serverTime.unixSeconds;
+      this.logger.log(
+        `Router ${routerID} sin reloj calibrado. Enviando hora inicial ` +
+        `(zona: ${serverTime.timezone}).`
+      );
+    }
+
+
 
     // ==========================================
     // 1.5 LÓGICA DE ACTUALIZACIONES OTA (DEVICE SHADOWING)
@@ -63,9 +124,20 @@ export class BigPacketService {
     // ==========================================
     // Si el JSON incluía la parte "rt" (router), actualizamos sus sensores.
     // Si no, simplemente actualizamos su fecha de última conexión.
-    const routerUpdateData = createBigPacketDto.router
-      ? { ...createBigPacketDto.router, fechaUltimaConexion: ahora }
-      : { fechaUltimaConexion: ahora };
+    //
+    // NOTA: routerTimestamp se extrae del spread ({ routerTimestamp, ...rest })
+    // porque es un campo exclusivo del DTO (solo se usa para calibración del reloj)
+    // y NO existe como columna en la tabla Router del schema de Prisma.
+    //
+    // fechaUltimaConexion del router siempre usa la hora actual del servidor:
+    // el router se comunica en tiempo real, por lo que "ahora" es correcto.
+    // Las motas son diferentes — sus datos son diferidos y pueden tardar horas
+    // en llegar, por eso usan su propio timestamp.
+    let routerUpdateData: any = { fechaUltimaConexion: ahora };
+    if (createBigPacketDto.router) {
+      const { routerTimestamp, ...routerFields } = createBigPacketDto.router;
+      routerUpdateData = { ...routerFields, fechaUltimaConexion: ahora };
+    }
 
     operaciones.push(
       this.prisma.router.update({
@@ -154,7 +226,8 @@ export class BigPacketService {
             latitud: mota.latitud,
             longitud: mota.longitud,
             routerId: routerID, // Enganchamos la mota al router que nos acaba de hablar
-            fechaUltimaConexion: ahora,
+            // Usamos el timestamp del router (si lo envió) para reflejar cuándo se recogieron los datos realmente
+            fechaUltimaConexion: mota.timestamp ? new Date(mota.timestamp * 1000) : ahora,
             humedad: mota.humedad,
             rssi: mota.rssi,
             snr: mota.snr,
@@ -174,8 +247,8 @@ export class BigPacketService {
       // B) Preparar la medición histórica para el array
       medicionesParaInsertar.push({
         motaId: mota.motaId,
-        // Si la mota manda timestamp (unix en segundos), lo usamos. Si no, usamos la hora actual.
-        fecha: mota.timestamp ? new Date(mota.timestamp) : ahora,
+        // Si la mota manda timestamp (unix en segundos), lo convertimos a ms para Date(). Si no, usamos la hora actual.
+        fecha: mota.timestamp ? new Date(mota.timestamp * 1000) : ahora,
         humedad: mota.humedad,
         bateria: mota.bateria,
         rssi: mota.rssi,
@@ -234,8 +307,14 @@ export class BigPacketService {
         await this.parcelasService.actualizarEstadoParcela(parcelaId);
       }
 
-      // Devolvemos la confirmación y la lista de configuraciones a aplicar en formato diminuto
-      return { ok: true, conf };
+      // Devolvemos la confirmación y la lista de configuraciones a aplicar en formato diminuto.
+      // Si el reloj del router necesita calibración, incluimos "time" a nivel raíz
+      // (fuera de conf[]) para que no se confunda con el flujo OTA de ConfiguracionPendiente.
+      const response: any = { ok: true, conf };
+      if (timeCorrection !== undefined) {
+        response.time = timeCorrection;
+      }
+      return response;
 
     } catch (error: any) {
       this.logger.error(`Error crítico procesando BigPacket del Router ${routerID}: ${error.message}`);

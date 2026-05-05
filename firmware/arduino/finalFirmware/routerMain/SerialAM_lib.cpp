@@ -17,6 +17,9 @@ static constexpr unsigned long TIMEOUT_SEND_MS  = 40000UL; // 40 s para respuest
 SerialAM::SerialAM(HardwareSerial& hwSerial, uint8_t mosfetPin)
     : _serial(hwSerial),
       _mosfetPin(mosfetPin),
+      _baud(0),
+      _rxPin(-1),
+      _txPin(-1),
       _state(AMState::OFF),
       _stateTimer(0),
       _rxBuffer(""),
@@ -27,10 +30,20 @@ SerialAM::SerialAM(HardwareSerial& hwSerial, uint8_t mosfetPin)
 }
 
 void SerialAM::begin(uint32_t baud, int rxPin, int txPin) {
-    pinMode(_mosfetPin, OUTPUT);
-    digitalWrite(_mosfetPin, LOW); // Seguridad: arrancamos apagados
+    // Guardamos los parámetros para reabrir el UART en cada powerOn()
+    _baud  = baud;
+    _rxPin = rxPin;
+    _txPin = txPin;
 
-    _serial.begin(baud, SERIAL_8N1, rxPin, txPin);
+    // Configuramos el MOSFET apagado (seguridad)
+    pinMode(_mosfetPin, OUTPUT);
+    digitalWrite(_mosfetPin, LOW);
+
+    // Pines en alta impedancia: el módulo apagado no debe recibir
+    // alimentación parásita desde los pines UART del ESP32
+    pinMode(_txPin, INPUT);
+    pinMode(_rxPin, INPUT);
+
     _rxBuffer.reserve(512); // Pre-reservamos para evitar fragmentación de heap
 }
 
@@ -45,6 +58,8 @@ void SerialAM::powerOn() {
     if (_state == AMState::OFF || _state == AMState::ERROR) {
         Serial.println(F("[AM] Encendiendo AM-036..."));
         _rxBuffer = "";
+        // Reactivar UART antes de alimentar el módulo
+        _serial.begin(_baud, SERIAL_8N1, _rxPin, _txPin);
         digitalWrite(_mosfetPin, HIGH);
         changeState(AMState::WAITING_READY);
     }
@@ -53,6 +68,12 @@ void SerialAM::powerOn() {
 void SerialAM::powerOff() {
     Serial.println(F("[AM] Apagando AM-036..."));
     digitalWrite(_mosfetPin, LOW);
+    // Desactivar UART y poner pines en alta impedancia.
+    // Evita que el AM-036 reciba alimentación parásita a través de la
+    // línea TX del ESP32 cuando el módulo está sin alimentación.
+    _serial.end();
+    pinMode(_txPin, INPUT);
+    pinMode(_rxPin, INPUT);
     _rxBuffer = "";
     changeState(AMState::OFF);
 }

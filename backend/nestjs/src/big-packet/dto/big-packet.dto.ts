@@ -45,6 +45,11 @@ export class RouterTelemetryDto {
 
   @IsNumber() @Expose({ name: 'v' })
   versionAplicada: number;
+
+  // Timestamp Unix del reloj interno del router (para detección de desfase NTP).
+  // Si no viene o es 0, el reloj del router aún no ha sido calibrado.
+  @IsNumber() @IsOptional() @Expose({ name: 't' })
+  routerTimestamp?: number;
 }
 
 // ==========================================

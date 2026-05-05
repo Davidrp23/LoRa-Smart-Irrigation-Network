@@ -12,6 +12,9 @@
 #include "lora_router.h"
 #include "images.h"
 #include "AMcontrol.h"
+#include "gps.h"
+#include "fuelGauge.h"
+#include "rtc_sync.h"
 
 //---------------------------------------------------------VEXTON-----------------------------------------------------------------------
 
@@ -56,6 +59,8 @@ void setup() {
   Mcu.begin(HELTEC_BOARD,SLOW_CLK_TPYE);
 
   VextON();
+
+  pinMode(BUTTON_PIN, INPUT);
   
   //initialize Serial Monitor
   Serial.begin(115200);
@@ -64,6 +69,8 @@ void setup() {
   Serial.println(SerialLogoFlora);
   
   Serial.println("Iniciando Router");
+
+  Serial.printf("ESP.getFreeHeap() Antes de arrancar todo: %u\n",ESP.getFreeHeap());
 
   initRouterStorage(); // Cargamos la configuracion guardada en flash
 
@@ -89,6 +96,9 @@ void setup() {
   // Semáforo binario para el control de la radio LoRa
   loraTxSemaphore = xSemaphoreCreateBinary();
   xSemaphoreGive(loraTxSemaphore); // Inicialmente la radio está libre
+
+  // Inicializar el reloj software (se calibrará con el backend en el primer big-packet)
+  rtcSyncInit();
 
   // 2. Crear la tarea en el Core 0
   xTaskCreatePinnedToCore(
@@ -118,7 +128,25 @@ void setup() {
 
   startUplinkTask();
 
+  // GPS: configurar MOSFET y pines en INPUT (seguro)
+  routerGpsInit();
+
+  // Fuel Gauge: inicializar MAX17043 y arrancar tarea de lectura periódica
+  
+  if (fuelGaugeSetup()) {
+    xTaskCreatePinnedToCore(
+        fuelGaugeTask,   // función
+        "FuelGauge",     // nombre debug
+        4096,            // 4KB
+        nullptr,         // sin parámetros
+        1,               // prioridad baja (solo lectura I2C periódica)
+        nullptr,         // sin handle
+        0                // Core 0 junto al display
+    );
+  }
+  
   Serial.println("Sistema Multitarea Iniciado.");
+  Serial.printf("ESP.getFreeHeap() Despues de iniciar todo: %u\n",ESP.getFreeHeap());
 
 }
 

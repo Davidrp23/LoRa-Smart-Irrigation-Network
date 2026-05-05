@@ -18,7 +18,9 @@
 #include "AMcontrol.h"
 #include "config.h"
 #include "network.h" // shared_queueSize, MAX_CLIENTS, motasDataQueue, etc.
+#include "rtc_sync.h"
 #include <ArduinoJson.h>
+#include <algorithm> // std::remove_if
 
 // ---------------------------------------------------------------------------
 // Definición de la instancia única del driver
@@ -86,7 +88,7 @@ static String buildBigPacket() {
   uint16_t local_channelBusy = 0;
   uint16_t local_version = 0;
   int8_t local_coverage = 0;
-  std::vector<SensorsData> localMotas;
+  std::vector<TimestampedSensorsData> localMotas;
 
   if (xSemaphoreTake(statsMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
     local_tx = shared_tx;
@@ -99,8 +101,14 @@ static String buildBigPacket() {
     local_crc_err = shared_crc_err;
     local_version = version;
     local_coverage = shared_coverage;
-    // Copia del vector de motas (deep copy) para serializar fuera del mutex
-    localMotas = motasDataQueue;
+    // Mark-and-copy: marcamos los elementos que se van a enviar y los copiamos.
+    // Si llegan datos nuevos durante la transmisión AM, tendrán markedForSend = false
+    // y sobrevivirán al borrado posterior.
+    localMotas.reserve(motasDataQueue.size());
+    for (auto& entry : motasDataQueue) {
+      entry.markedForSend = true;
+      localMotas.push_back(entry);
+    }
     xSemaphoreGive(statsMutex);
   } else {
     Serial.println(
@@ -108,46 +116,68 @@ static String buildBigPacket() {
     return "{}";
   }
 
+  // GPS y batería del router (segunda toma breve e independiente)
+  double local_lat     = 0.0;
+  double local_lon     = 0.0;
+  float  local_batPct  = -1.0f; // -1 = sin datos
+  if (xSemaphoreTake(statsMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    local_lat    = shared_gps.latitude;
+    local_lon    = shared_gps.longitude;
+    if (shared_battery.isValid) local_batPct = shared_battery.percentage;
+    xSemaphoreGive(statsMutex);
+  }
+
+
   // --- 2. Construir JSON sobre las copias locales (sin mutex) ---
   JsonDocument doc;
 
   // Router telemetry
   JsonObject rt = doc["rt"].to<JsonObject>();
-  rt["b"] =
-      100; // Batería router (placeholder hasta integrar sensor fuel gauge)
-  rt["lt"] = ROUTER_LATITUDE;
-  rt["lg"] = ROUTER_LONGITUDE;
-  rt["tx"] = (unsigned long)local_tx;
-  rt["rx"] = (unsigned long)local_rx;
-  rt["eT"] = (unsigned long)local_tx_err;
-  rt["eR"] = (unsigned long)local_rx_err;
-  rt["eCry"] = (unsigned long)local_crypto_err;
-  rt["eCrc"] = (unsigned long)local_crc_err;
-  rt["qF"] = (unsigned long)local_queueFull;
-  rt["cB"] = local_channelBusy;
-  rt["cv"] = local_coverage;
-  rt["v"] = local_version;
+  rt["b"]   = (local_batPct >= 0.0f) ? (int)local_batPct : -1; // -1 = fuel gauge no disponible
+  rt["lt"]  = local_lat;
+  rt["lg"]  = local_lon;
+  rt["tx"]  = (unsigned long)local_tx;
+  rt["rx"]  = (unsigned long)local_rx;
+  rt["eT"]  = (unsigned long)local_tx_err;
+  rt["eR"]  = (unsigned long)local_rx_err;
+  rt["eCry"]= (unsigned long)local_crypto_err;
+  rt["eCrc"]= (unsigned long)local_crc_err;
+  rt["qF"]  = (unsigned long)local_queueFull;
+  rt["cB"]  = local_channelBusy;
+  rt["cv"]  = local_coverage;
+  rt["v"]   = local_version;
+
+  // Timestamp del reloj interno del router (para que el backend detecte desfase)
+  uint32_t routerTime = rtcSyncNow();
+  if (routerTime > 0) {
+    rt["t"] = routerTime;
+  }
+
 
   // Motas array
   JsonArray ms = doc["ms"].to<JsonArray>();
   for (size_t i = 0; i < localMotas.size(); i++) {
     JsonObject m = ms.add<JsonObject>();
-    m["id"] = (unsigned long)localMotas[i].id;
-    m["lt"] = localMotas[i].latitude;
-    m["lg"] = localMotas[i].longitude;
-    m["b"] = localMotas[i].battery;
-    m["h"] = localMotas[i].humidity;
-    m["rs"] = localMotas[i].lastRssi;
-    m["sn"] = localMotas[i].lastSnr;
-    m["tx"] = localMotas[i].sendedPackets;
-    m["rx"] = localMotas[i].receivedPackets;
-    m["eR"] = localMotas[i].rx_err;
-    m["eT"] = localMotas[i].tx_err;
-    m["cB"] = localMotas[i].channelBusyErrors;
-    m["eCry"] = localMotas[i].crypto_err;
-    m["mA"] = localMotas[i].missingAckErrors;
-    m["eCrc"] = localMotas[i].crc_err;
-    m["v"] = localMotas[i].version;
+    m["id"] = (unsigned long)localMotas[i].data.id;
+    m["lt"] = localMotas[i].data.latitude;
+    m["lg"] = localMotas[i].data.longitude;
+    m["b"] = localMotas[i].data.battery;
+    m["h"] = localMotas[i].data.humidity;
+    m["rs"] = localMotas[i].data.lastRssi;
+    m["sn"] = localMotas[i].data.lastSnr;
+    m["tx"] = localMotas[i].data.sendedPackets;
+    m["rx"] = localMotas[i].data.receivedPackets;
+    m["eR"] = localMotas[i].data.rx_err;
+    m["eT"] = localMotas[i].data.tx_err;
+    m["cB"] = localMotas[i].data.channelBusyErrors;
+    m["eCry"] = localMotas[i].data.crypto_err;
+    m["mA"] = localMotas[i].data.missingAckErrors;
+    m["eCrc"] = localMotas[i].data.crc_err;
+    m["v"] = localMotas[i].data.version;
+    // Timestamp de recepción: solo lo incluimos si el reloj estaba calibrado (> 0)
+    if (localMotas[i].timestamp > 0) {
+      m["t"] = localMotas[i].timestamp;
+    }
   }
 
   String out;
@@ -169,9 +199,9 @@ static bool checkBigPacketConditions(TickType_t lastSendTs) {
     xSemaphoreGive(statsMutex);
   }
 
-  // Condición 1: ≥ 1 hora desde que llegó el primer paquete pendiente  -- 5 MINUTOS PARA PRUEBA, CAMBIAR
+  // Condición 1: ≥ 1 hora desde que llegó el primer paquete pendiente  
   bool oldPacket = (firstPktTs > 0) && ((xTaskGetTickCount() - firstPktTs) >=
-                                        pdMS_TO_TICKS(FIVE_MINUTES_MS));
+                                        pdMS_TO_TICKS(ONE_HOUR_MS));
 
   // Condición 2: cola llena (máximo de clientes alcanzado)
   bool queueFull = (queueSz >= MAX_CLIENTS);
@@ -197,13 +227,20 @@ static void am_manager_task(void *pvParameters) {
   for (;;) {
     bool hasJobs = (uxQueueMessagesWaiting(amJobQueue) > 0);
     bool timeForBigPacket = checkBigPacketConditions(lastBigPacketSendTs);
+    bool manualBpRequested = false;
 
     if (!hasJobs && !timeForBigPacket) {
       // Nada que hacer: bloqueamos hasta 10 mins o hasta que nos despierten
-      // (AM_NOTIFY_NEW_JOB)
+      // (AM_NOTIFY_NEW_JOB o AM_NOTIFY_MANUAL_BP)
       uint32_t notif = 0;
       xTaskNotifyWait(0, 0xFFFFFFFF, &notif, pdMS_TO_TICKS(TEN_MINUTES_MS));
-      continue;
+      if (notif & AM_NOTIFY_MANUAL_BP) {
+        manualBpRequested = true;
+        Serial.println(F("[AM_CTRL] Big-packet manual solicitado desde OLED."));
+      } else if (!(notif & AM_NOTIFY_NEW_JOB)) {
+        // Despertado por timeout pero sin condiciones: volver a esperar
+        continue;
+      }
     }
 
     Serial.println(
@@ -260,8 +297,8 @@ static void am_manager_task(void *pvParameters) {
       continue; // Volvemos a esperar (con retardo natural del loop)
     }
 
-    // 3. Procesamos BIG_PACKET si toca
-    if (timeForBigPacket) {
+    // 3. Procesamos BIG_PACKET si toca o si se solicitó manualmente
+    if (timeForBigPacket || manualBpRequested) {
       Serial.println(F("[AM_CTRL] Ejecutando Job: BIG_PACKET"));
       String payload = buildBigPacket();
       if (am036.sendBigPacket(payload)) {
@@ -285,9 +322,19 @@ static void am_manager_task(void *pvParameters) {
               parseBigPacketResponse(res.responseBody);
 
               if (xSemaphoreTake(statsMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-                motasDataQueue.clear();
-                shared_queueSize = 0;
-                shared_firstPktTimestamp = 0;
+                // Mark-and-sweep: eliminamos solo los datos que se marcaron
+                // antes del envío. Los que llegaron durante la transmisión AM
+                // (markedForSend == false) se conservan en la cola.
+                motasDataQueue.erase(
+                  std::remove_if(motasDataQueue.begin(), motasDataQueue.end(),
+                    [](const TimestampedSensorsData& e) { return e.markedForSend; }),
+                  motasDataQueue.end()
+                );
+                shared_queueSize = motasDataQueue.size();
+                // Solo reseteamos el timestamp si la cola quedó vacía
+                if (motasDataQueue.empty()) {
+                  shared_firstPktTimestamp = 0;
+                }
                 xSemaphoreGive(statsMutex);
               }
               lastBigPacketSendTs = xTaskGetTickCount();
@@ -394,6 +441,19 @@ bool enqueueAccessCheck(size_t nodeId) {
 }
 
 // ---------------------------------------------------------------------------
+// Disparo manual de big-packet desde el OLED
+// ---------------------------------------------------------------------------
+void triggerManualBigPacket() {
+  if (amManagerTaskHandle != nullptr) {
+    // eSetBits es ISR-safe y no requiere sección crítica adicional
+    xTaskNotify(amManagerTaskHandle, AM_NOTIFY_MANUAL_BP, eSetBits);
+    Serial.println(F("[AM_CTRL] Notificación AM_NOTIFY_MANUAL_BP enviada."));
+  } else {
+    Serial.println(F("[AM_CTRL] WARN: triggerManualBigPacket() llamado antes de startUplinkTask()."));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Tarea para procesar asíncronamente las respuestas del AM
 // ---------------------------------------------------------------------------
 static void accessCheckResponseTask(void *pvParameters) {
@@ -445,12 +505,8 @@ static void accessCheckResponseTask(void *pvParameters) {
 // API pública
 // ---------------------------------------------------------------------------
 void AMSetup() {
-  pinMode(AM_MOSFET_PIN, OUTPUT);
-  digitalWrite(AM_MOSFET_PIN, LOW);
-
-  pinMode(AM_TX_PIN, INPUT);
-  pinMode(AM_RX_PIN, INPUT);
-
+  // begin() configura el MOSFET (LOW) y los pines TX/RX como INPUT
+  // (alta impedancia) para no alimentar el AM-036 por corriente parásita
   am036.begin(115200, AM_RX_PIN, AM_TX_PIN);
 
   // Crear colas

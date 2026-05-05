@@ -12,7 +12,7 @@ extern NetworkData NETWORK_DATA;
 
 // Router params
 extern size_t connectedClients[MAX_CLIENTS];
-extern std::vector<SensorsData> motasDataQueue; //Cola para almacenar los datos de las motas
+extern std::vector<TimestampedSensorsData> motasDataQueue; //Cola para almacenar los datos de las motas (con timestamp del router)
 extern std::vector<ConfData> motasConf; //Cola para almacenar las configuraciones de las motas
 
 struct ClientCryptoState {
