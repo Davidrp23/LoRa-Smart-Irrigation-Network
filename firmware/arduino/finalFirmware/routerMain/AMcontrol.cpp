@@ -224,12 +224,13 @@ static void am_manager_task(void *pvParameters) {
   TickType_t lastBigPacketSendTs =
       0; // timestamp del último envío exitoso de BP
 
+  bool manualBpRequested = false;
+
   for (;;) {
     bool hasJobs = (uxQueueMessagesWaiting(amJobQueue) > 0);
     bool timeForBigPacket = checkBigPacketConditions(lastBigPacketSendTs);
-    bool manualBpRequested = false;
 
-    if (!hasJobs && !timeForBigPacket) {
+    if (!hasJobs && !timeForBigPacket && !manualBpRequested) {
       // Nada que hacer: bloqueamos hasta 10 mins o hasta que nos despierten
       // (AM_NOTIFY_NEW_JOB o AM_NOTIFY_MANUAL_BP)
       uint32_t notif = 0;
@@ -294,7 +295,39 @@ static void am_manager_task(void *pvParameters) {
         }
       }
 
-      continue; // Volvemos a esperar (con retardo natural del loop)
+      // Penalización de 10 minutos: evitamos un bucle agresivo si el módulo
+      // tiene un problema persistente (sin cobertura, fallo hardware, etc.).
+      // Solo un encendido manual desde la OLED (AM_NOTIFY_MANUAL_BP) puede
+      // romper la espera anticipadamente. Cualquier otra notificación
+      // (NEW_JOB, etc.) se consume y se vuelve a dormir por el tiempo restante;
+      // los jobs están seguros en amJobQueue y se procesarán tras la penalización.
+      Serial.println(F("[AM_CTRL] Módulo no listo. Penalización de 10 minutos "
+                       "(solo encendido manual desde OLED la interrumpe)."));
+
+      manualBpRequested = false;
+      TickType_t penaltyStart = xTaskGetTickCount();
+
+      while ((xTaskGetTickCount() - penaltyStart) < pdMS_TO_TICKS(TEN_MINUTES_MS)) {
+        TickType_t elapsed  = xTaskGetTickCount() - penaltyStart;
+        TickType_t remaining = pdMS_TO_TICKS(TEN_MINUTES_MS) - elapsed;
+
+        uint32_t wakeReason = 0;
+        xTaskNotifyWait(0, 0xFFFFFFFF, &wakeReason, remaining);
+
+        if (wakeReason & AM_NOTIFY_MANUAL_BP) {
+          Serial.println(F("[AM_CTRL] Encendido manual solicitado. "
+                           "Saltando penalización."));
+          manualBpRequested = true;
+          break;
+        }
+        // Cualquier otra causa (NEW_JOB, timeout parcial): ignorar y
+        // volver a dormir por el tiempo restante.
+      }
+
+      if (!manualBpRequested) {
+        Serial.println(F("[AM_CTRL] Penalización completada. Reintentando."));
+      }
+      continue;
     }
 
     // 3. Procesamos BIG_PACKET si toca o si se solicitó manualmente
@@ -415,6 +448,7 @@ static void am_manager_task(void *pvParameters) {
 
     // 5. Apagamos el módulo siempre al final del ciclo
     am036.powerOff();
+    manualBpRequested = false; // Reset tras ciclo exitoso
     Serial.println(F("[AM_CTRL] Ciclo de jobs completado. Módulo apagado."));
   }
 }
