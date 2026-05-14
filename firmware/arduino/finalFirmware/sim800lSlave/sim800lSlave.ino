@@ -5,6 +5,8 @@
 #define SerialAT Serial1
 #define GSM_PIN ""
 
+//#define TINY_GSM_DEBUG SerialMon
+
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h> // ¡Importante! Instalar ArduinoJson v7 desde el gestor de librerías
 #include <TinyGsmClient.h>

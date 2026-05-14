@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 // Timeouts de seguridad
 // ---------------------------------------------------------------------------
-static constexpr unsigned long TIMEOUT_READY_MS = 60000UL; // 60 s para conseguir red GPRS
+static constexpr unsigned long TIMEOUT_READY_MS = 1200000UL; // 120 s para conseguir red GPRS
 static constexpr unsigned long TIMEOUT_SEND_MS  = 40000UL; // 40 s para respuesta HTTP
 
 // ---------------------------------------------------------------------------

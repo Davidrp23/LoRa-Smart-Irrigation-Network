@@ -1,3 +1,4 @@
+#include "esp32-hal-gpio.h"
 #include <cstdint>
 #include <cstddef>
 //Sensors.cpp
@@ -15,7 +16,7 @@ TinyGPSPlus gps;
 bool gpsInit(){
   // Configuración de pines y puerto serie del GPS
   pinMode(GPS_MOSFET_PIN, OUTPUT);
-  digitalWrite(GPS_MOSFET_PIN, LOW); // Asegurar que el GPS inicie apagado
+  digitalWrite(GPS_MOSFET_PIN, HIGH); // Asegurar que el GPS inicie apagado (Logica invertida)
   // Evitamos inicializar el Serial aquí para no dejar los pines en estado ALTO
   pinMode(GPS_TX_PIN, INPUT);
   pinMode(GPS_RX_PIN, INPUT);
@@ -27,10 +28,10 @@ bool getGpsCoordinates(GpsData &data, uint32_t timeoutMs) {
     bool fixAcquired = false;
     data = {0}; // Eliminamos las coordenadas guardadas rellenando todo con 0's (isValid = False)
     
-    //Encender GPS
+    //Encender GPS (Logica invertida)
     Serial.println("Encendiendo GPS y buscando satelites...");
     GPS_Serial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
-    digitalWrite(GPS_MOSFET_PIN, HIGH);
+    digitalWrite(GPS_MOSFET_PIN, LOW);
     
     // Pequeño retardo para dar tiempo a que el voltaje del módulo se estabilice
     delay(500);
@@ -65,8 +66,8 @@ bool getGpsCoordinates(GpsData &data, uint32_t timeoutMs) {
         delay(10); 
     }
 
-    //Apagar GPS
-    digitalWrite(GPS_MOSFET_PIN, LOW);
+    //Apagar GPS (Logica invertida)
+    digitalWrite(GPS_MOSFET_PIN, HIGH);
     GPS_Serial.end();
     // Ponemos los pines en alta impedancia para evitar alimentar el GPS por el pin TX (alimentación parásita)
     pinMode(GPS_TX_PIN, INPUT);
@@ -80,16 +81,15 @@ bool getGpsCoordinates(GpsData &data, uint32_t timeoutMs) {
 //           HUMEDAD
 //=============================
 bool humInit(){
-  // Configuración de pines para leer la humeadad
+  // Configuración de pines para leer la humeadad (Logica invertida)
   pinMode(HUM_MOSFET_PIN, OUTPUT);
-  digitalWrite(HUM_MOSFET_PIN, LOW); // Asegurar que el lector de humedad inicie apagado
+  digitalWrite(HUM_MOSFET_PIN, HIGH); // Asegurar que el lector de humedad inicie apagado (Logica invertida)
   return true;
 }
 
 void readHum(humData &data){
-  // Encender sensor
-  digitalWrite(HUM_MOSFET_PIN, HIGH);
-  
+  // Encender sensor (Logica invertida)
+  digitalWrite(HUM_MOSFET_PIN, LOW);
   delay(100); 
 
   size_t rawValueAVG = 0;
@@ -99,8 +99,8 @@ void readHum(humData &data){
     delay(10); 
   }
 
-  // Apagar sensor inmediatamente
-  digitalWrite(HUM_MOSFET_PIN, LOW);
+  // Apagar sensor inmediatamente (Logica invertida)
+  digitalWrite(HUM_MOSFET_PIN, HIGH);
 
   rawValueAVG = rawValueAVG / HUM_READ_ITERATIONS;
 
