@@ -51,10 +51,10 @@ void setLedMode(LEDMode mode) {
   }
 }
 
-void ledTaskCode(void * pvParameters);
+void ledTaskCode(void *pvParameters);
 
-// Configuración del servidor (Ajusta esto a tu backend)
-const char server[] = "flora.ddns.net"; // Cambiar por la IP/Dominio de tu API
+// Configuración del servidor
+const char server[] = "flora.ddns.net";
 const int port = 80;
 
 // Rutas de la API
@@ -106,14 +106,13 @@ void setup() {
 
   ledMutex = xSemaphoreCreateMutex();
   if (ledMutex != NULL) {
-    xTaskCreatePinnedToCore(
-      ledTaskCode,   /* Función de la tarea */
-      "LED_Task",    /* Nombre de la tarea */
-      2048,          /* Tamaño del stack */
-      NULL,          /* Parámetros */
-      1,             /* Prioridad (1 es baja/normal) */
-      NULL,          /* Handle de la tarea */
-      1              /* Núcleo 1 */
+    xTaskCreatePinnedToCore(ledTaskCode, /* Función de la tarea */
+                            "LED_Task",  /* Nombre de la tarea */
+                            2048,        /* Tamaño del stack */
+                            NULL,        /* Parámetros */
+                            1,           /* Prioridad (1 es baja/normal) */
+                            NULL,        /* Handle de la tarea */
+                            1            /* Núcleo 1 */
     );
   }
 
@@ -320,12 +319,12 @@ void setRGB(int r, int g, int b) {
   digitalWrite(PIN_BLUE, b ? HIGH : LOW);
 }
 
-void ledTaskCode(void * pvParameters) {
+void ledTaskCode(void *pvParameters) {
   unsigned long lastLedToggle = 0;
   bool ledState = false;
   LEDMode localMode = LED_BOOT;
 
-  for(;;) {
+  for (;;) {
     unsigned long now = millis();
     int interval = 500;
 
@@ -369,8 +368,9 @@ void ledTaskCode(void * pvParameters) {
       setRGB(0, 0, 0);
       break;
     }
-    
-    vTaskDelay(pdMS_TO_TICKS(50)); // Pausa de 50ms para ceder el control al procesador
+
+    vTaskDelay(
+        pdMS_TO_TICKS(50)); // Pausa de 50ms para ceder el control al procesador
   }
 }
 
