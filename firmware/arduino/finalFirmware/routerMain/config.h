@@ -8,7 +8,7 @@
 // -- GPS del router (mismo módulo que las motas, mismo UART)
 #define GPS_MOSFET_PIN  48
 #define GPS_RX_PIN       6   // ESP32 RX ← GPS TX
-#define GPS_TX_PIN       7   // ESP32 TX → GPS RX
+#define GPS_TX_PIN       7   // ESP32 TX → GPS RX<
 #define GPS_BAUD      9600
 #define GPS_TIMEOUT  180000  // 3 minutos máx. de búsqueda de fix
 

@@ -124,6 +124,7 @@ void setup() {
   if(!gpsInit()){
     Serial.println("Fallo la inicializacion del GPS");
   }
+ 
   if(!humInit()){
     Serial.println("Fallo la inicializacion del lector de humedad");
   }

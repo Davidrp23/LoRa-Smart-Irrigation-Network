@@ -90,11 +90,12 @@ bool humInit(){
 void readHum(humData &data){
   // Encender sensor (Logica invertida)
   digitalWrite(HUM_MOSFET_PIN, LOW);
-  delay(100); 
+
+  delay(300); //Esperar un poco
 
   size_t rawValueAVG = 0;
 
-  for(uint8_t i = 0 ; i < HUM_READ_ITERATIONS; i++){
+  for(uint16_t i = 0 ; i < HUM_READ_ITERATIONS; i++){
     rawValueAVG += analogRead(HUM_READ_PIN);
     delay(10); 
   }

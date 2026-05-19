@@ -29,6 +29,6 @@
 #define SCAN_TIME 30000  //Durante este tiempo (en ms) la mota estara mandando beacon_request
 
 //ID de la mota (Constante global)
-const size_t MY_NODE_ID = 1;
+const size_t MY_NODE_ID = 2;
 
 extern const uint32_t channelList[NUM_CHANELS];
