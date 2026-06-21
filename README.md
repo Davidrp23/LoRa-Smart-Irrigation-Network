@@ -142,7 +142,7 @@ Results are persisted in the `TurnoRiego` table and displayed to the farmer with
 │   │   ├── lora_router.cpp/h       # FLoRa protocol coordinator (RX queue, ACK)
 │   │   ├── AMcontrol.cpp/h         # AM-036 modem driver (Job queue, MOSFET ctrl)
 │   │   ├── SerialAM_lib.cpp/h      # UART JSON protocol with AM-036
-│   │   ├── network.cpp/h           # WiFi & NTP time sync
+│   │   ├── network.cpp/h           # Network Management Functions & NTP time sync
 │   │   ├── gps.cpp/h               # GPS NEO-6M handler
 │   │   ├── fuelGauge.cpp/h         # MAX17043 battery SoC (I2C)
 │   │   ├── rtc_sync.cpp/h          # Internal RTC calibration
