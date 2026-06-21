@@ -41,7 +41,7 @@ export class DeviceAuthGuard implements CanActivate {
 
     // 4.
     // Inyectamos el router entero en la "request". 
-    // Así tu controlador ya no tiene que buscar en la BD a quién pertenecen los datos.
+    // Así el controlador ya no tiene que buscar en la BD a quién pertenecen los datos.
     request.device = router;
 
     return true; // ¡Adelante, puedes pasar!

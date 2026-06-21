@@ -20,7 +20,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
-    // 3. Creamos el Payload (lo que va dentro de la pulsera VIP)
+    // 3. Creamos el Payload 
     const payload = { email: usuario.email, sub: usuario.id };
 
     // 4. Firmamos y devolvemos el JWT
