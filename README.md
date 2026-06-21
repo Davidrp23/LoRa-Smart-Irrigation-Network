@@ -274,7 +274,7 @@ docker compose up -d
 cd backend/nestjs
 npm install
 # Configure your .env file with the database connection string:
-#   DATABASE_URL="postgresql://flora_user:rcGwXEsgJ2bJdM@localhost:5432/flora_db"
+#   DATABASE_URL="postgresql://flora_user:password:5432/flora_db"
 npx prisma migrate dev     # Apply schema migrations
 npx prisma db seed          # (Optional) Seed with sample data
 npm run start:dev           # Start in development mode (port 3000)
